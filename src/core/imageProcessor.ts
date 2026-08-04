@@ -17,10 +17,10 @@ export function processImageForLithophane(
     brightness: number; // -100 to 100
     contrast: number;   // -100 to 100
     invert: boolean;    // true = dark is thick, false = light is thick
-    gridResolution?: number; // default 220
+    gridResolution?: number; // default 380 for Ultra HD 3D relief detail
   }
 ): ProcessedImageData {
-  const resolution = options.gridResolution || 220;
+  const resolution = options.gridResolution || 380;
   
   // Calculate target grid dimensions maintaining aspect ratio
   const aspectRatio = imgElement.naturalWidth / imgElement.naturalHeight;
@@ -28,8 +28,8 @@ export function processImageForLithophane(
   let gridH = Math.round(resolution / aspectRatio);
 
   // Ensure minimum grid dimensions
-  gridW = Math.max(30, gridW);
-  gridH = Math.max(30, gridH);
+  gridW = Math.max(50, gridW);
+  gridH = Math.max(50, gridH);
 
   // Canvas for pixel analysis
   const canvas = document.createElement('canvas');
@@ -40,6 +40,10 @@ export function processImageForLithophane(
   if (!ctx) {
     throw new Error('No canvas 2d context available');
   }
+
+  // High quality image scaling algorithms
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
 
   // Clear canvas
   ctx.fillStyle = '#ffffff';

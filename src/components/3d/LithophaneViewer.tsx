@@ -53,10 +53,13 @@ export const LithophaneViewer: React.FC<LithophaneViewerProps> = ({
     const renderer = new THREE.WebGLRenderer({
       canvas: canvasRef.current,
       antialias: true,
-      preserveDrawingBuffer: true
+      preserveDrawingBuffer: true,
+      powerPreference: 'high-performance'
     });
     renderer.setSize(width, height);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 3)); // High DPI crisp rendering
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.15;
     renderer.shadowMap.enabled = true;
 
     // 4. Lighting setup

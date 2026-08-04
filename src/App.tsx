@@ -13,13 +13,14 @@ import { HelpModal } from './components/HelpModal';
 import { ImageIcon, Layers, Lightbulb, Sparkles, CheckCircle2 } from 'lucide-react';
 
 export const App: React.FC = () => {
-  // Default Lithophane configuration (Arc shape with night light socket mount)
+  // Default Lithophane configuration (Arc shape with night light socket mount and Ultra HD resolution)
   const [config, setConfig] = useState<LithophaneConfig>({
     imageUrl: null,
     brightness: 10,
     contrast: 25,
     invert: false,
     shape: 'arc',
+    resolutionMode: 'ultra',
     width: 120,
     height: 100,
     minThickness: 0.8,
@@ -56,18 +57,21 @@ export const App: React.FC = () => {
   useEffect(() => {
     if (!currentImageElement) return;
 
+    const gridRes =
+      config.resolutionMode === 'ultra' ? 450 : config.resolutionMode === 'hd' ? 300 : 180;
+
     try {
       const processed = processImageForLithophane(currentImageElement, {
         brightness: config.brightness,
         contrast: config.contrast,
         invert: config.invert,
-        gridResolution: 220 // Maximum detail resolution grid for high quality 3D lithophane
+        gridResolution: gridRes
       });
       setProcessedData(processed);
     } catch (err) {
       console.error('Error processing image:', err);
     }
-  }, [currentImageElement, config.brightness, config.contrast, config.invert]);
+  }, [currentImageElement, config.brightness, config.contrast, config.invert, config.resolutionMode]);
 
   const updateConfig = (updates: Partial<LithophaneConfig>) => {
     setConfig((prev) => ({ ...prev, ...updates }));

@@ -11,6 +11,7 @@ export interface LithophaneConfig {
 
   // Shape & Dimensions
   shape: LithophaneShape;
+  resolutionMode: 'standard' | 'hd' | 'ultra'; // 180, 300, 450 grid points
   width: number;        // mm (e.g., 120mm)
   height: number;       // mm (e.g., 100mm)
   minThickness: number; // mm (e.g., 0.8mm)

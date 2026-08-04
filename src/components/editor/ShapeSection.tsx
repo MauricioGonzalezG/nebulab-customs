@@ -29,6 +29,27 @@ export const ShapeSection: React.FC<ShapeSectionProps> = ({ config, onChange }) 
     }
   ];
 
+  const resolutions: { id: 'standard' | 'hd' | 'ultra'; name: string; points: string; desc: string }[] = [
+    {
+      id: 'ultra',
+      name: 'Ultra HD 4K Litho',
+      points: '450 px (Recomendado)',
+      desc: 'Máximo detalle micrométrico para retratos y rostros'
+    },
+    {
+      id: 'hd',
+      name: 'Alta Definición HD',
+      points: '300 px',
+      desc: 'Excelente nivel de detalle y renderizado fluido'
+    },
+    {
+      id: 'standard',
+      name: 'Estándar',
+      points: '180 px',
+      desc: 'Resolución ligera para previsualizaciones rápidas'
+    }
+  ];
+
   return (
     <div className="space-y-6">
       {/* Shape Selector Cards */}
@@ -57,6 +78,37 @@ export const ShapeSection: React.FC<ShapeSectionProps> = ({ config, onChange }) 
                   <span className="text-xs font-bold text-slate-200">{s.name}</span>
                 </div>
                 <p className="text-[11px] text-slate-400 leading-tight">{s.desc}</p>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Resolution Selector Cards */}
+      <div className="space-y-2">
+        <label className="text-sm font-semibold text-slate-200 flex items-center gap-2">
+          <Maximize2 className="w-4 h-4 text-violet-400" />
+          <span>Resolución y Nivel de Detalle 3D</span>
+        </label>
+        
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {resolutions.map((r) => {
+            const isSelected = config.resolutionMode === r.id;
+            return (
+              <button
+                key={r.id}
+                onClick={() => onChange({ resolutionMode: r.id })}
+                className={`flex flex-col text-left p-3 rounded-xl border transition-all ${
+                  isSelected
+                    ? 'bg-violet-500/10 border-violet-500 text-white shadow-lg shadow-violet-500/10'
+                    : 'bg-slate-900/60 border-slate-800 hover:border-slate-700 text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-0.5">
+                  <span className="text-xs font-bold text-slate-200">{r.name}</span>
+                </div>
+                <span className="text-[10px] font-mono text-cyan-400 font-bold mb-1">{r.points}</span>
+                <p className="text-[10px] text-slate-400 leading-tight">{r.desc}</p>
               </button>
             );
           })}
