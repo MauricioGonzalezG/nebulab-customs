@@ -34,6 +34,7 @@ export const App: React.FC = () => {
     puckAngle: 45,
     puckArcCoverage: 240,
     strutCount: 4,
+    showLampPuck: true,
     enableLight: true,
     lightWarmth: 40,
     lightIntensity: 85

@@ -193,6 +193,31 @@ export const BaseSection: React.FC<BaseSectionProps> = ({ config, onChange }) =>
               ))}
             </div>
           </div>
+
+          {/* Show / Hide Puck Lamp Toggle */}
+          <div className="flex items-center justify-between pt-2 border-t border-slate-800">
+            <div>
+              <span className="text-xs font-semibold text-slate-200">
+                Lámpara LED Puck en el Vaso
+              </span>
+              <p className="text-[11px] text-slate-400">
+                {config.showLampPuck !== false
+                  ? 'Foco LED montado en el vaso'
+                  : 'Vaso hueco sin foco (Removido)'}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => onChange({ showLampPuck: config.showLampPuck === false ? true : false })}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
+                config.showLampPuck !== false
+                  ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300'
+                  : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              {config.showLampPuck !== false ? 'Quitar Lámpara' : 'Insertar Lámpara'}
+            </button>
+          </div>
         </div>
       )}
 
