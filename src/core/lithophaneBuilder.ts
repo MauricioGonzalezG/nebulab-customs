@@ -291,24 +291,57 @@ export function createBaseMesh(config: LithophaneConfig): THREE.Group {
     const rIn = rOut - 3.5;
     const tiltRad = (puckAngle * Math.PI) / 180;
 
-    const puckTargetZ = -70;
-    const puckTargetY = -height / 2 + 10;
-    const puckTargetX = 0;
+    const beamH = 10;
+    const beamW = 8;
+    const bottomY = -height / 2;
+    const puckDistanceZ = -80;
 
-    // Cup Group (Tilted at puckAngle)
+    // 1. Support Beams (Extending horizontally at 90° right angle to the vertical frame)
+    const uPoints: number[] = [];
+    const count = Math.max(2, strutCount);
+    for (let i = 0; i < count; i++) {
+      uPoints.push(0.08 + (i / (count - 1)) * 0.84);
+    }
+
+    const targetPt = new THREE.Vector3(0, bottomY + beamH / 2, puckDistanceZ);
+
+    uPoints.forEach((u) => {
+      const angle = (u - 0.5) * arcRad;
+
+      let startX = (u - 0.5) * width;
+      let startZ = 0;
+
+      if (shape === 'arc' && arcAngle > 0) {
+        startX = Math.sin(angle) * radius;
+        startZ = Math.cos(angle) * radius - radius;
+      }
+
+      // Horizontal beams at Y = bottomY + beamH/2 (90° right angle to vertical frame)
+      const startPt = new THREE.Vector3(startX, bottomY + beamH / 2, startZ);
+      const distance = startPt.distanceTo(targetPt);
+
+      const boxGeo = new THREE.BoxGeometry(beamW, beamH, distance);
+      boxGeo.translate(0, 0, distance / 2);
+
+      const beamMesh = new THREE.Mesh(boxGeo, puckMat);
+      beamMesh.position.copy(startPt);
+      beamMesh.lookAt(targetPt);
+
+      group.add(beamMesh);
+    });
+
+    // 2. Cup Group (Sitting FLUSH on top of the very end of the horizontal beams)
     const cupGroup = new THREE.Group();
-    cupGroup.position.set(puckTargetX, puckTargetY + 4, puckTargetZ);
+    cupGroup.position.set(0, bottomY + beamH, puckDistanceZ);
     cupGroup.rotation.x = tiltRad;
 
-    // 1. C-Shaped Open Socket Wall (Hollow C-cup with open notch pointing STRAIGHT UPWARDS)
+    // C-Shaped Open Socket Wall (Hollow C-cup with open notch pointing STRAIGHT UPWARDS)
     const coverageRad = ((puckArcCoverage || 240) * Math.PI) / 180;
-    // Centered around bottom (-Math.PI / 2) so open notch (cutout) faces STRAIGHT UP (+Math.PI / 2)!
     const startAngle = -Math.PI / 2 - coverageRad / 2;
     const endAngle = -Math.PI / 2 + coverageRad / 2;
     const segs = 36;
 
     const cWallShape = new THREE.Shape();
-    // Outer arc
     for (let i = 0; i <= segs; i++) {
       const a = startAngle + (i / segs) * (endAngle - startAngle);
       const x = Math.cos(a) * rOut;
@@ -316,7 +349,6 @@ export function createBaseMesh(config: LithophaneConfig): THREE.Group {
       if (i === 0) cWallShape.moveTo(x, y);
       else cWallShape.lineTo(x, y);
     }
-    // Inner arc
     for (let i = segs; i >= 0; i--) {
       const a = startAngle + (i / segs) * (endAngle - startAngle);
       const x = Math.cos(a) * rIn;
@@ -336,7 +368,7 @@ export function createBaseMesh(config: LithophaneConfig): THREE.Group {
     const wallMesh = new THREE.Mesh(wallGeo, puckMat);
     cupGroup.add(wallMesh);
 
-    // 2. Hollow Bottom Base Floor Plate
+    // Hollow Bottom Base Floor Plate
     const floorShape = new THREE.Shape();
     floorShape.moveTo(0, 0);
     for (let i = 0; i <= segs; i++) {
@@ -350,7 +382,7 @@ export function createBaseMesh(config: LithophaneConfig): THREE.Group {
     const floorMesh = new THREE.Mesh(floorGeo, puckMat);
     cupGroup.add(floorMesh);
 
-    // 3. Top Collar Lip Ring
+    // Top Collar Lip Ring
     const lipShape = new THREE.Shape();
     for (let i = 0; i <= segs; i++) {
       const a = startAngle + (i / segs) * (endAngle - startAngle);
@@ -373,7 +405,7 @@ export function createBaseMesh(config: LithophaneConfig): THREE.Group {
     lipMesh.position.y = puckDepth - 2.5;
     cupGroup.add(lipMesh);
 
-    // 4. Removable Battery LED Puck Light inside hollow socket (Toggled via showLampPuck)
+    // Removable Battery LED Puck Light inside hollow socket (Toggled via showLampPuck)
     if (config.showLampPuck !== false) {
       const puckLightGeo = new THREE.CylinderGeometry(rIn - 0.5, rIn - 0.5, puckDepth - 8, 36);
       const puckLightMesh = new THREE.Mesh(puckLightGeo, puckMat);
@@ -388,43 +420,6 @@ export function createBaseMesh(config: LithophaneConfig): THREE.Group {
     }
 
     group.add(cupGroup);
-
-    // 6. Support Beams (Struts) from bottom frame curve to puck base (3 or 4 beams as in CAD Image 3)
-    const beamW = 8;
-    const beamH = 10;
-
-    const uPoints: number[] = [];
-    const count = Math.max(2, strutCount);
-    for (let i = 0; i < count; i++) {
-      uPoints.push(0.08 + (i / (count - 1)) * 0.84);
-    }
-
-    uPoints.forEach((u) => {
-      const angle = (u - 0.5) * arcRad;
-
-      let startX = (u - 0.5) * width;
-      let startZ = 0;
-      let startY = -height / 2 - 2;
-
-      if (shape === 'arc' && arcAngle > 0) {
-        startX = Math.sin(angle) * radius;
-        startZ = Math.cos(angle) * radius - radius;
-      }
-
-      const startPt = new THREE.Vector3(startX, startY, startZ);
-      const targetPt = new THREE.Vector3(puckTargetX, puckTargetY, puckTargetZ);
-
-      const distance = startPt.distanceTo(targetPt);
-
-      const boxGeo = new THREE.BoxGeometry(beamW, beamH, distance);
-      boxGeo.translate(0, 0, distance / 2);
-
-      const beamMesh = new THREE.Mesh(boxGeo, puckMat);
-      beamMesh.position.copy(startPt);
-      beamMesh.lookAt(targetPt);
-
-      group.add(beamMesh);
-    });
 
   } else if (baseType === 'flat-stand' || baseType === 'led-wooden-base') {
     const isWood = baseType === 'led-wooden-base';
