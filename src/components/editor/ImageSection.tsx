@@ -1,0 +1,205 @@
+import React, { useRef } from 'react';
+import { LithophaneConfig } from '../../types';
+import { Upload, Image as ImageIcon, Sliders, RefreshCw, Sun, Contrast, ArrowLeftRight } from 'lucide-react';
+
+interface ImageSectionProps {
+  config: LithophaneConfig;
+  onChange: (updates: Partial<LithophaneConfig>) => void;
+  onImageLoaded: (imgElement: HTMLImageElement) => void;
+}
+
+export const ImageSection: React.FC<ImageSectionProps> = ({
+  config,
+  onChange,
+  onImageLoaded
+}) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const url = event.target?.result as string;
+        const img = new Image();
+        img.crossOrigin = 'Anonymous';
+        img.onload = () => {
+          onChange({ imageUrl: url });
+          onImageLoaded(img);
+        };
+        img.src = url;
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleLoadSample = (sampleUrl: string) => {
+    const img = new Image();
+    img.crossOrigin = 'Anonymous';
+    img.onload = () => {
+      onChange({ imageUrl: sampleUrl });
+      onImageLoaded(img);
+    };
+    img.src = sampleUrl;
+  };
+
+  // Sample portrait images for quick testing
+  const sampleImages = [
+    {
+      name: 'Pareja / Retrato',
+      url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80'
+    },
+    {
+      name: 'Mascota / Perro',
+      url: 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&w=600&q=80'
+    },
+    {
+      name: 'Paisaje / Montañas',
+      url: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=600&q=80'
+    }
+  ];
+
+  return (
+    <div className="space-y-6">
+      {/* Upload Zone */}
+      <div className="space-y-2">
+        <label className="text-sm font-semibold text-slate-200 flex items-center gap-2">
+          <Upload className="w-4 h-4 text-cyan-400" />
+          <span>Fotografía para la Litofanía</span>
+        </label>
+        
+        <div
+          onClick={() => fileInputRef.current?.click()}
+          className="relative border-2 border-dashed border-slate-700 hover:border-cyan-500/80 bg-slate-900/60 hover:bg-slate-900 rounded-2xl p-6 text-center cursor-pointer transition-all duration-200 group shadow-inner"
+        >
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/png, image/jpeg, image/webp"
+            onChange={handleFileChange}
+            className="hidden"
+          />
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-12 h-12 rounded-xl bg-slate-800 group-hover:bg-cyan-500/10 flex items-center justify-center text-slate-400 group-hover:text-cyan-400 transition-colors">
+              <ImageIcon className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-slate-200 group-hover:text-cyan-300">
+                Haz clic para subir tu foto o arrástrala aquí
+              </p>
+              <p className="text-xs text-slate-500 mt-1">
+                Formatos recomendados: JPG, PNG o WEBP (Recomendado alto contraste)
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Preset Samples */}
+      <div className="space-y-2">
+        <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+          O prueba con una foto de muestra:
+        </span>
+        <div className="grid grid-cols-3 gap-2">
+          {sampleImages.map((sample, i) => (
+            <button
+              key={i}
+              onClick={() => handleLoadSample(sample.url)}
+              className="group relative h-16 rounded-xl overflow-hidden border border-slate-800 hover:border-cyan-500 transition-all text-left"
+            >
+              <img
+                src={sample.url}
+                alt={sample.name}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-transparent to-transparent flex items-end p-1.5">
+                <span className="text-[10px] font-medium text-slate-200 truncate">
+                  {sample.name}
+                </span>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Image Adjustments */}
+      <div className="bg-slate-900/90 rounded-2xl p-5 border border-slate-800/80 space-y-5">
+        <div className="flex items-center justify-between">
+          <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+            <Sliders className="w-4 h-4 text-violet-400" />
+            <span>Ajustes de Imagen para Impresión</span>
+          </h3>
+          <button
+            onClick={() => onChange({ brightness: 0, contrast: 20, invert: false })}
+            className="text-[11px] text-slate-400 hover:text-cyan-400 flex items-center gap-1 transition-colors"
+          >
+            <RefreshCw className="w-3 h-3" />
+            <span>Restablecer</span>
+          </button>
+        </div>
+
+        {/* Brightness Slider */}
+        <div className="space-y-1.5">
+          <div className="flex justify-between text-xs">
+            <span className="text-slate-400 flex items-center gap-1.5">
+              <Sun className="w-3.5 h-3.5 text-amber-400" /> Brillo
+            </span>
+            <span className="text-cyan-400 font-mono font-medium">{config.brightness}</span>
+          </div>
+          <input
+            type="range"
+            min="-100"
+            max="100"
+            value={config.brightness}
+            onChange={(e) => onChange({ brightness: Number(e.target.value) })}
+            className="w-full accent-cyan-500 bg-slate-800 h-2 rounded-lg cursor-pointer"
+          />
+        </div>
+
+        {/* Contrast Slider */}
+        <div className="space-y-1.5">
+          <div className="flex justify-between text-xs">
+            <span className="text-slate-400 flex items-center gap-1.5">
+              <Contrast className="w-3.5 h-3.5 text-violet-400" /> Contraste
+            </span>
+            <span className="text-cyan-400 font-mono font-medium">{config.contrast}</span>
+          </div>
+          <input
+            type="range"
+            min="-100"
+            max="100"
+            value={config.contrast}
+            onChange={(e) => onChange({ contrast: Number(e.target.value) })}
+            className="w-full accent-violet-500 bg-slate-800 h-2 rounded-lg cursor-pointer"
+          />
+        </div>
+
+        {/* Invert Color Switch */}
+        <div className="flex items-center justify-between pt-2 border-t border-slate-800">
+          <div>
+            <span className="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
+              <ArrowLeftRight className="w-3.5 h-3.5 text-emerald-400" /> Invertir Relieve
+            </span>
+            <p className="text-[11px] text-slate-400">
+              {config.invert
+                ? 'Áreas claras más gruesas (Negativo)'
+                : 'Áreas oscuras más gruesas (Recomendado estándar)'}
+            </p>
+          </div>
+          <button
+            onClick={() => onChange({ invert: !config.invert })}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+              config.invert ? 'bg-cyan-500' : 'bg-slate-800'
+            }`}
+          >
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                config.invert ? 'translate-x-6' : 'translate-x-1'
+              }`}
+            />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
