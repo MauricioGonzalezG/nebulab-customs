@@ -369,9 +369,12 @@ export function createBaseMesh(config: LithophaneConfig): THREE.Group {
 }
 
 /**
- * Creates custom material simulating PLA plastic translucency & backlight illumination
+ * Creates custom material simulating PLA plastic translucency & ItsLitho grayscale photo texture mapping
  */
-export function createLithophaneMaterial(config: LithophaneConfig): THREE.MeshPhysicalMaterial {
+export function createLithophaneMaterial(
+  config: LithophaneConfig,
+  texture?: THREE.Texture | null
+): THREE.MeshPhysicalMaterial {
   const { material, enableLight, lightWarmth } = config;
 
   let baseColor = 0xffffff;
@@ -383,16 +386,22 @@ export function createLithophaneMaterial(config: LithophaneConfig): THREE.MeshPh
 
   const mat = new THREE.MeshPhysicalMaterial({
     color: baseColor,
-    roughness: 0.65,
+    map: texture || null,
+    roughness: 0.45,
     metalness: 0.05,
-    transmission: enableLight ? 0.35 : 0.05,
-    thickness: 2.5,
+    transmission: enableLight ? 0.4 : 0.0,
+    thickness: 2.0,
     ior: 1.52,
     clearcoat: 0.1,
     emissive: enableLight ? warmColor : new THREE.Color(0x000000),
-    emissiveIntensity: enableLight ? 0.25 : 0.0,
+    emissiveIntensity: enableLight ? 0.35 : 0.0,
     side: THREE.DoubleSide
   });
+
+  if (texture) {
+    texture.colorSpace = THREE.SRGBColorSpace;
+    mat.needsUpdate = true;
+  }
 
   return mat;
 }

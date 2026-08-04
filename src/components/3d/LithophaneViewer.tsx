@@ -36,13 +36,13 @@ export const LithophaneViewer: React.FC<LithophaneViewerProps> = ({
     const width = containerRef.current.clientWidth;
     const height = containerRef.current.clientHeight;
 
-    // 1. Scene setup
+    // 1. Scene setup (ItsLitho style soft sky cyan background)
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x0f172a); // Deep slate background
+    scene.background = new THREE.Color(0x8bd4e5); // Soft Sky Cyan (ItsLitho style)
 
-    // Subtle grid helper floor
-    const gridHelper = new THREE.GridHelper(400, 30, 0x334155, 0x1e293b);
-    gridHelper.position.y = -80;
+    // ItsLitho style Grid Helper floor
+    const gridHelper = new THREE.GridHelper(600, 40, 0x4aaec4, 0x78cfdf);
+    gridHelper.position.y = -85;
     scene.add(gridHelper);
 
     // 2. Camera setup
@@ -57,21 +57,21 @@ export const LithophaneViewer: React.FC<LithophaneViewerProps> = ({
       powerPreference: 'high-performance'
     });
     renderer.setSize(width, height);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 3)); // High DPI crisp rendering
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 3));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.15;
+    renderer.toneMappingExposure = 1.1;
     renderer.shadowMap.enabled = true;
 
     // 4. Lighting setup
     const ambientLight = new THREE.AmbientLight(
-      config.enableLight ? 0x222233 : 0xffffff,
-      config.enableLight ? 0.6 : 1.2
+      config.enableLight ? 0x444455 : 0xffffff,
+      config.enableLight ? 0.8 : 1.3
     );
     scene.add(ambientLight);
 
     // Front soft directional light
-    const frontLight = new THREE.DirectionalLight(0xffffff, config.enableLight ? 0.4 : 0.8);
-    frontLight.position.set(100, 100, 200);
+    const frontLight = new THREE.DirectionalLight(0xffffff, config.enableLight ? 0.5 : 0.9);
+    frontLight.position.set(100, 150, 200);
     scene.add(frontLight);
 
     // Backlight (LED light coming directly from the battery LED puck lamp cup!)
@@ -85,17 +85,8 @@ export const LithophaneViewer: React.FC<LithophaneViewerProps> = ({
       config.enableLight ? (config.lightIntensity / 100) * 5.0 : 0.0,
       400
     );
-    backLight.position.set(0, puckY, -60); // Centered inside the battery puck cup
+    backLight.position.set(0, puckY, -60);
     scene.add(backLight);
-
-    // Additional back spot glow
-    const backGlow = new THREE.PointLight(
-      backLightColor,
-      config.enableLight ? (config.lightIntensity / 100) * 2.0 : 0.0,
-      200
-    );
-    backGlow.position.set(0, 0, -30);
-    scene.add(backGlow);
 
     // 5. Root Group for Lithophane Assembly
     const rootGroup = new THREE.Group();
@@ -104,8 +95,14 @@ export const LithophaneViewer: React.FC<LithophaneViewerProps> = ({
 
     // 6. Build 3D Lithophane Mesh if data available
     if (processedData) {
+      // Load photographic texture map for ItsLitho photo rendering
+      const textureLoader = new THREE.TextureLoader();
+      const photoTexture = textureLoader.load(processedData.previewDataUrl, () => {
+        renderer.render(scene, camera);
+      });
+
       const geo = createLithophaneGeometry(processedData, config);
-      const mat = createLithophaneMaterial(config);
+      const mat = createLithophaneMaterial(config, photoTexture);
       mat.wireframe = wireframe;
 
       const lithoMesh = new THREE.Mesh(geo, mat);
@@ -124,7 +121,6 @@ export const LithophaneViewer: React.FC<LithophaneViewerProps> = ({
       const baseGroup = createBaseMesh(config);
       rootGroup.add(baseGroup);
 
-      // Adjust camera distance based on lithophane size
       const maxDim = Math.max(config.width, config.height);
       zoomRef.current = maxDim * 2.2;
     }
