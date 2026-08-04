@@ -150,97 +150,74 @@ export function createLithophaneGeometry(
 }
 
 /**
- * Creates curved frame geometry matching the EXACT curvature of the lithophane panel
+ * Creates 100% seamless, continuous curved frame geometry with ZERO gaps or corner slots
  */
 export function createFrameMesh(config: LithophaneConfig): THREE.Mesh | null {
   if (config.frameWidth <= 0) return null;
 
   const { width, height, maxThickness, frameWidth, shape, arcAngle } = config;
   const frameMat = new THREE.MeshStandardMaterial({
-    color: 0x1e293b,
-    roughness: 0.4,
-    metalness: 0.2
+    color: 0x18181b, // Sleek matte dark slate black
+    roughness: 0.7,
+    metalness: 0.1
   });
 
-  const frameDepth = maxThickness + 1.2;
-  const arcRad = (arcAngle * Math.PI) / 180;
-  const radius = (shape === 'arc' && arcRad > 0.01) ? width / arcRad : 1000;
+  const outerW = width + frameWidth * 2;
+  const outerH = height + frameWidth * 2;
+  const depth = maxThickness + 1.5;
 
-  const totalW = width + frameWidth * 2;
-  const totalH = height + frameWidth * 2;
+  // 1. Single continuous 2D ring shape (Outer rectangle minus inner cutout hole)
+  const shapePath = new THREE.Shape();
+  shapePath.moveTo(-outerW / 2, -outerH / 2);
+  shapePath.lineTo(outerW / 2, -outerH / 2);
+  shapePath.lineTo(outerW / 2, outerH / 2);
+  shapePath.lineTo(-outerW / 2, outerH / 2);
+  shapePath.closePath();
 
-  // We build border frame geometry procedurally matching arc formula
-  const frameGeo = new THREE.BufferGeometry();
-  const positions: number[] = [];
-  const indices: number[] = [];
+  const holePath = new THREE.Path();
+  holePath.moveTo(-width / 2, -height / 2);
+  holePath.lineTo(width / 2, -height / 2);
+  holePath.lineTo(width / 2, height / 2);
+  holePath.lineTo(-width / 2, height / 2);
+  holePath.closePath();
+  shapePath.holes.push(holePath);
 
-  // Helper to add extruded box along an arc
-  const addArcBar = (
-    uStart: number,
-    uEnd: number,
-    yBottom: number,
-    yTop: number,
-    zBack: number,
-    zFront: number
-  ) => {
-    const startIdx = positions.length / 3;
-    const numSegs = 20;
-
-    for (let i = 0; i <= numSegs; i++) {
-      const u = uStart + (i / numSegs) * (uEnd - uStart);
-      const posX = (u - 0.5) * totalW;
-      
-      let xB = posX;
-      let zB = zBack;
-      let xF = posX;
-      let zF = zFront;
-
-      if (shape === 'arc' && arcAngle > 0) {
-        const angle = (u - 0.5) * arcRad;
-        const rB = radius + zBack;
-        const rF = radius + zFront;
-        xB = Math.sin(angle) * rB;
-        zB = Math.cos(angle) * rB - radius;
-        xF = Math.sin(angle) * rF;
-        zF = Math.cos(angle) * rF - radius;
-      }
-
-      // 4 vertices per segment slice (back-bottom, back-top, front-bottom, front-top)
-      positions.push(xB, yBottom, zB);
-      positions.push(xB, yTop, zB);
-      positions.push(xF, yBottom, zF);
-      positions.push(xF, yTop, zF);
-    }
-
-    for (let i = 0; i < numSegs; i++) {
-      const base = startIdx + i * 4;
-      // Back face
-      indices.push(base, base + 1, base + 5);
-      indices.push(base, base + 5, base + 4);
-      // Front face
-      indices.push(base + 2, base + 6, base + 7);
-      indices.push(base + 2, base + 7, base + 3);
-      // Top face
-      indices.push(base + 1, base + 3, base + 7);
-      indices.push(base + 1, base + 7, base + 5);
-      // Bottom face
-      indices.push(base, base + 4, base + 6);
-      indices.push(base, base + 6, base + 2);
-    }
+  const extrudeSettings = {
+    steps: 1,
+    depth: depth,
+    bevelEnabled: true,
+    bevelThickness: 0.6,
+    bevelSize: 0.6,
+    bevelSegments: 2
   };
 
-  // Top Frame Bar
-  addArcBar(0, 1, height / 2, totalH / 2, -0.5, frameDepth);
-  // Bottom Frame Bar
-  addArcBar(0, 1, -totalH / 2, -height / 2, -0.5, frameDepth);
-  // Left Frame Bar
-  addArcBar(0, frameWidth / totalW, -height / 2, height / 2, -0.5, frameDepth);
-  // Right Frame Bar
-  addArcBar(1 - frameWidth / totalW, 1, -height / 2, height / 2, -0.5, frameDepth);
+  const frameGeo = new THREE.ExtrudeGeometry(shapePath, extrudeSettings);
+  frameGeo.center();
 
-  frameGeo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  frameGeo.setIndex(indices);
-  frameGeo.computeVertexNormals();
+  // 2. Deform 3D vertices along arc curve matching lithophane curvature
+  if (shape === 'arc' && arcAngle > 0) {
+    const posAttr = frameGeo.attributes.position;
+    const arcRad = (arcAngle * Math.PI) / 180;
+    const radius = arcRad > 0.01 ? width / arcRad : 1000;
+
+    for (let i = 0; i < posAttr.count; i++) {
+      const x = posAttr.getX(i);
+      const z = posAttr.getZ(i); // Local depth (-depth/2 to +depth/2)
+
+      const u = x / width; // Relative position along width
+      const angle = u * arcRad;
+      
+      // Radius shift: back of frame at Z <= 0, front of frame at Z > 0
+      const r = radius + (z + depth / 2 - 0.5);
+
+      const newX = Math.sin(angle) * r;
+      const newZ = Math.cos(angle) * r - radius;
+
+      posAttr.setX(i, newX);
+      posAttr.setZ(i, newZ);
+    }
+    frameGeo.computeVertexNormals();
+  }
 
   return new THREE.Mesh(frameGeo, frameMat);
 }
