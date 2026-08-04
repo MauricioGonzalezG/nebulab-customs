@@ -150,7 +150,7 @@ export function createLithophaneGeometry(
 }
 
 /**
- * Creates 100% seamless, continuous curved frame geometry with ZERO gaps or corner slots
+ * Creates perfectly curved 3D frame geometry with smooth arc curvature and ZERO gaps
  */
 export function createFrameMesh(config: LithophaneConfig): THREE.Mesh | null {
   if (config.frameWidth <= 0) return null;
@@ -162,64 +162,80 @@ export function createFrameMesh(config: LithophaneConfig): THREE.Mesh | null {
     metalness: 0.1
   });
 
-  const outerW = width + frameWidth * 2;
-  const outerH = height + frameWidth * 2;
-  const depth = maxThickness + 1.5;
+  const totalW = width + frameWidth * 2;
+  const depth = maxThickness + 1.2;
+  const arcRad = (arcAngle * Math.PI) / 180;
+  const radius = (shape === 'arc' && arcRad > 0.01) ? width / arcRad : 1000;
 
-  // 1. Single continuous 2D ring shape (Outer rectangle minus inner cutout hole)
-  const shapePath = new THREE.Shape();
-  shapePath.moveTo(-outerW / 2, -outerH / 2);
-  shapePath.lineTo(outerW / 2, -outerH / 2);
-  shapePath.lineTo(outerW / 2, outerH / 2);
-  shapePath.lineTo(-outerW / 2, outerH / 2);
-  shapePath.closePath();
+  const group = new THREE.Group();
 
-  const holePath = new THREE.Path();
-  holePath.moveTo(-width / 2, -height / 2);
-  holePath.lineTo(width / 2, -height / 2);
-  holePath.lineTo(width / 2, height / 2);
-  holePath.lineTo(-width / 2, height / 2);
-  holePath.closePath();
-  shapePath.holes.push(holePath);
-
-  const extrudeSettings = {
-    steps: 1,
-    depth: depth,
-    bevelEnabled: true,
-    bevelThickness: 0.6,
-    bevelSize: 0.6,
-    bevelSegments: 2
-  };
-
-  const frameGeo = new THREE.ExtrudeGeometry(shapePath, extrudeSettings);
-  frameGeo.center();
-
-  // 2. Deform 3D vertices along arc curve matching lithophane curvature
-  if (shape === 'arc' && arcAngle > 0) {
-    const posAttr = frameGeo.attributes.position;
-    const arcRad = (arcAngle * Math.PI) / 180;
-    const radius = arcRad > 0.01 ? width / arcRad : 1000;
-
+  // Helper to bend any BoxGeometry along the lithophane arc
+  const bendGeometry = (geo: THREE.BufferGeometry) => {
+    if (shape !== 'arc' || arcAngle <= 0) return geo;
+    const posAttr = geo.attributes.position;
     for (let i = 0; i < posAttr.count; i++) {
       const x = posAttr.getX(i);
-      const z = posAttr.getZ(i); // Local depth (-depth/2 to +depth/2)
+      const z = posAttr.getZ(i);
 
-      const u = x / width; // Relative position along width
+      const u = x / width;
       const angle = u * arcRad;
-      
-      // Radius shift: back of frame at Z <= 0, front of frame at Z > 0
       const r = radius + (z + depth / 2 - 0.5);
 
-      const newX = Math.sin(angle) * r;
-      const newZ = Math.cos(angle) * r - radius;
-
-      posAttr.setX(i, newX);
-      posAttr.setZ(i, newZ);
+      posAttr.setX(i, Math.sin(angle) * r);
+      posAttr.setZ(i, Math.cos(angle) * r - radius);
     }
-    frameGeo.computeVertexNormals();
-  }
+    geo.computeVertexNormals();
+    return geo;
+  };
 
-  return new THREE.Mesh(frameGeo, frameMat);
+  // 1. Top Bar (Spans full totalW horizontally, 40 segments for smooth curvature)
+  const topGeo = bendGeometry(
+    new THREE.BoxGeometry(totalW, frameWidth, depth, 40, 1, 1).translate(0, height / 2 + frameWidth / 2, 0)
+  );
+  group.add(new THREE.Mesh(topGeo, frameMat));
+
+  // 2. Bottom Bar (Spans full totalW horizontally, 40 segments for smooth curvature)
+  const bottomGeo = bendGeometry(
+    new THREE.BoxGeometry(totalW, frameWidth, depth, 40, 1, 1).translate(0, -height / 2 - frameWidth / 2, 0)
+  );
+  group.add(new THREE.Mesh(bottomGeo, frameMat));
+
+  // 3. Left Side Bar (Fills exact height between top and bottom bars)
+  const leftGeo = bendGeometry(
+    new THREE.BoxGeometry(frameWidth, height, depth, 5, 10, 1).translate(-width / 2 - frameWidth / 2, 0, 0)
+  );
+  group.add(new THREE.Mesh(leftGeo, frameMat));
+
+  // 4. Right Side Bar (Fills exact height between top and bottom bars)
+  const rightGeo = bendGeometry(
+    new THREE.BoxGeometry(frameWidth, height, depth, 5, 10, 1).translate(width / 2 + frameWidth / 2, 0, 0)
+  );
+  group.add(new THREE.Mesh(rightGeo, frameMat));
+
+  // Merge into single group mesh
+  const mergedGeo = new THREE.BufferGeometry();
+  const meshes: THREE.Mesh[] = [];
+  group.traverse((child) => {
+    if ((child as THREE.Mesh).isMesh) meshes.push(child as THREE.Mesh);
+  });
+
+  // Combine geometries
+  const positions: number[] = [];
+  const normals: number[] = [];
+
+  meshes.forEach((mesh) => {
+    const pos = mesh.geometry.attributes.position;
+    const norm = mesh.geometry.attributes.normal;
+    for (let i = 0; i < pos.count; i++) {
+      positions.push(pos.getX(i), pos.getY(i), pos.getZ(i));
+      if (norm) normals.push(norm.getX(i), norm.getY(i), norm.getZ(i));
+    }
+  });
+
+  mergedGeo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  if (normals.length > 0) mergedGeo.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+
+  return new THREE.Mesh(mergedGeo, frameMat);
 }
 
 /**
