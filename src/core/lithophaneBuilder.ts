@@ -262,6 +262,7 @@ export function createBaseMesh(config: LithophaneConfig): THREE.Group {
     puckDiameter = 60,
     puckDepth = 26,
     puckAngle = 45,
+    puckArcCoverage = 240,
     strutCount = 4
   } = config;
 
@@ -294,38 +295,94 @@ export function createBaseMesh(config: LithophaneConfig): THREE.Group {
     const puckTargetY = -height / 2 + 10;
     const puckTargetX = 0;
 
+    // Cup Group (Tilted at puckAngle)
     const cupGroup = new THREE.Group();
-    cupGroup.position.set(puckTargetX, puckTargetY, puckTargetZ);
+    // Flush alignment: sitting on top of the support beams base
+    cupGroup.position.set(puckTargetX, puckTargetY + 4, puckTargetZ);
     cupGroup.rotation.x = tiltRad;
 
-    // 1. Outer Cylinder Socket Body
-    const outerGeo = new THREE.CylinderGeometry(rOut, rOut, puckDepth, 36);
-    const outerMesh = new THREE.Mesh(outerGeo, puckMat);
-    cupGroup.add(outerMesh);
+    // 1. C-Shaped Open Socket Wall (Hollow C-cup with open top-back arc cutout)
+    const coverageRad = ((puckArcCoverage || 240) * Math.PI) / 180;
+    const startAngle = -coverageRad / 2;
+    const endAngle = coverageRad / 2;
+    const segs = 32;
 
-    // 2. Hollow Interior Floor
-    const innerGeo = new THREE.CylinderGeometry(rIn, rIn, puckDepth - 4, 36);
-    const innerMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
-    const innerMesh = new THREE.Mesh(innerGeo, innerMat);
-    innerMesh.position.y = 2;
-    cupGroup.add(innerMesh);
+    const cWallShape = new THREE.Shape();
+    // Outer arc
+    for (let i = 0; i <= segs; i++) {
+      const a = startAngle + (i / segs) * (endAngle - startAngle);
+      const x = Math.cos(a) * rOut;
+      const y = Math.sin(a) * rOut;
+      if (i === 0) cWallShape.moveTo(x, y);
+      else cWallShape.lineTo(x, y);
+    }
+    // Inner arc
+    for (let i = segs; i >= 0; i--) {
+      const a = startAngle + (i / segs) * (endAngle - startAngle);
+      const x = Math.cos(a) * rIn;
+      const y = Math.sin(a) * rIn;
+      cWallShape.lineTo(x, y);
+    }
+    cWallShape.closePath();
+
+    const wallGeo = new THREE.ExtrudeGeometry(cWallShape, {
+      depth: puckDepth,
+      bevelEnabled: true,
+      bevelThickness: 0.5,
+      bevelSize: 0.5,
+      bevelSegments: 2
+    });
+    wallGeo.rotateX(-Math.PI / 2);
+    const wallMesh = new THREE.Mesh(wallGeo, puckMat);
+    cupGroup.add(wallMesh);
+
+    // 2. Hollow Bottom Base Floor Plate
+    const floorShape = new THREE.Shape();
+    floorShape.moveTo(0, 0);
+    for (let i = 0; i <= segs; i++) {
+      const a = startAngle + (i / segs) * (endAngle - startAngle);
+      floorShape.lineTo(Math.cos(a) * rOut, Math.sin(a) * rOut);
+    }
+    floorShape.closePath();
+
+    const floorGeo = new THREE.ExtrudeGeometry(floorShape, { depth: 4, bevelEnabled: false });
+    floorGeo.rotateX(-Math.PI / 2);
+    const floorMesh = new THREE.Mesh(floorGeo, puckMat);
+    cupGroup.add(floorMesh);
 
     // 3. Top Collar Lip Ring (as seen in CAD Image 1 & 2)
-    const lipGeo = new THREE.CylinderGeometry(rOut, rOut - 1.8, 4, 36);
+    const lipShape = new THREE.Shape();
+    for (let i = 0; i <= segs; i++) {
+      const a = startAngle + (i / segs) * (endAngle - startAngle);
+      const x = Math.cos(a) * rOut;
+      const y = Math.sin(a) * rOut;
+      if (i === 0) lipShape.moveTo(x, y);
+      else lipShape.lineTo(x, y);
+    }
+    for (let i = segs; i >= 0; i--) {
+      const a = startAngle + (i / segs) * (endAngle - startAngle);
+      const x = Math.cos(a) * (rOut - 1.8);
+      const y = Math.sin(a) * (rOut - 1.8);
+      lipShape.lineTo(x, y);
+    }
+    lipShape.closePath();
+
+    const lipGeo = new THREE.ExtrudeGeometry(lipShape, { depth: 2.5, bevelEnabled: false });
+    lipGeo.rotateX(-Math.PI / 2);
     const lipMesh = new THREE.Mesh(lipGeo, puckMat);
-    lipMesh.position.y = puckDepth / 2 + 1.5;
+    lipMesh.position.y = puckDepth - 2.5;
     cupGroup.add(lipMesh);
 
-    // 4. Battery LED Puck Light inside
-    const puckLightGeo = new THREE.CylinderGeometry(rIn - 0.5, rIn - 0.5, puckDepth - 10, 36);
+    // 4. Removable Battery LED Puck Light inside hollow socket
+    const puckLightGeo = new THREE.CylinderGeometry(rIn - 0.5, rIn - 0.5, puckDepth - 8, 36);
     const puckLightMesh = new THREE.Mesh(puckLightGeo, puckMat);
-    puckLightMesh.position.y = 2;
+    puckLightMesh.position.y = (puckDepth - 8) / 2 + 2;
     cupGroup.add(puckLightMesh);
 
     // 5. LED Diffuser Lens Top
     const lensGeo = new THREE.CylinderGeometry(rIn - 2, rIn - 2, 3, 36);
     const lensMesh = new THREE.Mesh(lensGeo, lensMat);
-    lensMesh.position.y = puckDepth / 2 - 2;
+    lensMesh.position.y = puckDepth - 3.5;
     cupGroup.add(lensMesh);
 
     group.add(cupGroup);
@@ -353,7 +410,7 @@ export function createBaseMesh(config: LithophaneConfig): THREE.Group {
       }
 
       const startPt = new THREE.Vector3(startX, startY, startZ);
-      const targetPt = new THREE.Vector3(puckTargetX, puckTargetY - puckDepth / 2, puckTargetZ);
+      const targetPt = new THREE.Vector3(puckTargetX, puckTargetY, puckTargetZ);
 
       const distance = startPt.distanceTo(targetPt);
 

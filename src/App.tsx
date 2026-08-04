@@ -32,6 +32,7 @@ export const App: React.FC = () => {
     puckDiameter: 60,
     puckDepth: 26,
     puckAngle: 45,
+    puckArcCoverage: 240,
     strutCount: 4,
     enableLight: true,
     lightWarmth: 40,

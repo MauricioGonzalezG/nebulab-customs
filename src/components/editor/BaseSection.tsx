@@ -156,6 +156,23 @@ export const BaseSection: React.FC<BaseSectionProps> = ({ config, onChange }) =>
             />
           </div>
 
+          {/* Puck Arc Opening (C-Cup Coverage) */}
+          <div className="space-y-1.5">
+            <div className="flex justify-between text-xs">
+              <span className="text-slate-300">Abertura del Vaso (C-Socket Arc)</span>
+              <span className="text-cyan-400 font-mono font-bold">{config.puckArcCoverage || 240}°</span>
+            </div>
+            <input
+              type="range"
+              min="180"
+              max="300"
+              step="10"
+              value={config.puckArcCoverage || 240}
+              onChange={(e) => onChange({ puckArcCoverage: Number(e.target.value) })}
+              className="w-full accent-cyan-500 bg-slate-800 h-2 rounded-lg cursor-pointer"
+            />
+          </div>
+
           {/* Strut Count Selection */}
           <div className="space-y-1.5 pt-2 border-t border-slate-800">
             <span className="text-xs font-semibold text-slate-300 block">Número de Brazos de Soporte</span>

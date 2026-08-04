@@ -24,10 +24,11 @@ export interface LithophaneConfig {
   material: MaterialType;
 
   // Puck Socket & Struts Parametrization
-  puckDiameter: number; // mm (e.g., 60mm)
-  puckDepth: number;    // mm (e.g., 25mm)
-  puckAngle: number;    // degrees (e.g., 45deg)
-  strutCount: number;   // 3 or 4 support beams
+  puckDiameter: number;   // mm (e.g., 60mm)
+  puckDepth: number;      // mm (e.g., 25mm)
+  puckAngle: number;      // degrees (e.g., 45deg)
+  puckArcCoverage: number;// degrees for open C-cup (e.g., 240deg)
+  strutCount: number;     // 3 or 4 support beams
 
   // Lighting Simulation
   enableLight: boolean;
