@@ -29,6 +29,10 @@ export const App: React.FC = () => {
     frameWidth: 3,
     baseType: 'night-light',
     material: 'white-pla',
+    puckDiameter: 60,
+    puckDepth: 26,
+    puckAngle: 45,
+    strutCount: 4,
     enableLight: true,
     lightWarmth: 40,
     lightIntensity: 85

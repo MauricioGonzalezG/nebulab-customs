@@ -249,19 +249,29 @@ export function createFrameMesh(config: LithophaneConfig): THREE.Mesh | null {
 }
 
 /**
- * Creates Base / Stand attachment matching battery-powered LED puck lamp with EXACT vector-aligned struts
+ * Creates Base / Stand attachment matching battery-powered LED puck lamp (exact to CAD reference images 1, 2 & 3)
  */
 export function createBaseMesh(config: LithophaneConfig): THREE.Group {
   const group = new THREE.Group();
-  const { baseType, width, height, shape, arcAngle } = config;
+  const {
+    baseType,
+    width,
+    height,
+    shape,
+    arcAngle,
+    puckDiameter = 60,
+    puckDepth = 26,
+    puckAngle = 45,
+    strutCount = 4
+  } = config;
 
   if (baseType === 'none') return group;
 
   if (baseType === 'night-light') {
     const puckMat = new THREE.MeshStandardMaterial({
-      color: 0xcccccc,
+      color: 0xdddddd, // Clean white/light gray PLA plastic
       roughness: 0.35,
-      metalness: 0.15
+      metalness: 0.1
     });
 
     const lensMat = new THREE.MeshPhysicalMaterial({
@@ -273,49 +283,64 @@ export function createBaseMesh(config: LithophaneConfig): THREE.Group {
       emissiveIntensity: config.enableLight ? 0.9 : 0.0
     });
 
-    // Arc radius math
     const arcRad = (arcAngle * Math.PI) / 180;
     const radius = (shape === 'arc' && arcRad > 0.01) ? width / arcRad : 1000;
 
-    // 1. Battery LED Puck Holder Cup Position
-    const puckTargetZ = -75; // Behind lithophane
+    const rOut = puckDiameter / 2;
+    const rIn = rOut - 3.5;
+    const tiltRad = (puckAngle * Math.PI) / 180;
+
+    const puckTargetZ = -70;
     const puckTargetY = -height / 2 + 10;
     const puckTargetX = 0;
 
     const cupGroup = new THREE.Group();
     cupGroup.position.set(puckTargetX, puckTargetY, puckTargetZ);
-    cupGroup.rotation.x = Math.PI / 4; // 45 degrees tilt facing up-forward
+    cupGroup.rotation.x = tiltRad;
 
-    const cupOuterRadius = 26;
-    const cupHeight = 30;
-
-    // Cup outer body
-    const outerGeo = new THREE.CylinderGeometry(cupOuterRadius, cupOuterRadius - 2, cupHeight, 32);
+    // 1. Outer Cylinder Socket Body
+    const outerGeo = new THREE.CylinderGeometry(rOut, rOut, puckDepth, 36);
     const outerMesh = new THREE.Mesh(outerGeo, puckMat);
     cupGroup.add(outerMesh);
 
-    // Inner battery puck light
-    const puckLightGeo = new THREE.CylinderGeometry(cupOuterRadius - 3, cupOuterRadius - 3, 10, 32);
+    // 2. Hollow Interior Floor
+    const innerGeo = new THREE.CylinderGeometry(rIn, rIn, puckDepth - 4, 36);
+    const innerMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
+    const innerMesh = new THREE.Mesh(innerGeo, innerMat);
+    innerMesh.position.y = 2;
+    cupGroup.add(innerMesh);
+
+    // 3. Top Collar Lip Ring (as seen in CAD Image 1 & 2)
+    const lipGeo = new THREE.CylinderGeometry(rOut, rOut - 1.8, 4, 36);
+    const lipMesh = new THREE.Mesh(lipGeo, puckMat);
+    lipMesh.position.y = puckDepth / 2 + 1.5;
+    cupGroup.add(lipMesh);
+
+    // 4. Battery LED Puck Light inside
+    const puckLightGeo = new THREE.CylinderGeometry(rIn - 0.5, rIn - 0.5, puckDepth - 10, 36);
     const puckLightMesh = new THREE.Mesh(puckLightGeo, puckMat);
-    puckLightMesh.position.y = 5;
+    puckLightMesh.position.y = 2;
     cupGroup.add(puckLightMesh);
 
-    // LED Lens top
-    const lensGeo = new THREE.CylinderGeometry(cupOuterRadius - 4, cupOuterRadius - 4, 3, 32);
+    // 5. LED Diffuser Lens Top
+    const lensGeo = new THREE.CylinderGeometry(rIn - 2, rIn - 2, 3, 36);
     const lensMesh = new THREE.Mesh(lensGeo, lensMat);
-    lensMesh.position.y = 12;
+    lensMesh.position.y = puckDepth / 2 - 2;
     cupGroup.add(lensMesh);
 
     group.add(cupGroup);
 
-    // 2. Three Vector-Aligned Struts (Ribs) from bottom frame curve to puck cup base
-    const ribWidth = 6;
-    const ribHeight = 8;
+    // 6. Support Beams (Struts) from bottom frame curve to puck base (3 or 4 beams as in CAD Image 3)
+    const beamW = 8;
+    const beamH = 10;
 
-    // Calculate exact start coordinates on the bottom frame curve
-    const uRatios = [0.15, 0.5, 0.85]; // Left, Center, Right points along bottom frame arc
+    const uPoints: number[] = [];
+    const count = Math.max(2, strutCount);
+    for (let i = 0; i < count; i++) {
+      uPoints.push(0.08 + (i / (count - 1)) * 0.84);
+    }
 
-    uRatios.forEach((u) => {
+    uPoints.forEach((u) => {
       const angle = (u - 0.5) * arcRad;
 
       let startX = (u - 0.5) * width;
@@ -328,20 +353,18 @@ export function createBaseMesh(config: LithophaneConfig): THREE.Group {
       }
 
       const startPt = new THREE.Vector3(startX, startY, startZ);
-      const targetPt = new THREE.Vector3(puckTargetX, puckTargetY - 12, puckTargetZ);
+      const targetPt = new THREE.Vector3(puckTargetX, puckTargetY - puckDepth / 2, puckTargetZ);
 
-      // Distance between start and target
       const distance = startPt.distanceTo(targetPt);
 
-      // Create box geometry with length along Z axis (from 0 to distance)
-      const boxGeo = new THREE.BoxGeometry(ribWidth, ribHeight, distance);
-      boxGeo.translate(0, 0, distance / 2); // Shift origin to start of box
+      const boxGeo = new THREE.BoxGeometry(beamW, beamH, distance);
+      boxGeo.translate(0, 0, distance / 2);
 
-      const ribMesh = new THREE.Mesh(boxGeo, puckMat);
-      ribMesh.position.copy(startPt);
-      ribMesh.lookAt(targetPt); // Vector orient directly to puck cup base!
+      const beamMesh = new THREE.Mesh(boxGeo, puckMat);
+      beamMesh.position.copy(startPt);
+      beamMesh.lookAt(targetPt);
 
-      group.add(ribMesh);
+      group.add(beamMesh);
     });
 
   } else if (baseType === 'flat-stand' || baseType === 'led-wooden-base') {

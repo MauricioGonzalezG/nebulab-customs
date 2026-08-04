@@ -97,6 +97,88 @@ export const BaseSection: React.FC<BaseSectionProps> = ({ config, onChange }) =>
         </div>
       </div>
 
+      {/* Puck Socket Parametrization (Shown when Night Light LED option selected) */}
+      {config.baseType === 'night-light' && (
+        <div className="bg-slate-900/90 rounded-2xl p-5 border border-cyan-500/30 space-y-4 shadow-xl">
+          <h3 className="text-xs font-bold text-cyan-300 uppercase tracking-wider flex items-center gap-2">
+            <Box className="w-4 h-4 text-cyan-400" />
+            <span>Parametrización del Socket LED Puck (Lámpara)</span>
+          </h3>
+
+          {/* Puck Diameter */}
+          <div className="space-y-1.5">
+            <div className="flex justify-between text-xs">
+              <span className="text-slate-300">Diámetro del Vaso Puck</span>
+              <span className="text-cyan-400 font-mono font-bold">{config.puckDiameter || 60} mm</span>
+            </div>
+            <input
+              type="range"
+              min="48"
+              max="80"
+              step="1"
+              value={config.puckDiameter || 60}
+              onChange={(e) => onChange({ puckDiameter: Number(e.target.value) })}
+              className="w-full accent-cyan-500 bg-slate-800 h-2 rounded-lg cursor-pointer"
+            />
+          </div>
+
+          {/* Puck Depth */}
+          <div className="space-y-1.5">
+            <div className="flex justify-between text-xs">
+              <span className="text-slate-300">Profundidad del Vaso</span>
+              <span className="text-cyan-400 font-mono font-bold">{config.puckDepth || 26} mm</span>
+            </div>
+            <input
+              type="range"
+              min="15"
+              max="40"
+              step="1"
+              value={config.puckDepth || 26}
+              onChange={(e) => onChange({ puckDepth: Number(e.target.value) })}
+              className="w-full accent-cyan-500 bg-slate-800 h-2 rounded-lg cursor-pointer"
+            />
+          </div>
+
+          {/* Puck Angle */}
+          <div className="space-y-1.5">
+            <div className="flex justify-between text-xs">
+              <span className="text-slate-300">Ángulo de Inclinación</span>
+              <span className="text-cyan-400 font-mono font-bold">{config.puckAngle || 45}°</span>
+            </div>
+            <input
+              type="range"
+              min="30"
+              max="70"
+              step="5"
+              value={config.puckAngle || 45}
+              onChange={(e) => onChange({ puckAngle: Number(e.target.value) })}
+              className="w-full accent-cyan-500 bg-slate-800 h-2 rounded-lg cursor-pointer"
+            />
+          </div>
+
+          {/* Strut Count Selection */}
+          <div className="space-y-1.5 pt-2 border-t border-slate-800">
+            <span className="text-xs font-semibold text-slate-300 block">Número de Brazos de Soporte</span>
+            <div className="grid grid-cols-2 gap-2">
+              {[3, 4].map((count) => (
+                <button
+                  key={count}
+                  type="button"
+                  onClick={() => onChange({ strutCount: count })}
+                  className={`py-2 rounded-xl text-xs font-bold border transition-all ${
+                    (config.strutCount || 4) === count
+                      ? 'bg-cyan-500/20 border-cyan-500 text-white'
+                      : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  {count} Brazos (Como en CAD)
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Material Selection */}
       <div className="space-y-3">
         <label className="text-sm font-semibold text-slate-200 flex items-center gap-2">
