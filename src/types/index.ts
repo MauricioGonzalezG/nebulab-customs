@@ -56,7 +56,7 @@ export interface Order {
   shippingFee: number;
   total: number;
   shippingDetails: ShippingDetails;
-  paymentMethod: 'card' | 'paypal' | 'mercadopago';
+  paymentMethod: 'whatsapp' | 'card' | 'paypal' | 'mercadopago';
   status: 'confirmed' | 'processing';
   createdAt: string;
 }

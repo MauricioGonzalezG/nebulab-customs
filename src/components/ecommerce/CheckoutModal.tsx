@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { CartItem, Order, ShippingDetails } from '../../types';
-import { X, CreditCard, ShieldCheck, CheckCircle2, Download, Truck, Lock, ArrowLeft } from 'lucide-react';
+import { X, CheckCircle2, Download, Truck, Lock, ArrowLeft } from 'lucide-react';
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -31,11 +31,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     country: 'España'
   });
 
-  const [paymentMethod, setPaymentMethod] = useState<'card' | 'paypal' | 'mercadopago'>('card');
-  const [cardNumber, setCardNumber] = useState('');
-  const [cardExpiry, setCardExpiry] = useState('');
-  const [cardCvc, setCardCvc] = useState('');
-
   if (!isOpen) return null;
 
   const subtotal = items.reduce((acc, item) => acc + item.price * item.quantity, 0);
@@ -51,11 +46,23 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     setStep('payment');
   };
 
+  const generateWhatsAppUrl = (order: Order) => {
+    const itemDetails = order.items
+      .map(
+        (it) =>
+          `• Litofanía ${it.config.shape === 'arc' ? 'Curvada (Arco)' : it.config.shape === 'flat' ? 'Plana' : 'Cilíndrica'} (${it.config.width}x${it.config.height}mm)\n  - Soporte: ${it.config.baseType === 'night-light' ? 'Luz de Noche LED (Socket)' : it.config.baseType === 'led-wooden-base' ? 'Base Madera LED RGB' : 'Soporte Escritorio'}\n  - Material: ${it.config.material === 'white-pla' ? 'Blanco Ártico PLA' : 'Marfil Cálido'}\n  - Precio: $${it.price.toFixed(2)} USD`
+      )
+      .join('\n\n');
+
+    const msg = `¡Hola! Quisiera realizar el pedido de mi litofanía personalizada:\n\n🆔 *Orden ID:* ${order.id}\n👤 *Cliente:* ${order.shippingDetails.fullName}\n📱 *Teléfono:* ${order.shippingDetails.phone}\n📍 *Dirección:* ${order.shippingDetails.address}, ${order.shippingDetails.city} (${order.shippingDetails.country})\n\n📦 *Detalles del Producto:*\n${itemDetails}\n\n💰 *Total a Pagar:* $${order.total.toFixed(2)} USD\n\n¿Me ayudan a coordinar el pago y la entrega?`;
+
+    return `https://wa.me/573232218586?text=${encodeURIComponent(msg)}`;
+  };
+
   const handlePay = (e: React.FormEvent) => {
     e.preventDefault();
     setIsProcessing(true);
 
-    // Simulate instant payment processing delay
     setTimeout(() => {
       const order: Order = {
         id: `LITHO-${Math.floor(100000 + Math.random() * 900000)}`,
@@ -64,7 +71,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         shippingFee,
         total,
         shippingDetails: shipping,
-        paymentMethod,
+        paymentMethod: 'whatsapp',
         status: 'confirmed',
         createdAt: new Date().toISOString()
       };
@@ -73,7 +80,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       setIsProcessing(false);
       setStep('confirmation');
       onOrderCompleted(order);
-    }, 1500);
+
+      // Open WhatsApp automatically
+      const waUrl = generateWhatsAppUrl(order);
+      window.open(waUrl, '_blank');
+    }, 1200);
   };
 
   return (
@@ -224,81 +235,52 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         {/* Step 2: Payment Options */}
         {step === 'payment' && (
           <form onSubmit={handlePay} className="p-6 space-y-5">
-            {/* Payment Method Tabs */}
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                { id: 'card', name: 'Tarjeta Crédito/Débito' },
-                { id: 'paypal', name: 'PayPal' },
-                { id: 'mercadopago', name: 'Mercado Pago' }
-              ].map((m) => (
-                <button
-                  key={m.id}
-                  type="button"
-                  onClick={() => setPaymentMethod(m.id as any)}
-                  className={`p-3 rounded-xl border text-center transition-all text-xs font-semibold ${
-                    paymentMethod === m.id
-                      ? 'bg-cyan-500/10 border-cyan-500 text-white'
-                      : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
-                  }`}
-                >
-                  {m.name}
-                </button>
-              ))}
+            {/* Payment Method Selector */}
+            <div className="space-y-3">
+              <label className="text-xs font-semibold text-slate-300">Selecciona el Método de Confirmación</label>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Active Option: WhatsApp */}
+                <div className="flex flex-col text-left p-3.5 rounded-2xl border-2 transition-all bg-emerald-500/10 border-emerald-500 text-white shadow-lg shadow-emerald-500/10 relative overflow-hidden">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-bold text-emerald-300 flex items-center gap-1.5">
+                      💬 Pedir por WhatsApp
+                    </span>
+                    <span className="text-[10px] font-bold uppercase bg-emerald-500 text-slate-950 px-2 py-0.5 rounded-full">
+                      Habilitado
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-300">
+                    Envío directo del resumen a WhatsApp (+57 3232218586) para coordinar pago y despacho.
+                  </p>
+                </div>
+
+                {/* Disabled Options: Card, PayPal, Mercado Pago */}
+                {[
+                  { name: 'Tarjeta Crédito / Débito', desc: 'Pago en línea con encriptación SSL' },
+                  { name: 'PayPal Express', desc: 'Cobro seguro internacional' },
+                  { name: 'Mercado Pago', desc: 'Pasarela local de pago' }
+                ].map((m, idx) => (
+                  <div
+                    key={idx}
+                    className="flex flex-col text-left p-3.5 rounded-2xl border border-slate-800/60 bg-slate-950/40 opacity-50 cursor-not-allowed select-none"
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-semibold text-slate-400">{m.name}</span>
+                      <span className="text-[9px] font-semibold text-amber-400/90 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full">
+                        En construcción
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-slate-500">{m.desc}</p>
+                  </div>
+                ))}
+              </div>
             </div>
-
-            {/* Credit Card Input simulation */}
-            {paymentMethod === 'card' && (
-              <div className="space-y-3 bg-slate-950/60 p-4 rounded-2xl border border-slate-800">
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-300">Número de Tarjeta (Demo)</label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      placeholder="4532 •••• •••• 8892"
-                      value={cardNumber}
-                      onChange={(e) => setCardNumber(e.target.value)}
-                      className="w-full pl-10 pr-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-white focus:border-cyan-500 focus:outline-none"
-                    />
-                    <CreditCard className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-300">Expiración</label>
-                    <input
-                      type="text"
-                      placeholder="MM/AA"
-                      value={cardExpiry}
-                      onChange={(e) => setCardExpiry(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-white focus:border-cyan-500 focus:outline-none"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-300">CVC / CVV</label>
-                    <input
-                      type="text"
-                      placeholder="123"
-                      value={cardCvc}
-                      onChange={(e) => setCardCvc(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-white focus:border-cyan-500 focus:outline-none"
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {(paymentMethod === 'paypal' || paymentMethod === 'mercadopago') && (
-              <div className="p-4 bg-slate-950/60 rounded-2xl border border-slate-800 text-center text-xs text-slate-300">
-                Serás redirigido al portal oficial de {paymentMethod === 'paypal' ? 'PayPal' : 'Mercado Pago'} para finalizar tu compra de forma segura.
-              </div>
-            )}
 
             {/* Summary */}
             <div className="p-3.5 bg-slate-950/80 rounded-xl border border-slate-800/80 flex justify-between items-center text-xs">
               <span className="text-slate-400 flex items-center gap-1.5">
-                <Lock className="w-3.5 h-3.5 text-emerald-400" /> Encriptación SSL 256-bit
+                <Lock className="w-3.5 h-3.5 text-emerald-400" /> Atención directa por WhatsApp
               </span>
               <span className="text-base font-extrabold text-white font-mono">
                 ${total.toFixed(2)} USD
@@ -308,17 +290,16 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             <button
               type="submit"
               disabled={isProcessing}
-              className="w-full py-4 bg-gradient-to-r from-emerald-500 to-cyan-600 hover:from-emerald-400 hover:to-cyan-500 text-white rounded-xl text-sm font-bold shadow-xl shadow-emerald-500/20 flex items-center justify-center gap-2 transition-all"
+              className="w-full py-4 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white rounded-xl text-sm font-bold shadow-xl shadow-emerald-500/20 flex items-center justify-center gap-2 transition-all"
             >
               {isProcessing ? (
                 <>
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span>Procesando Pedido...</span>
+                  <span>Generando resumen para WhatsApp...</span>
                 </>
               ) : (
                 <>
-                  <ShieldCheck className="w-5 h-5" />
-                  <span>Pagar y Confirmar Pedido (${total.toFixed(2)})</span>
+                  <span>Confirmar y Enviar a WhatsApp (3232218586)</span>
                 </>
               )}
             </button>
@@ -358,17 +339,26 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               </p>
             </div>
 
-            {/* Download Manufacturing STL Button */}
-            <div className="p-4 bg-cyan-950/30 border border-cyan-500/30 rounded-2xl space-y-2">
-              <p className="text-xs font-semibold text-cyan-300">
-                ¿Deseas imprimir tu propia litofanía o conservar la maqueta 3D?
+            {/* Download Manufacturing STL & Re-open WhatsApp */}
+            <div className="p-4 bg-emerald-950/30 border border-emerald-500/30 rounded-2xl space-y-3">
+              <p className="text-xs font-semibold text-emerald-300">
+                Tu resumen de compra se ha generado. Si no se abrió WhatsApp automáticamente:
               </p>
+              <a
+                href={generateWhatsAppUrl(completedOrder)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full py-3 px-4 bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-md"
+              >
+                <span>💬 Abrir Pedido en WhatsApp (+57 3232218586)</span>
+              </a>
+
               <button
                 onClick={onDownloadSTL}
-                className="w-full py-2.5 px-4 bg-cyan-500 hover:bg-cyan-400 text-slate-950 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-md"
+                className="w-full py-2.5 px-4 bg-slate-800 hover:bg-slate-700 text-cyan-400 border border-cyan-500/40 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-sm"
               >
                 <Download className="w-4 h-4" />
-                <span>Descargar Archivo STL de Fabricación (.STL)</span>
+                <span>Descargar Archivo STL de Fabricación 3D (.STL)</span>
               </button>
             </div>
 
