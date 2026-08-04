@@ -113,7 +113,7 @@ export const LithophaneViewer: React.FC<LithophaneViewerProps> = ({
       // Add Frame if enabled
       const frameMesh = createFrameMesh(config);
       if (frameMesh) {
-        frameMesh.position.z = config.maxThickness / 2;
+        frameMesh.position.set(0, 0, 0);
         rootGroup.add(frameMesh);
       }
 

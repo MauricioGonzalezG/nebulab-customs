@@ -369,32 +369,32 @@ export function createBaseMesh(config: LithophaneConfig): THREE.Group {
 }
 
 /**
- * Creates custom material simulating PLA plastic translucency & ItsLitho grayscale photo texture mapping
+ * Creates custom material simulating PLA plastic solidity & ItsLitho grayscale photo texture with backlight illumination
  */
 export function createLithophaneMaterial(
   config: LithophaneConfig,
   texture?: THREE.Texture | null
-): THREE.MeshPhysicalMaterial {
-  const { material, enableLight, lightWarmth } = config;
+): THREE.MeshStandardMaterial {
+  const { material, enableLight, lightWarmth, lightIntensity } = config;
 
   let baseColor = 0xffffff;
   if (material === 'warm-ivory') baseColor = 0xfff8e7;
   if (material === 'marble') baseColor = 0xf5f5f5;
   if (material === 'glow-blue') baseColor = 0xe0f7fa;
 
-  const warmColor = new THREE.Color(0xffffff).lerp(new THREE.Color(0xffa834), lightWarmth / 100);
+  const warmColor = new THREE.Color(0xffffff).lerp(new THREE.Color(0xffaa55), lightWarmth / 100);
 
-  const mat = new THREE.MeshPhysicalMaterial({
+  const mat = new THREE.MeshStandardMaterial({
     color: baseColor,
     map: texture || null,
-    roughness: 0.45,
+    roughness: 0.55,
     metalness: 0.05,
-    transmission: enableLight ? 0.4 : 0.0,
-    thickness: 2.0,
-    ior: 1.52,
-    clearcoat: 0.1,
+    transparent: false, // 100% Solid opaque object to prevent depth sorting artifacts
+    depthWrite: true,
+    depthTest: true,
     emissive: enableLight ? warmColor : new THREE.Color(0x000000),
-    emissiveIntensity: enableLight ? 0.35 : 0.0,
+    emissiveMap: enableLight ? (texture || null) : null,
+    emissiveIntensity: enableLight ? (lightIntensity / 100) * 1.2 : 0.0,
     side: THREE.DoubleSide
   });
 
