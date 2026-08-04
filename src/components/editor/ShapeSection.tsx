@@ -200,8 +200,8 @@ export const ShapeSection: React.FC<ShapeSectionProps> = ({ config, onChange }) 
             </div>
             <input
               type="range"
-              min="2.5"
-              max="5.0"
+              min="1.2"
+              max="4.0"
               step="0.1"
               value={config.maxThickness}
               onChange={(e) => onChange({ maxThickness: Number(e.target.value) })}

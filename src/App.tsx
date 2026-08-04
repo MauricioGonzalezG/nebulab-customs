@@ -24,7 +24,7 @@ export const App: React.FC = () => {
     width: 120,
     height: 100,
     minThickness: 0.8,
-    maxThickness: 3.2,
+    maxThickness: 1.7,
     arcAngle: 60,
     frameWidth: 3,
     baseType: 'night-light',
