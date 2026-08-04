@@ -291,19 +291,22 @@ export function createBaseMesh(config: LithophaneConfig): THREE.Group {
     const rIn = rOut - 3.5;
     const tiltRad = (puckAngle * Math.PI) / 180;
 
-    const beamH = 10;
-    const beamW = 8;
-    const bottomY = -height / 2;
-    const puckDistanceZ = -80;
+    // Floor Level: Lowest Y of the lithophane/frame
+    const floorY = -height / 2;
 
-    // 1. Support Beams (Extending horizontally at 90° right angle to the vertical frame)
+    // 1. Support Beams (Thinner: 5mm height, 6mm width, sitting flush on floor Y = floorY)
+    const beamH = 5;
+    const beamW = 6;
+    const puckDistanceZ = -75;
+
     const uPoints: number[] = [];
     const count = Math.max(2, strutCount);
     for (let i = 0; i < count; i++) {
       uPoints.push(0.08 + (i / (count - 1)) * 0.84);
     }
 
-    const targetPt = new THREE.Vector3(0, bottomY + beamH / 2, puckDistanceZ);
+    // Beams center Y is floorY + beamH/2 so their bottom is flush with floorY
+    const targetPt = new THREE.Vector3(0, floorY + beamH / 2, puckDistanceZ);
 
     uPoints.forEach((u) => {
       const angle = (u - 0.5) * arcRad;
@@ -316,8 +319,7 @@ export function createBaseMesh(config: LithophaneConfig): THREE.Group {
         startZ = Math.cos(angle) * radius - radius;
       }
 
-      // Horizontal beams at Y = bottomY + beamH/2 (90° right angle to vertical frame)
-      const startPt = new THREE.Vector3(startX, bottomY + beamH / 2, startZ);
+      const startPt = new THREE.Vector3(startX, floorY + beamH / 2, startZ);
       const distance = startPt.distanceTo(targetPt);
 
       const boxGeo = new THREE.BoxGeometry(beamW, beamH, distance);
@@ -330,9 +332,13 @@ export function createBaseMesh(config: LithophaneConfig): THREE.Group {
       group.add(beamMesh);
     });
 
-    // 2. Cup Group (Sitting FLUSH on top of the very end of the horizontal beams)
+    // 2. Cup Group (Positioned so its lowest tilted edge touches floorY = -height/2 exactly)
     const cupGroup = new THREE.Group();
-    cupGroup.position.set(0, bottomY + beamH, puckDistanceZ);
+    // Lowest point of tilted cylinder of radius rOut at tiltRad is Y_min = Y_cup - rOut * sin(tiltRad)
+    // To make Y_min = floorY, Y_cup = floorY + rOut * sin(tiltRad)
+    const cupCenterY = floorY + rOut * Math.sin(tiltRad);
+
+    cupGroup.position.set(0, cupCenterY, puckDistanceZ);
     cupGroup.rotation.x = tiltRad;
 
     // C-Shaped Open Socket Wall (Hollow C-cup with open notch pointing STRAIGHT UPWARDS)
