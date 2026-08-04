@@ -1,4 +1,43 @@
 import * as THREE from 'three';
+import { LithophaneConfig } from '../types';
+import { ProcessedImageData } from './imageProcessor';
+import { createBaseMesh, createFrameMesh, createLithophaneGeometry } from './lithophaneBuilder';
+
+/**
+ * Downloads a clean printable 3D STL file excluding the removable battery LED puck light.
+ */
+export function downloadLithophaneSTL(
+  processedData: ProcessedImageData,
+  config: LithophaneConfig,
+  filename?: string
+): void {
+  // Ensure printable 3D model excludes the removable battery puck lamp
+  const stlConfig: LithophaneConfig = {
+    ...config,
+    showLampPuck: false
+  };
+
+  const exportGroup = new THREE.Group();
+
+  const geo = createLithophaneGeometry(processedData, stlConfig);
+  const mat = new THREE.MeshBasicMaterial();
+  const lithoMesh = new THREE.Mesh(geo, mat);
+  exportGroup.add(lithoMesh);
+
+  const frameMesh = createFrameMesh(stlConfig);
+  if (frameMesh) {
+    frameMesh.position.set(0, 0, 0);
+    exportGroup.add(frameMesh);
+  }
+
+  const baseGroup = createBaseMesh(stlConfig);
+  exportGroup.add(baseGroup);
+
+  exportGroup.updateMatrixWorld(true);
+
+  const name = filename || `Litofania_Fabricacion_3D_${stlConfig.shape}_${Date.now()}.stl`;
+  exportToSTL(exportGroup, name);
+}
 
 /**
  * Custom STL Exporter for Three.js geometries to avoid external heavy dependencies.

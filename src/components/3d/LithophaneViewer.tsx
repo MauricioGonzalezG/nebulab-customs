@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { LithophaneConfig } from '../../types';
 import { ProcessedImageData } from '../../core/imageProcessor';
 import { createBaseMesh, createFrameMesh, createLithophaneGeometry, createLithophaneMaterial } from '../../core/lithophaneBuilder';
-import { exportToSTL } from '../../core/stlExporter';
+import { exportToSTL, downloadLithophaneSTL } from '../../core/stlExporter';
 import { Lightbulb, RotateCcw, Download, Eye, Maximize2, Sparkles } from 'lucide-react';
 
 interface LithophaneViewerProps {
@@ -199,7 +199,9 @@ export const LithophaneViewer: React.FC<LithophaneViewerProps> = ({
   };
 
   const handleDownloadSTL = () => {
-    if (rootGroupRef.current) {
+    if (processedData) {
+      downloadLithophaneSTL(processedData, config);
+    } else if (rootGroupRef.current) {
       exportToSTL(rootGroupRef.current, `Litofania_${config.shape}_${Date.now()}.stl`);
     }
   };

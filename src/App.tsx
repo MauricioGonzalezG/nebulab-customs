@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { CartItem, LithophaneConfig, Order } from './types';
 import { createPlaceholderImage, processImageForLithophane, ProcessedImageData } from './core/imageProcessor';
+import { downloadLithophaneSTL } from './core/stlExporter';
 import { Header } from './components/Header';
 import { LithophaneViewer } from './components/3d/LithophaneViewer';
 import { ImageSection } from './components/editor/ImageSection';
@@ -291,8 +292,9 @@ export const App: React.FC = () => {
         items={cart}
         onOrderCompleted={handleOrderCompleted}
         onDownloadSTL={() => {
-          // Trigger STL Export from active state
-          alert('Generando y descargando el archivo STL 3D de alta resolución...');
+          if (processedData) {
+            downloadLithophaneSTL(processedData, config);
+          }
         }}
       />
 
