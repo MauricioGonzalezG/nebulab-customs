@@ -109,6 +109,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const generateWhatsAppUrl = (order: Order) => {
     const itemDetails = order.items
       .map((it) => {
+        if (it.itemType === 'collar' && it.collarConfig) {
+          return `• Collar para Mascota 3D (Mascota: ${it.collarConfig.petName || 'N/A'}, Tel: ${it.collarConfig.phoneText || 'N/A'})\n  - Talla: ${it.collarConfig.size}\n  - Color Correa: ${it.collarConfig.strapColor}\n  - Estilo Placa: ${it.collarConfig.plateStyle}\n  - Precio: $${it.price.toFixed(2)} USD`;
+        }
         if (it.itemType === 'clicker' && it.clickerConfig) {
           const typeName = it.clickerConfig.type === 'clicker' ? 'Clicker Teclado MX 3D' : 'Llavero 3D';
           return `• ${typeName} (${it.clickerConfig.size}mm)\n  - Estilo Base: ${it.clickerConfig.baseStyle}\n  - Switch: ${it.clickerConfig.switchType}\n  - Precio: $${it.price.toFixed(2)} USD`;
@@ -116,6 +119,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         return `• Litofanía ${it.config.shape === 'arc' ? 'Curvada (Arco)' : it.config.shape === 'flat' ? 'Plana' : 'Cilíndrica'} (${it.config.width}x${it.config.height}mm)\n  - Soporte: ${it.config.baseType === 'night-light' ? 'Luz de Noche LED (Socket)' : it.config.baseType === 'led-wooden-base' ? 'Base Madera LED RGB' : 'Soporte Escritorio'}\n  - Material: ${it.config.material === 'white-pla' ? 'Blanco Ártico PLA' : 'Marfil Cálido'}\n  - Precio: $${it.price.toFixed(2)} USD`;
       })
       .join('\n\n');
+
 
     const msg = `¡Hola! Quisiera realizar el pedido de mis productos personalizados Nebulab 3D:\n\n🆔 *Orden ID:* ${order.id}\n👤 *Cliente:* ${order.shippingDetails.fullName}\n📱 *Teléfono:* ${order.shippingDetails.phone}\n📍 *Dirección:* ${order.shippingDetails.address}, ${order.shippingDetails.city} (${order.shippingDetails.country})\n\n📦 *Detalles del Producto:*\n${itemDetails}\n\n💰 *Total a Pagar:* $${order.total.toFixed(2)} USD\n\n¿Me ayudan a coordinar el pago y la entrega?`;
 
@@ -551,9 +555,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               {completedOrder.items.map((it, idx) => (
                 <div key={idx} className="flex justify-between text-slate-400 text-[11px]">
                   <span>
-                    • {it.itemType === 'clicker' && it.clickerConfig
+                    • {it.itemType === 'collar' && it.collarConfig
+                        ? `Collar Mascota 3D — ${it.collarConfig.petName || 'Personalizado'} (Talla ${it.collarConfig.size})`
+                        : it.itemType === 'clicker' && it.clickerConfig
                         ? `${it.clickerConfig.type === 'clicker' ? 'Clicker MX 3D' : 'Llavero 3D'} (${it.clickerConfig.size}mm)`
-                        : `Litofanía ${it.config.shape} (${it.config.width}x${it.config.height}mm)`}
+                        : `Litofanía ${it.config.shape === 'arc' ? 'Curvada' : it.config.shape === 'flat' ? 'Plana' : 'Cilíndrica'} (${it.config.width}x${it.config.height}mm)`}
                   </span>
                   <span>${it.price.toFixed(2)} USD</span>
                 </div>

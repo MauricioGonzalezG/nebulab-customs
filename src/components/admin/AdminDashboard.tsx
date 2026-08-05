@@ -6,8 +6,11 @@ import { downloadLithophaneSTL } from '../../core/stlExporter';
 import { downloadClickerSTL } from '../../core/clickerStlExporter';
 import { processImageForLithophane, createPlaceholderImage, ProcessedImageData } from '../../core/imageProcessor';
 import { processClickerImage, ProcessedClickerData } from '../../core/clickerProcessor';
+import { processCollarImage, ProcessedCollarData } from '../../core/collarProcessor';
 import { LithophaneViewer } from '../3d/LithophaneViewer';
 import { ClickerViewer } from '../3d/ClickerViewer';
+import { CollarViewer } from '../3d/CollarViewer';
+
 import {
   LayoutDashboard,
   LogOut,
@@ -55,6 +58,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
   // 3D Preview state for selected order item
   const [previewProcessedData, setPreviewProcessedData] = useState<ProcessedImageData | null>(null);
   const [previewClickerProcessedData, setPreviewClickerProcessedData] = useState<ProcessedClickerData | null>(null);
+  const [previewCollarProcessedData, setPreviewCollarProcessedData] = useState<ProcessedCollarData | null>(null);
   const [isProcessing3D, setIsProcessing3D] = useState(false);
 
   const fetchDashboardData = async () => {
@@ -96,7 +100,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
       const img = new Image();
       img.crossOrigin = 'anonymous';
 
-      if (item.itemType === 'clicker' && item.clickerConfig) {
+      if (item.itemType === 'collar' && item.collarConfig) {
+        img.src = item.previewImageDataUrl || item.collarConfig.imageUrl || '';
+        img.onload = () => {
+          const processed = processCollarImage(img, item.collarConfig!);
+          setPreviewCollarProcessedData(processed);
+          setIsProcessing3D(false);
+        };
+        img.onerror = () => {
+          setIsProcessing3D(false);
+        };
+      } else if (item.itemType === 'clicker' && item.clickerConfig) {
         img.src = item.previewImageDataUrl || item.clickerConfig.imageUrl || '';
         img.onload = () => {
           const processed = processClickerImage(img, item.clickerConfig!);
@@ -107,6 +121,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
           setIsProcessing3D(false);
         };
       } else {
+
         img.src = item.previewImageDataUrl || item.config.imageUrl || '';
         img.onload = () => {
           const gridRes = item.config.resolutionMode === 'ultra' ? 450 : item.config.resolutionMode === 'hd' ? 300 : 180;
@@ -408,7 +423,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
                                 key={idx}
                                 onClick={() => handleInspectItem(order, it)}
                                 className={`px-2 py-1 rounded-lg border text-[11px] font-semibold transition-colors flex items-center gap-1 ${
-                                  it.itemType === 'clicker'
+                                  it.itemType === 'collar'
+                                    ? 'bg-rose-950/60 border-rose-800/50 text-rose-300 hover:bg-rose-900/60'
+                                    : it.itemType === 'clicker'
                                     ? 'bg-violet-950/60 border-violet-800/50 text-violet-300 hover:bg-violet-900/60'
                                     : 'bg-cyan-950/60 border-cyan-800/50 text-cyan-300 hover:bg-cyan-900/60'
                                 }`}
@@ -416,9 +433,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
                               >
                                 {it.itemType === 'clicker' ? <Key className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
                                 <span>
-                                  {it.itemType === 'clicker' && it.clickerConfig
+                                {it.itemType === 'collar' && it.collarConfig
+                                    ? `Collar ${it.collarConfig.petName || 'Mascota'} (${it.collarConfig.size})`
+                                    : it.itemType === 'clicker' && it.clickerConfig
                                     ? `${it.clickerConfig.type === 'clicker' ? 'Clicker MX' : 'Llavero'} (${it.clickerConfig.size}mm)`
-                                    : `Litofanía ${it.config?.shape || 'Flat'} (${it.config?.width || 120}x${it.config?.height || 100}mm)`}
+                                    : `Litofanía ${it.config?.shape === 'arc' ? 'Curva' : it.config?.shape === 'flat' ? 'Plana' : 'Cilíndrica'} (${it.config?.width || 120}×${it.config?.height || 100}mm)`}
                                 </span>
                               </button>
                             ))}
@@ -602,6 +621,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
                     <div className="w-8 h-8 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
                     <span className="text-xs font-semibold">Generando previsualización 3D...</span>
                   </div>
+                ) : selectedOrderItem.item.itemType === 'collar' && selectedOrderItem.item.collarConfig ? (
+                  <CollarViewer config={selectedOrderItem.item.collarConfig} processedData={previewCollarProcessedData} />
                 ) : selectedOrderItem.item.itemType === 'clicker' && selectedOrderItem.item.clickerConfig ? (
                   <ClickerViewer config={selectedOrderItem.item.clickerConfig} processedData={previewClickerProcessedData} />
                 ) : (
@@ -616,7 +637,34 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
                   Parámetros de Impresión 3D
                 </h4>
 
-                {selectedOrderItem.item.itemType === 'clicker' && selectedOrderItem.item.clickerConfig ? (
+                {selectedOrderItem.item.itemType === 'collar' && selectedOrderItem.item.collarConfig ? (
+                  <div className="grid grid-cols-2 gap-3 text-xs">
+                    <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
+                      <span className="text-slate-500 block">Nombre Mascota</span>
+                      <span className="font-bold text-slate-200 uppercase">{selectedOrderItem.item.collarConfig.petName || 'N/A'}</span>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
+                      <span className="text-slate-500 block">Teléfono Grabado</span>
+                      <span className="font-bold text-slate-200 font-mono">{selectedOrderItem.item.collarConfig.phoneText || 'N/A'}</span>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
+                      <span className="text-slate-500 block">Color Correa</span>
+                      <span className="font-bold text-slate-200 uppercase">{selectedOrderItem.item.collarConfig.strapColor}</span>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
+                      <span className="text-slate-500 block">Forma Placa</span>
+                      <span className="font-bold text-slate-200 uppercase">{selectedOrderItem.item.collarConfig.plateStyle}</span>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
+                      <span className="text-slate-500 block">Color Placa</span>
+                      <span className="font-bold text-slate-200 font-mono">{selectedOrderItem.item.collarConfig.plateColor}</span>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
+                      <span className="text-slate-500 block">Talla Collar</span>
+                      <span className="font-bold text-slate-200 uppercase">{selectedOrderItem.item.collarConfig.size}</span>
+                    </div>
+                  </div>
+                ) : selectedOrderItem.item.itemType === 'clicker' && selectedOrderItem.item.clickerConfig ? (
                   <div className="grid grid-cols-2 gap-3 text-xs">
                     <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
                       <span className="text-slate-500 block">Tipo Producto</span>
@@ -643,6 +691,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
                       <span className="font-bold text-slate-200 font-mono">{selectedOrderItem.item.clickerConfig.outlineColor}</span>
                     </div>
                   </div>
+
                 ) : (
                   <div className="grid grid-cols-2 gap-3 text-xs">
                     <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">

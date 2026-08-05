@@ -1,5 +1,6 @@
 import React from 'react';
-import { ShoppingBag, Box, HelpCircle, LayoutDashboard, User, Package, Home, Key } from 'lucide-react';
+import { ShoppingBag, Box, HelpCircle, LayoutDashboard, User, Package, Home, Key, Heart } from 'lucide-react';
+
 
 interface HeaderProps {
   cartCount: number;
@@ -10,11 +11,12 @@ interface HeaderProps {
   onNavigateHome: () => void;
   onNavigateStudio?: () => void;
   onNavigateClicker?: () => void;
+  onNavigateCollar?: () => void;
   onOpenMyOrders: () => void;
   onOpenCustomerAuth: () => void;
   customerName?: string | null;
   isAdminAuthenticated?: boolean;
-  currentView?: 'home' | 'studio' | 'clicker' | 'admin';
+  currentView?: 'home' | 'studio' | 'clicker' | 'collar' | 'admin';
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -26,6 +28,7 @@ export const Header: React.FC<HeaderProps> = ({
   onNavigateHome,
   onNavigateStudio,
   onNavigateClicker,
+  onNavigateCollar,
   onOpenMyOrders,
   onOpenCustomerAuth,
   customerName,
@@ -104,7 +107,22 @@ export const Header: React.FC<HeaderProps> = ({
               <span>Clickers & Llaveros</span>
             </button>
           )}
+
+          {onNavigateCollar && (
+            <button
+              onClick={onNavigateCollar}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                currentView === 'collar'
+                  ? 'bg-gradient-to-r from-rose-500 to-amber-600 text-white shadow-md'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Heart className="w-3.5 h-3.5 text-rose-400" />
+              <span>Collares Mascotas</span>
+            </button>
+          )}
         </div>
+
 
 
         {/* Right CTA / Customer, Admin & Cart Buttons */}

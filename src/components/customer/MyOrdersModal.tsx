@@ -239,7 +239,16 @@ export const MyOrdersModal: React.FC<MyOrdersModalProps> = ({
                   {order.items.map((it, i) => (
                     <div key={i} className="flex items-center justify-between text-xs text-slate-300">
                       <div>
-                        {it.itemType === 'clicker' && it.clickerConfig ? (
+                        {it.itemType === 'collar' && it.collarConfig ? (
+                          <>
+                            <span className="font-semibold text-slate-200">
+                              Collar para Mascota 3D
+                            </span>
+                            <span className="text-slate-500 block">
+                              Mascota: {it.collarConfig.petName || 'N/A'} • Talla: {it.collarConfig.size} • Placa: {it.collarConfig.plateStyle} • Correa: {it.collarConfig.strapColor}
+                            </span>
+                          </>
+                        ) : it.itemType === 'clicker' && it.clickerConfig ? (
                           <>
                             <span className="font-semibold text-slate-200">
                               {it.clickerConfig.type === 'clicker' ? 'Clicker Teclado MX 3D' : 'Llavero 3D'}

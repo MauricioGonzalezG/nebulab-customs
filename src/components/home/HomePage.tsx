@@ -4,6 +4,7 @@ import { Box, Sparkles, ShieldCheck, ArrowRight, Lightbulb, Key, Heart, Wrench, 
 interface HomePageProps {
   onOpenLithophaneStudio: () => void;
   onOpenClickerStudio: () => void;
+  onOpenCollarStudio: () => void;
   onOpenAuth?: () => void;
   onOpenMyOrders: () => void;
 }
@@ -11,8 +12,10 @@ interface HomePageProps {
 export const HomePage: React.FC<HomePageProps> = ({
   onOpenLithophaneStudio,
   onOpenClickerStudio,
+  onOpenCollarStudio,
   onOpenMyOrders,
 }) => {
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-inter selection:bg-cyan-500 selection:text-slate-950">
       
@@ -113,41 +116,49 @@ export const HomePage: React.FC<HomePageProps> = ({
             </button>
           </div>
 
-          {/* Card 2: Collares Personalizados (IN CONSTRUCTION) */}
-          <div className="relative rounded-3xl bg-slate-900/40 border border-slate-800/80 p-6 flex flex-col justify-between opacity-85 hover:opacity-100 transition-opacity">
+          {/* Card 2: Collares para Mascotas 3D (ACTIVE) */}
+          <div className="group relative rounded-3xl bg-slate-900/90 border border-rose-500/40 p-6 flex flex-col justify-between shadow-xl shadow-rose-500/10 hover:border-rose-400 transition-all duration-300 hover:-translate-y-1">
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <div className="w-12 h-12 rounded-2xl bg-slate-800 flex items-center justify-center text-rose-400">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-rose-500 to-amber-600 flex items-center justify-center text-white shadow-md shadow-rose-500/20">
                   <Heart className="w-6 h-6" />
                 </div>
-                <span className="px-3 py-1 text-[11px] font-bold uppercase tracking-wider bg-amber-500/10 text-amber-400 border border-amber-500/30 rounded-full flex items-center gap-1">
-                  <Wrench className="w-3.5 h-3.5" />
-                  En Construcción
+                <span className="px-3 py-1 text-[11px] font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full flex items-center gap-1">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  Disponible
                 </span>
               </div>
 
               <div>
-                <h3 className="text-xl font-bold text-slate-200 font-outfit">
-                  Collares con Litofanía
+                <h3 className="text-xl font-bold text-white font-outfit group-hover:text-rose-300 transition-colors">
+                  Collares para Mascotas 3D
                 </h3>
                 <p className="text-xs text-slate-400 mt-2 leading-relaxed">
-                  Dijes micro-litográficos en miniatura con proyección de luz para llevar tus recuerdos contigo.
+                  Collares textiles de alta resistencia con placas tridimensionales personalizadas para perro o gato.
                 </p>
               </div>
 
-              <div className="pt-2 text-xs text-slate-500 italic">
-                Próximamente disponible en Nebulab 3D.
+              <div className="pt-2 space-y-1 text-xs text-slate-300 font-medium">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-3.5 h-3.5 text-rose-400" />
+                  <span>Placa Grabada con Nombre y Teléfono</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Heart className="w-3.5 h-3.5 text-amber-400" />
+                  <span>5 Colores de Correa & Placas Eco-PLA</span>
+                </div>
               </div>
             </div>
 
             <button
-              disabled
-              className="mt-6 w-full py-3 px-4 rounded-xl bg-slate-800/80 text-slate-400 font-bold text-xs border border-slate-700/50 cursor-not-allowed flex items-center justify-center gap-2"
+              onClick={onOpenCollarStudio}
+              className="mt-6 w-full py-3 px-4 rounded-xl bg-gradient-to-r from-rose-500 to-amber-600 hover:from-rose-400 hover:to-amber-500 text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2"
             >
-              <Lock className="w-3.5 h-3.5" />
-              <span>Próximamente</span>
+              <span>Diseñar Collar 3D</span>
+              <ArrowRight className="w-4 h-4" />
             </button>
           </div>
+
 
           {/* Card 3: Clickers & Llaveros 3D (ACTIVE) */}
           <div className="group relative rounded-3xl bg-slate-900/90 border border-violet-500/40 p-6 flex flex-col justify-between shadow-xl shadow-violet-500/10 hover:border-violet-400 transition-all duration-300 hover:-translate-y-1">

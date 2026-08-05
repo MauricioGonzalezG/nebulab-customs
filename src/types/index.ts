@@ -78,17 +78,40 @@ export interface ClickerConfig {
 
 
 
+export type CollarPlateStyle = 'rounded' | 'rectangle' | 'bone' | 'shield';
+export type CollarStrapColor = 'olive' | 'crimson' | 'black' | 'navy' | 'pink';
+
+export interface CollarConfig {
+  imageUrl: string | null;
+  sampleId?: string;
+  removeBackground: boolean;
+  petName: string;
+  phoneText: string;
+  plateStyle: CollarPlateStyle;
+  plateColor: string; // e.g. '#D4AF37' (Gold/Bronze), '#1E293B' (Black), '#FFFFFF' (White)
+  textColor: string;  // e.g. '#FFFFFF', '#000000', '#D4AF37'
+  strapColor: CollarStrapColor;
+  size: 'S' | 'M' | 'L' | 'XL';
+  plateWidth: number; // mm (e.g. 45mm)
+  plateHeight: number; // mm (e.g. 35mm)
+  imageRotation: number;
+  flipHorizontal: boolean;
+  viewMode: 'assembled' | 'exploded';
+}
+
 export interface CartItem {
   id: string;
-  itemType?: 'lithophane' | 'clicker';
+  itemType?: 'lithophane' | 'clicker' | 'collar';
   title?: string;
   config: LithophaneConfig;
   clickerConfig?: ClickerConfig;
+  collarConfig?: CollarConfig;
   previewImageDataUrl: string;
   price: number;
   quantity: number;
   createdAt: string;
 }
+
 
 export interface ShippingDetails {
   fullName: string;

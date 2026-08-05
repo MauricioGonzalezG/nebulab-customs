@@ -17,11 +17,13 @@ import { AdminDashboard } from './components/admin/AdminDashboard';
 import { CustomerAuthModal } from './components/auth/CustomerAuthModal';
 import { MyOrdersModal } from './components/customer/MyOrdersModal';
 import { ClickerStudio } from './components/clicker/ClickerStudio';
+import { CollarStudio } from './components/collar/CollarStudio';
 import { useAuth } from './context/AuthContext';
 import { ImageIcon, Layers, Lightbulb, Sparkles, CheckCircle2, ArrowLeft, Lock } from 'lucide-react';
 
-const getViewFromPath = (path: string): 'home' | 'studio' | 'clicker' | 'admin' => {
+const getViewFromPath = (path: string): 'home' | 'studio' | 'clicker' | 'collar' | 'admin' => {
   const p = path.toLowerCase();
+  if (p.includes('/collar') || p.includes('/mascota')) return 'collar';
   if (p.includes('/clicker') || p.includes('/llavero')) return 'clicker';
   if (p.includes('/litofania') || p.includes('/lithophane') || p.includes('/studio')) return 'studio';
   if (p.includes('/admin')) return 'admin';
@@ -32,9 +34,10 @@ export const App: React.FC = () => {
   const { isAuthenticated, customerUser } = useAuth();
 
   // Navigation view state initialized from current URL path
-  const [currentView, setCurrentView] = useState<'home' | 'studio' | 'clicker' | 'admin'>(() =>
+  const [currentView, setCurrentView] = useState<'home' | 'studio' | 'clicker' | 'collar' | 'admin'>(() =>
     getViewFromPath(window.location.pathname)
   );
+
 
   // Modals state
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
@@ -195,10 +198,12 @@ export const App: React.FC = () => {
     return () => window.removeEventListener('popstate', handlePopState);
   }, [isAuthenticated]);
 
-  const navigateTo = (view: 'home' | 'studio' | 'clicker' | 'admin') => {
+  const navigateTo = (view: 'home' | 'studio' | 'clicker' | 'collar' | 'admin') => {
     setCurrentView(view);
     const targetPath =
-      view === 'clicker'
+      view === 'collar'
+        ? '/collares'
+        : view === 'clicker'
         ? '/clickers'
         : view === 'studio'
         ? '/litofanias'
@@ -242,6 +247,7 @@ export const App: React.FC = () => {
         onNavigateHome={() => navigateTo('home')}
         onNavigateStudio={() => navigateTo('studio')}
         onNavigateClicker={() => navigateTo('clicker')}
+        onNavigateCollar={() => navigateTo('collar')}
         onOpenMyOrders={() => setIsMyOrdersOpen(true)}
         onOpenCustomerAuth={() => setIsCustomerAuthOpen(true)}
         customerName={customerUser?.name || null}
@@ -254,6 +260,7 @@ export const App: React.FC = () => {
         <HomePage
           onOpenLithophaneStudio={() => navigateTo('studio')}
           onOpenClickerStudio={() => navigateTo('clicker')}
+          onOpenCollarStudio={() => navigateTo('collar')}
           onOpenAuth={() => setIsCustomerAuthOpen(true)}
           onOpenMyOrders={() => setIsMyOrdersOpen(true)}
         />
@@ -263,7 +270,14 @@ export const App: React.FC = () => {
           onAddToCart={handleAddToCart}
           onBuyNow={handleBuyNow}
         />
+      ) : currentView === 'collar' ? (
+        <CollarStudio
+          onBackToHome={() => navigateTo('home')}
+          onAddToCart={handleAddToCart}
+          onBuyNow={handleBuyNow}
+        />
       ) : (
+
 
 
         <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-10 space-y-6">
