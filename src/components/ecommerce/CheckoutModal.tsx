@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CartItem, Order, ShippingDetails } from '../../types';
+import { tursoService } from '../../lib/turso';
+import { useAuth } from '../../context/AuthContext';
 import { X, CheckCircle2, Download, Truck, Lock, ArrowLeft } from 'lucide-react';
 
 interface CheckoutModalProps {
@@ -17,19 +19,45 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   onOrderCompleted,
   onDownloadSTL
 }) => {
+  const { customerUser } = useAuth();
   const [step, setStep] = useState<'shipping' | 'payment' | 'confirmation'>('shipping');
   const [isProcessing, setIsProcessing] = useState(false);
   const [completedOrder, setCompletedOrder] = useState<Order | null>(null);
 
   const [shipping, setShipping] = useState<ShippingDetails>({
-    fullName: '',
-    email: '',
+    fullName: customerUser?.name || '',
+    email: customerUser?.email || '',
     phone: '',
     address: '',
     city: '',
     postalCode: '',
-    country: 'España'
+    country: 'Colombia'
   });
+
+  const [accountPassword, setAccountPassword] = useState('');
+
+  // Reset modal step and state whenever modal is opened
+  useEffect(() => {
+    if (isOpen) {
+      if (items.length > 0) {
+        setStep('shipping');
+        setCompletedOrder(null);
+      }
+      if (customerUser) {
+        setShipping((prev) => ({
+          ...prev,
+          fullName: prev.fullName || customerUser.name,
+          email: prev.email || customerUser.email,
+        }));
+      }
+    }
+  }, [isOpen, customerUser, items.length]);
+
+  const handleClose = () => {
+    setStep('shipping');
+    setCompletedOrder(null);
+    onClose();
+  };
 
   if (!isOpen) return null;
 
@@ -63,7 +91,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     e.preventDefault();
     setIsProcessing(true);
 
-    setTimeout(() => {
+    setTimeout(async () => {
       const order: Order = {
         id: `LITHO-${Math.floor(100000 + Math.random() * 900000)}`,
         items: [...items],
@@ -75,6 +103,14 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         status: 'confirmed',
         createdAt: new Date().toISOString()
       };
+
+      try {
+        // Automatically create or update customer account with email and password
+        await tursoService.createOrGetCustomerFromOrder(shipping.fullName, shipping.email, accountPassword);
+        await tursoService.saveOrder(order);
+      } catch (err) {
+        console.error('Error saving order/customer to DB:', err);
+      }
 
       setCompletedOrder(order);
       setIsProcessing(false);
@@ -116,7 +152,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
           {step !== 'confirmation' && (
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
             >
               <X className="w-5 h-5" />
@@ -152,6 +188,25 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 />
               </div>
             </div>
+
+            {/* Optional Account Password for Multi-Device Access */}
+            <div className="p-3 bg-cyan-950/20 border border-cyan-800/40 rounded-xl space-y-1.5">
+              <label className="text-xs font-semibold text-cyan-300 flex items-center gap-1.5">
+                <Lock className="w-3.5 h-3.5 text-cyan-400" />
+                Contraseña para consultar tus pedidos desde cualquier dispositivo (Opcional)
+              </label>
+              <input
+                type="password"
+                placeholder="Crea una contraseña personalizada..."
+                value={accountPassword}
+                onChange={(e) => setAccountPassword(e.target.value)}
+                className="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-white focus:border-cyan-500 focus:outline-none"
+              />
+              <p className="text-[10px] text-slate-400">
+                Tu cuenta se creará automáticamente vinculada a tu correo para darte acceso a tus archivos e impresiones.
+              </p>
+            </div>
+
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1">
@@ -363,7 +418,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             </div>
 
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className="px-6 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-semibold transition-colors"
             >
               Volver al Estudio

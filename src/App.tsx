@@ -3,6 +3,7 @@ import { CartItem, LithophaneConfig, Order } from './types';
 import { createPlaceholderImage, processImageForLithophane, ProcessedImageData } from './core/imageProcessor';
 import { downloadLithophaneSTL } from './core/stlExporter';
 import { Header } from './components/Header';
+import { HomePage } from './components/home/HomePage';
 import { LithophaneViewer } from './components/3d/LithophaneViewer';
 import { ImageSection } from './components/editor/ImageSection';
 import { ShapeSection } from './components/editor/ShapeSection';
@@ -11,10 +12,26 @@ import { PricingSummary, calculatePrice } from './components/ecommerce/PricingSu
 import { CartDrawer } from './components/ecommerce/CartDrawer';
 import { CheckoutModal } from './components/ecommerce/CheckoutModal';
 import { HelpModal } from './components/HelpModal';
-import { ImageIcon, Layers, Lightbulb, Sparkles, CheckCircle2 } from 'lucide-react';
+import { LoginModal } from './components/admin/LoginModal';
+import { AdminDashboard } from './components/admin/AdminDashboard';
+import { CustomerAuthModal } from './components/auth/CustomerAuthModal';
+import { MyOrdersModal } from './components/customer/MyOrdersModal';
+import { useAuth } from './context/AuthContext';
+import { ImageIcon, Layers, Lightbulb, Sparkles, CheckCircle2, ArrowLeft } from 'lucide-react';
 
 export const App: React.FC = () => {
-  // Default Lithophane configuration (Arc shape with night light socket mount and Ultra HD resolution)
+  const { isAuthenticated, customerUser } = useAuth();
+
+  // Navigation view state
+  const [currentView, setCurrentView] = useState<'home' | 'studio' | 'admin'>('home');
+
+  // Modals state
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isAdminViewOpen, setIsAdminViewOpen] = useState(false);
+  const [isCustomerAuthOpen, setIsCustomerAuthOpen] = useState(false);
+  const [isMyOrdersOpen, setIsMyOrdersOpen] = useState(false);
+
+  // Default Lithophane configuration
   const [config, setConfig] = useState<LithophaneConfig>({
     imageUrl: null,
     brightness: 10,
@@ -104,10 +121,12 @@ export const App: React.FC = () => {
     };
 
     setCart((prev) => [...prev, newItem]);
+    setIsCartOpen(true);
   };
 
   const handleBuyNow = (giftBox: boolean) => {
     handleAddToCart(giftBox);
+    setIsCartOpen(false);
     setIsCheckoutOpen(true);
   };
 
@@ -129,13 +148,24 @@ export const App: React.FC = () => {
     setCart((prev) => prev.filter((item) => item.id !== id));
   };
 
-  const handleOrderCompleted = (order: Order) => {
-    console.log('Order created:', order);
+  const handleOrderCompleted = (_order: Order) => {
     setCart([]); // Clear cart after order
   };
 
   const cartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
   const cartTotal = cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
+
+  const handleOpenAdmin = () => {
+    if (isAuthenticated) {
+      setIsAdminViewOpen(true);
+    } else {
+      setIsLoginModalOpen(true);
+    }
+  };
+
+  if (isAdminViewOpen && isAuthenticated) {
+    return <AdminDashboard onClose={() => setIsAdminViewOpen(false)} />;
+  }
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-inter flex flex-col selection:bg-cyan-500 selection:text-slate-950">
@@ -146,131 +176,163 @@ export const App: React.FC = () => {
         cartTotal={cartTotal}
         onOpenCart={() => setIsCartOpen(true)}
         onOpenHelp={() => setIsHelpOpen(true)}
+        onOpenAdmin={handleOpenAdmin}
+        onNavigateHome={() => setCurrentView('home')}
+        onOpenMyOrders={() => setIsMyOrdersOpen(true)}
+        onOpenCustomerAuth={() => setIsCustomerAuthOpen(true)}
+        customerName={customerUser?.name || null}
+        isAdminAuthenticated={isAuthenticated}
+        currentView={currentView}
       />
 
-      {/* Main Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        
-        {/* Left Column: 3D Viewport & Interactive Preview */}
-        <div className="lg:col-span-7 space-y-6 lg:sticky lg:top-24">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-bold font-outfit text-white flex items-center gap-2">
-                <span>Visualizador de Litofanía 3D</span>
-                <span className="text-xs font-normal text-slate-400 bg-slate-900 px-2.5 py-1 rounded-full border border-slate-800">
-                  Previsualización en tiempo real
-                </span>
-              </h2>
-            </div>
-
-            {/* Quick Shape Indicator Badge */}
-            <div className="text-xs font-semibold text-cyan-400 bg-cyan-950/60 border border-cyan-800/60 px-3 py-1 rounded-full uppercase tracking-wider">
-              {config.shape === 'arc' ? 'Arco / Curva' : config.shape === 'flat' ? 'Plana' : 'Cilindro'} • {config.width}x{config.height}mm
-            </div>
-          </div>
-
-          {/* 3D Viewer Canvas */}
-          <LithophaneViewer
-            config={config}
-            processedData={processedData}
-            onToggleLight={handleToggleLight}
-          />
-
-          {/* Feature Highlights beneath 3D viewport */}
-          <div className="grid grid-cols-3 gap-3">
-            <div className="bg-slate-900/60 border border-slate-800/80 p-3 rounded-xl text-center">
-              <Sparkles className="w-4 h-4 text-cyan-400 mx-auto mb-1" />
-              <div className="text-xs font-bold text-slate-200">Relieve Fotográfico</div>
-              <p className="text-[10px] text-slate-400 mt-0.5">Dispersión de luz milimétrica</p>
-            </div>
-            <div className="bg-slate-900/60 border border-slate-800/80 p-3 rounded-xl text-center">
-              <Layers className="w-4 h-4 text-violet-400 mx-auto mb-1" />
-              <div className="text-xs font-bold text-slate-200">Material Eco PLA</div>
-              <p className="text-[10px] text-slate-400 mt-0.5">Termoplástico no tóxico</p>
-            </div>
-            <div className="bg-slate-900/60 border border-slate-800/80 p-3 rounded-xl text-center">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 mx-auto mb-1" />
-              <div className="text-xs font-bold text-slate-200">Listo para Fabricar</div>
-              <p className="text-[10px] text-slate-400 mt-0.5">Exportación directa a STL</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column: Customizer Controls & E-Commerce Box */}
-        <div className="lg:col-span-5 space-y-6">
+      {/* Main Body View Switching */}
+      {currentView === 'home' ? (
+        <HomePage
+          onOpenLithophaneStudio={() => setCurrentView('studio')}
+          onOpenAuth={() => setIsCustomerAuthOpen(true)}
+          onOpenMyOrders={() => setIsMyOrdersOpen(true)}
+        />
+      ) : (
+        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-10 space-y-6">
           
-          {/* Tab Navigation */}
-          <div className="flex bg-slate-900/90 p-1.5 rounded-2xl border border-slate-800">
+          {/* Back to Home Bar */}
+          <div className="flex items-center justify-between border-b border-slate-800/80 pb-4">
             <button
-              onClick={() => setActiveTab('image')}
-              className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                activeTab === 'image'
-                  ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
+              onClick={() => setCurrentView('home')}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs font-semibold text-slate-300 transition-colors"
             >
-              <ImageIcon className="w-3.5 h-3.5" />
-              <span>1. Imagen</span>
+              <ArrowLeft className="w-4 h-4 text-cyan-400" />
+              <span>Volver a Inicio / Opciones</span>
             </button>
 
-            <button
-              onClick={() => setActiveTab('shape')}
-              className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                activeTab === 'shape'
-                  ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <Layers className="w-3.5 h-3.5" />
-              <span>2. Forma</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('base')}
-              className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                activeTab === 'base'
-                  ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <Lightbulb className="w-3.5 h-3.5" />
-              <span>3. Base & Luz</span>
-            </button>
+            <span className="text-xs text-slate-400 font-mono">
+              Creador de Litofanías 3D Nebulab
+            </span>
           </div>
 
-          {/* Tab Contents */}
-          {activeTab === 'image' && (
-            <ImageSection
-              config={config}
-              onChange={updateConfig}
-              onImageLoaded={(img) => setCurrentImageElement(img)}
-            />
-          )}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            {/* Left Column: 3D Viewport & Interactive Preview */}
+            <div className="lg:col-span-7 space-y-6 lg:sticky lg:top-24">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-bold font-outfit text-white flex items-center gap-2">
+                    <span>Visualizador de Litofanía 3D</span>
+                    <span className="text-xs font-normal text-slate-400 bg-slate-900 px-2.5 py-1 rounded-full border border-slate-800">
+                      Previsualización en tiempo real
+                    </span>
+                  </h2>
+                </div>
 
-          {activeTab === 'shape' && (
-            <ShapeSection
-              config={config}
-              onChange={updateConfig}
-            />
-          )}
+                {/* Quick Shape Indicator Badge */}
+                <div className="text-xs font-semibold text-cyan-400 bg-cyan-950/60 border border-cyan-800/60 px-3 py-1 rounded-full uppercase tracking-wider">
+                  {config.shape === 'arc' ? 'Arco / Curva' : config.shape === 'flat' ? 'Plana' : 'Cilindro'} • {config.width}x{config.height}mm
+                </div>
+              </div>
 
-          {activeTab === 'base' && (
-            <BaseSection
-              config={config}
-              onChange={updateConfig}
-            />
-          )}
+              {/* 3D Viewer Canvas */}
+              <LithophaneViewer
+                config={config}
+                processedData={processedData}
+                onToggleLight={handleToggleLight}
+              />
 
-          {/* Pricing Summary & E-commerce Checkout CTAs */}
-          <PricingSummary
-            config={config}
-            previewDataUrl={processedData?.previewDataUrl || null}
-            onAddToCart={handleAddToCart}
-            onBuyNow={handleBuyNow}
-          />
-        </div>
+              {/* Feature Highlights beneath 3D viewport */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="bg-slate-900/60 border border-slate-800/80 p-3 rounded-xl text-center">
+                  <Sparkles className="w-4 h-4 text-cyan-400 mx-auto mb-1" />
+                  <div className="text-xs font-bold text-slate-200">Relieve Fotográfico</div>
+                  <p className="text-[10px] text-slate-400 mt-0.5">Dispersión de luz milimétrica</p>
+                </div>
+                <div className="bg-slate-900/60 border border-slate-800/80 p-3 rounded-xl text-center">
+                  <Layers className="w-4 h-4 text-violet-400 mx-auto mb-1" />
+                  <div className="text-xs font-bold text-slate-200">Material Eco PLA</div>
+                  <p className="text-[10px] text-slate-400 mt-0.5">Termoplástico no tóxico</p>
+                </div>
+                <div className="bg-slate-900/60 border border-slate-800/80 p-3 rounded-xl text-center">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 mx-auto mb-1" />
+                  <div className="text-xs font-bold text-slate-200">Listo para Fabricar</div>
+                  <p className="text-[10px] text-slate-400 mt-0.5">Exportación directa a STL</p>
+                </div>
+              </div>
+            </div>
 
-      </main>
+            {/* Right Column: Customizer Controls & E-Commerce Box */}
+            <div className="lg:col-span-5 space-y-6">
+              
+              {/* Tab Navigation */}
+              <div className="flex bg-slate-900/90 p-1.5 rounded-2xl border border-slate-800">
+                <button
+                  onClick={() => setActiveTab('image')}
+                  className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                    activeTab === 'image'
+                      ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <ImageIcon className="w-3.5 h-3.5" />
+                  <span>1. Imagen</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('shape')}
+                  className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                    activeTab === 'shape'
+                      ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <Layers className="w-3.5 h-3.5" />
+                  <span>2. Forma</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('base')}
+                  className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                    activeTab === 'base'
+                      ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <Lightbulb className="w-3.5 h-3.5" />
+                  <span>3. Base & Luz</span>
+                </button>
+              </div>
+
+              {/* Tab Contents */}
+              {activeTab === 'image' && (
+                <ImageSection
+                  config={config}
+                  onChange={updateConfig}
+                  onImageLoaded={(img) => setCurrentImageElement(img)}
+                />
+              )}
+
+              {activeTab === 'shape' && (
+                <ShapeSection
+                  config={config}
+                  onChange={updateConfig}
+                />
+              )}
+
+              {activeTab === 'base' && (
+                <BaseSection
+                  config={config}
+                  onChange={updateConfig}
+                />
+              )}
+
+              {/* Pricing Summary & E-commerce Checkout CTAs */}
+              <PricingSummary
+                config={config}
+                previewDataUrl={processedData?.previewDataUrl || null}
+                onAddToCart={handleAddToCart}
+                onBuyNow={handleBuyNow}
+              />
+            </div>
+          </div>
+
+        </main>
+      )}
 
       {/* Cart Drawer */}
       <CartDrawer
@@ -304,10 +366,36 @@ export const App: React.FC = () => {
         onClose={() => setIsHelpOpen(false)}
       />
 
+      {/* Admin Login Modal */}
+      <LoginModal
+        isOpen={isLoginModalOpen}
+        onClose={() => setIsLoginModalOpen(false)}
+        onSuccess={() => setIsAdminViewOpen(true)}
+      />
+
+      {/* Customer Auth Modal */}
+      <CustomerAuthModal
+        isOpen={isCustomerAuthOpen}
+        onClose={() => setIsCustomerAuthOpen(false)}
+        onSuccess={() => setIsMyOrdersOpen(true)}
+      />
+
+      {/* My Orders Modal */}
+      <MyOrdersModal
+        isOpen={isMyOrdersOpen}
+        onClose={() => setIsMyOrdersOpen(false)}
+        onNavigateToStudio={() => setCurrentView('studio')}
+        onOpenCustomerAuth={() => {
+          setIsMyOrdersOpen(false);
+          setIsCustomerAuthOpen(true);
+        }}
+      />
+
+
       {/* Footer */}
       <footer className="mt-12 bg-slate-950 border-t border-slate-900 py-8 text-center text-xs text-slate-500">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p>© 2026 LithoCraft Studio • Plataforma de Impresión 3D y Litofanías Personalizadas</p>
+          <p>© 2026 Nebulab 3D Studio • Plataforma de Impresión y Personalización 3D</p>
           <div className="flex gap-4 text-slate-400">
             <a href="#" onClick={(e) => { e.preventDefault(); setIsHelpOpen(true); }} className="hover:text-cyan-400">Guía de uso</a>
             <span>•</span>

@@ -65,6 +65,6 @@ export interface Order {
   total: number;
   shippingDetails: ShippingDetails;
   paymentMethod: 'whatsapp' | 'card' | 'paypal' | 'mercadopago';
-  status: 'confirmed' | 'processing';
+  status: 'confirmed' | 'processing' | 'completed' | 'cancelled';
   createdAt: string;
 }

@@ -9,7 +9,7 @@ import { Lightbulb, RotateCcw, Download, Eye, Maximize2, Sparkles } from 'lucide
 interface LithophaneViewerProps {
   config: LithophaneConfig;
   processedData: ProcessedImageData | null;
-  onToggleLight: () => void;
+  onToggleLight?: () => void;
 }
 
 export const LithophaneViewer: React.FC<LithophaneViewerProps> = ({
