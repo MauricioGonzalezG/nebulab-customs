@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShoppingBag, Box, HelpCircle, Lock, LayoutDashboard, User, Package, Home } from 'lucide-react';
+import { ShoppingBag, Box, HelpCircle, LayoutDashboard, User, Package, Home, Key } from 'lucide-react';
 
 interface HeaderProps {
   cartCount: number;
@@ -8,11 +8,13 @@ interface HeaderProps {
   onOpenHelp: () => void;
   onOpenAdmin: () => void;
   onNavigateHome: () => void;
+  onNavigateStudio?: () => void;
+  onNavigateClicker?: () => void;
   onOpenMyOrders: () => void;
   onOpenCustomerAuth: () => void;
   customerName?: string | null;
   isAdminAuthenticated?: boolean;
-  currentView?: 'home' | 'studio' | 'admin';
+  currentView?: 'home' | 'studio' | 'clicker' | 'admin';
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -22,6 +24,8 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenHelp,
   onOpenAdmin,
   onNavigateHome,
+  onNavigateStudio,
+  onNavigateClicker,
   onOpenMyOrders,
   onOpenCustomerAuth,
   customerName,
@@ -60,10 +64,10 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* Center navigation */}
-        <div className="hidden md:flex items-center gap-2 bg-slate-900/60 p-1.5 rounded-2xl border border-slate-800">
+        <div className="hidden md:flex items-center gap-1.5 bg-slate-900/60 p-1.5 rounded-2xl border border-slate-800">
           <button
             onClick={onNavigateHome}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all ${
               currentView === 'home'
                 ? 'bg-gradient-to-r from-cyan-500 to-violet-600 text-white shadow-md'
                 : 'text-slate-400 hover:text-slate-200'
@@ -72,7 +76,36 @@ export const Header: React.FC<HeaderProps> = ({
             <Home className="w-3.5 h-3.5" />
             <span>Inicio</span>
           </button>
+
+          {onNavigateStudio && (
+            <button
+              onClick={onNavigateStudio}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                currentView === 'studio'
+                  ? 'bg-gradient-to-r from-cyan-500 to-violet-600 text-white shadow-md'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Box className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Litofanías 3D</span>
+            </button>
+          )}
+
+          {onNavigateClicker && (
+            <button
+              onClick={onNavigateClicker}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                currentView === 'clicker'
+                  ? 'bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-md'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Key className="w-3.5 h-3.5 text-violet-400" />
+              <span>Clickers & Llaveros</span>
+            </button>
+          )}
         </div>
+
 
         {/* Right CTA / Customer, Admin & Cart Buttons */}
         <div className="flex items-center gap-2.5">
@@ -98,28 +131,18 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
           )}
 
-          {/* Admin Button */}
-          <button
-            onClick={onOpenAdmin}
-            className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border transition-all ${
-              isAdminAuthenticated
-                ? 'bg-cyan-950/60 border-cyan-500/40 text-cyan-300 hover:bg-cyan-900/60'
-                : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border-slate-800'
-            }`}
-            title="Panel de Administración"
-          >
-            {isAdminAuthenticated ? (
-              <>
-                <LayoutDashboard className="w-4 h-4 text-cyan-400" />
-                <span className="hidden sm:inline">Admin</span>
-              </>
-            ) : (
-              <>
-                <Lock className="w-4 h-4 text-slate-400" />
-                <span className="hidden sm:inline">Admin</span>
-              </>
-            )}
-          </button>
+          {/* Admin Dashboard Button (Only visible when already authenticated as admin) */}
+          {isAdminAuthenticated && (
+            <button
+              onClick={onOpenAdmin}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-cyan-950/60 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-900/60 text-xs font-semibold transition-all"
+              title="Panel de Administración"
+            >
+              <LayoutDashboard className="w-4 h-4 text-cyan-400" />
+              <span className="hidden sm:inline">Admin Dashboard</span>
+            </button>
+          )}
+
 
           <button
             onClick={onOpenHelp}

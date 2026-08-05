@@ -16,20 +16,32 @@ import { LoginModal } from './components/admin/LoginModal';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { CustomerAuthModal } from './components/auth/CustomerAuthModal';
 import { MyOrdersModal } from './components/customer/MyOrdersModal';
+import { ClickerStudio } from './components/clicker/ClickerStudio';
 import { useAuth } from './context/AuthContext';
-import { ImageIcon, Layers, Lightbulb, Sparkles, CheckCircle2, ArrowLeft } from 'lucide-react';
+import { ImageIcon, Layers, Lightbulb, Sparkles, CheckCircle2, ArrowLeft, Lock } from 'lucide-react';
+
+const getViewFromPath = (path: string): 'home' | 'studio' | 'clicker' | 'admin' => {
+  const p = path.toLowerCase();
+  if (p.includes('/clicker') || p.includes('/llavero')) return 'clicker';
+  if (p.includes('/litofania') || p.includes('/lithophane') || p.includes('/studio')) return 'studio';
+  if (p.includes('/admin')) return 'admin';
+  return 'home';
+};
 
 export const App: React.FC = () => {
   const { isAuthenticated, customerUser } = useAuth();
 
-  // Navigation view state
-  const [currentView, setCurrentView] = useState<'home' | 'studio' | 'admin'>('home');
+  // Navigation view state initialized from current URL path
+  const [currentView, setCurrentView] = useState<'home' | 'studio' | 'clicker' | 'admin'>(() =>
+    getViewFromPath(window.location.pathname)
+  );
 
   // Modals state
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-  const [isAdminViewOpen, setIsAdminViewOpen] = useState(false);
+  const [isAdminViewOpen, setIsAdminViewOpen] = useState(() => window.location.pathname.toLowerCase().includes('/admin'));
   const [isCustomerAuthOpen, setIsCustomerAuthOpen] = useState(false);
   const [isMyOrdersOpen, setIsMyOrdersOpen] = useState(false);
+
 
   // Default Lithophane configuration
   const [config, setConfig] = useState<LithophaneConfig>({
@@ -105,14 +117,21 @@ export const App: React.FC = () => {
     updateConfig({ enableLight: !config.enableLight });
   };
 
-  // Add item to cart
-  const handleAddToCart = (giftBox: boolean) => {
-    if (!processedData) return;
+  // Add item to cart (supports Lithophane giftBox or direct CartItem)
+  const handleAddToCart = (itemOrGiftBox?: CartItem | boolean) => {
+    if (typeof itemOrGiftBox === 'object' && itemOrGiftBox !== null) {
+      setCart((prev) => [...prev, itemOrGiftBox]);
+      setIsCartOpen(true);
+      return;
+    }
 
+    if (!processedData) return;
+    const giftBox = typeof itemOrGiftBox === 'boolean' ? itemOrGiftBox : false;
     const priceCalc = calculatePrice(config, giftBox);
 
     const newItem: CartItem = {
       id: `ITEM-${Date.now()}`,
+      itemType: 'lithophane',
       config: { ...config },
       previewImageDataUrl: processedData.previewDataUrl,
       price: priceCalc.totalPrice,
@@ -124,11 +143,12 @@ export const App: React.FC = () => {
     setIsCartOpen(true);
   };
 
-  const handleBuyNow = (giftBox: boolean) => {
-    handleAddToCart(giftBox);
+  const handleBuyNow = (itemOrGiftBox?: CartItem | boolean) => {
+    handleAddToCart(itemOrGiftBox);
     setIsCartOpen(false);
     setIsCheckoutOpen(true);
   };
+
 
   const handleUpdateQuantity = (id: string, delta: number) => {
     setCart((prev) =>
@@ -155,16 +175,58 @@ export const App: React.FC = () => {
   const cartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
   const cartTotal = cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
 
-  const handleOpenAdmin = () => {
-    if (isAuthenticated) {
-      setIsAdminViewOpen(true);
+  // Synchronize state with browser back/forward buttons
+  useEffect(() => {
+    const handlePopState = () => {
+      const view = getViewFromPath(window.location.pathname);
+      setCurrentView(view);
+      if (view === 'admin') {
+        if (isAuthenticated) {
+          setIsAdminViewOpen(true);
+        } else {
+          setIsLoginModalOpen(true);
+        }
+      } else {
+        setIsAdminViewOpen(false);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [isAuthenticated]);
+
+  const navigateTo = (view: 'home' | 'studio' | 'clicker' | 'admin') => {
+    setCurrentView(view);
+    const targetPath =
+      view === 'clicker'
+        ? '/clickers'
+        : view === 'studio'
+        ? '/litofanias'
+        : view === 'admin'
+        ? '/admin'
+        : '/';
+
+    if (window.location.pathname !== targetPath) {
+      window.history.pushState(null, '', targetPath);
+    }
+
+    if (view === 'admin') {
+      if (isAuthenticated) {
+        setIsAdminViewOpen(true);
+      } else {
+        setIsLoginModalOpen(true);
+      }
     } else {
-      setIsLoginModalOpen(true);
+      setIsAdminViewOpen(false);
     }
   };
 
+  const handleOpenAdmin = () => {
+    navigateTo('admin');
+  };
+
   if (isAdminViewOpen && isAuthenticated) {
-    return <AdminDashboard onClose={() => setIsAdminViewOpen(false)} />;
+    return <AdminDashboard onClose={() => navigateTo('home')} />;
   }
 
   return (
@@ -177,7 +239,9 @@ export const App: React.FC = () => {
         onOpenCart={() => setIsCartOpen(true)}
         onOpenHelp={() => setIsHelpOpen(true)}
         onOpenAdmin={handleOpenAdmin}
-        onNavigateHome={() => setCurrentView('home')}
+        onNavigateHome={() => navigateTo('home')}
+        onNavigateStudio={() => navigateTo('studio')}
+        onNavigateClicker={() => navigateTo('clicker')}
         onOpenMyOrders={() => setIsMyOrdersOpen(true)}
         onOpenCustomerAuth={() => setIsCustomerAuthOpen(true)}
         customerName={customerUser?.name || null}
@@ -188,19 +252,29 @@ export const App: React.FC = () => {
       {/* Main Body View Switching */}
       {currentView === 'home' ? (
         <HomePage
-          onOpenLithophaneStudio={() => setCurrentView('studio')}
+          onOpenLithophaneStudio={() => navigateTo('studio')}
+          onOpenClickerStudio={() => navigateTo('clicker')}
           onOpenAuth={() => setIsCustomerAuthOpen(true)}
           onOpenMyOrders={() => setIsMyOrdersOpen(true)}
         />
+      ) : currentView === 'clicker' ? (
+        <ClickerStudio
+          onBackToHome={() => navigateTo('home')}
+          onAddToCart={handleAddToCart}
+          onBuyNow={handleBuyNow}
+        />
       ) : (
+
+
         <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-10 space-y-6">
           
           {/* Back to Home Bar */}
           <div className="flex items-center justify-between border-b border-slate-800/80 pb-4">
             <button
-              onClick={() => setCurrentView('home')}
+              onClick={() => navigateTo('home')}
               className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs font-semibold text-slate-300 transition-colors"
             >
+
               <ArrowLeft className="w-4 h-4 text-cyan-400" />
               <span>Volver a Inicio / Opciones</span>
             </button>
@@ -396,13 +470,19 @@ export const App: React.FC = () => {
       <footer className="mt-12 bg-slate-950 border-t border-slate-900 py-8 text-center text-xs text-slate-500">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p>© 2026 Nebulab 3D Studio • Plataforma de Impresión y Personalización 3D</p>
-          <div className="flex gap-4 text-slate-400">
+          <div className="flex items-center gap-4 text-slate-400">
             <a href="#" onClick={(e) => { e.preventDefault(); setIsHelpOpen(true); }} className="hover:text-cyan-400">Guía de uso</a>
             <span>•</span>
             <a href="#" onClick={(e) => { e.preventDefault(); alert('Términos y condiciones de impresión 3D'); }} className="hover:text-cyan-400">Términos y Condiciones</a>
+            <span>•</span>
+            <a href="#" onClick={(e) => { e.preventDefault(); handleOpenAdmin(); }} className="hover:text-slate-300 text-slate-600 transition-colors flex items-center gap-1 opacity-60 hover:opacity-100" title="Acceso de Administración">
+              <Lock className="w-3 h-3" />
+              <span>Admin</span>
+            </a>
           </div>
         </div>
       </footer>
+
 
     </div>
   );

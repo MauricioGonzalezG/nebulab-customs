@@ -37,9 +37,53 @@ export interface LithophaneConfig {
   lightIntensity: number; // 0 to 100
 }
 
+export type ClickerType = 'clicker' | 'keychain';
+export type ClickerBaseStyle = 'outline' | 'circle' | 'square' | 'hexagon' | 'shield' | 'heart';
+
+export interface ClickerConfig {
+  imageUrl: string | null;
+  sampleId?: string;
+  removeBackground: boolean;
+  type: ClickerType;
+  baseStyle: ClickerBaseStyle;
+  strokeMode: 'multi' | 'single'; // 'multi' = hasta 4 colores, 'single' = trazo único silueta
+  size: number; // mm (25 to 60)
+  topHeight: number; // mm
+  baseHeight: number; // mm
+  colorsCount: number; // 2, 3, 4
+  smoothing: number; // 0 to 50%
+  baseColor: string;
+  outlineColor: string;
+  accentColor: string;
+  detailColor: string;
+  showSwitch: boolean;
+  switchType: 'red' | 'blue' | 'brown';
+  switchCount: 1 | 2 | 3;
+  switchTolerance: number; // offset mm
+  viewMode: 'assembled' | 'exploded';
+  renderStyle: 'color' | 'extrude';
+  ringPosition: 'top' | 'top-left' | 'top-right' | 'left' | 'right' | 'bottom';
+  ringAngle: number; // 0 to 360 degrees
+  ringOffsetX: number; // mm (-25 to +25)
+  ringOffsetY: number; // mm (-25 to +25)
+  ringHeight: number;  // mm (-10 to +15)
+  includeRing: boolean; // toggle arandela de llavero en el clicker
+  imageRotation: number; // 0, 90, 180, 270 degrees
+  flipHorizontal: boolean; // espejo horizontal
+}
+
+
+
+
+
+
+
 export interface CartItem {
   id: string;
+  itemType?: 'lithophane' | 'clicker';
+  title?: string;
   config: LithophaneConfig;
+  clickerConfig?: ClickerConfig;
   previewImageDataUrl: string;
   price: number;
   quantity: number;

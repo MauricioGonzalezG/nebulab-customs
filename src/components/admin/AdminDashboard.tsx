@@ -3,8 +3,11 @@ import { useAuth } from '../../context/AuthContext';
 import { tursoService, CustomerWithMetrics } from '../../lib/turso';
 import { Order, CartItem } from '../../types';
 import { downloadLithophaneSTL } from '../../core/stlExporter';
+import { downloadClickerSTL } from '../../core/clickerStlExporter';
 import { processImageForLithophane, createPlaceholderImage, ProcessedImageData } from '../../core/imageProcessor';
+import { processClickerImage, ProcessedClickerData } from '../../core/clickerProcessor';
 import { LithophaneViewer } from '../3d/LithophaneViewer';
+import { ClickerViewer } from '../3d/ClickerViewer';
 import {
   LayoutDashboard,
   LogOut,
@@ -24,6 +27,7 @@ import {
   Sparkles,
   Sliders,
   Users,
+  Key,
 } from 'lucide-react';
 
 interface AdminDashboardProps {
@@ -50,6 +54,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
 
   // 3D Preview state for selected order item
   const [previewProcessedData, setPreviewProcessedData] = useState<ProcessedImageData | null>(null);
+  const [previewClickerProcessedData, setPreviewClickerProcessedData] = useState<ProcessedClickerData | null>(null);
   const [isProcessing3D, setIsProcessing3D] = useState(false);
 
   const fetchDashboardData = async () => {
@@ -82,7 +87,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
     }
   };
 
-  // When admin inspects a lithophane order item
+  // When admin inspects an order item
   const handleInspectItem = async (order: Order, item: CartItem) => {
     setSelectedOrderItem({ order, item });
     setIsProcessing3D(true);
@@ -90,33 +95,44 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
     try {
       const img = new Image();
       img.crossOrigin = 'anonymous';
-      img.src = item.previewImageDataUrl || item.config.imageUrl || '';
-      
-      img.onload = () => {
-        const gridRes = item.config.resolutionMode === 'ultra' ? 450 : item.config.resolutionMode === 'hd' ? 300 : 180;
-        const processed = processImageForLithophane(img, {
-          brightness: item.config.brightness,
-          contrast: item.config.contrast,
-          invert: item.config.invert,
-          gridResolution: gridRes,
-        });
-        setPreviewProcessedData(processed);
-        setIsProcessing3D(false);
-      };
 
-      img.onerror = async () => {
-        // Fallback to placeholder if original image fails
-        const placeholderImg = await createPlaceholderImage();
-        const gridRes = item.config.resolutionMode === 'ultra' ? 450 : item.config.resolutionMode === 'hd' ? 300 : 180;
-        const processed = processImageForLithophane(placeholderImg, {
-          brightness: item.config.brightness,
-          contrast: item.config.contrast,
-          invert: item.config.invert,
-          gridResolution: gridRes,
-        });
-        setPreviewProcessedData(processed);
-        setIsProcessing3D(false);
-      };
+      if (item.itemType === 'clicker' && item.clickerConfig) {
+        img.src = item.previewImageDataUrl || item.clickerConfig.imageUrl || '';
+        img.onload = () => {
+          const processed = processClickerImage(img, item.clickerConfig!);
+          setPreviewClickerProcessedData(processed);
+          setIsProcessing3D(false);
+        };
+        img.onerror = () => {
+          setIsProcessing3D(false);
+        };
+      } else {
+        img.src = item.previewImageDataUrl || item.config.imageUrl || '';
+        img.onload = () => {
+          const gridRes = item.config.resolutionMode === 'ultra' ? 450 : item.config.resolutionMode === 'hd' ? 300 : 180;
+          const processed = processImageForLithophane(img, {
+            brightness: item.config.brightness,
+            contrast: item.config.contrast,
+            invert: item.config.invert,
+            gridResolution: gridRes,
+          });
+          setPreviewProcessedData(processed);
+          setIsProcessing3D(false);
+        };
+
+        img.onerror = async () => {
+          const placeholderImg = await createPlaceholderImage();
+          const gridRes = item.config.resolutionMode === 'ultra' ? 450 : item.config.resolutionMode === 'hd' ? 300 : 180;
+          const processed = processImageForLithophane(placeholderImg, {
+            brightness: item.config.brightness,
+            contrast: item.config.contrast,
+            invert: item.config.invert,
+            gridResolution: gridRes,
+          });
+          setPreviewProcessedData(processed);
+          setIsProcessing3D(false);
+        };
+      }
     } catch (e) {
       console.error('Error processing item preview:', e);
       setIsProcessing3D(false);
@@ -262,7 +278,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
               </div>
             </div>
             <p className="text-3xl font-extrabold text-white font-outfit">{completedOrders}</p>
-            <p className="text-xs text-slate-500 mt-1">Litofanías entregadas con éxito</p>
+            <p className="text-xs text-slate-500 mt-1">Productos 3D entregados con éxito</p>
           </div>
         </div>
 
@@ -343,7 +359,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
                   <tr>
                     <th className="px-6 py-4">Orden ID</th>
                     <th className="px-6 py-4">Cliente & Contacto</th>
-                    <th className="px-6 py-4">Litofanías</th>
+                    <th className="px-6 py-4">Productos 3D</th>
                     <th className="px-6 py-4">Total</th>
                     <th className="px-6 py-4">Estado</th>
                     <th className="px-6 py-4 text-right">Acciones</th>
@@ -383,19 +399,27 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
 
                         {/* Item Count & Details */}
                         <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <span className="px-2.5 py-1 rounded-lg bg-slate-800 text-xs font-bold text-slate-200">
-                              {order.items.length} {order.items.length === 1 ? 'Litofanía' : 'Litofanías'}
+                              {order.items.length} {order.items.length === 1 ? 'Producto' : 'Productos'}
                             </span>
                             {order.items.map((it, idx) => (
                               <button
                                 key={idx}
                                 onClick={() => handleInspectItem(order, it)}
-                                className="px-2 py-1 rounded-lg bg-cyan-950/60 border border-cyan-800/50 text-[11px] font-semibold text-cyan-300 hover:bg-cyan-900/60 transition-colors flex items-center gap-1"
+                                className={`px-2 py-1 rounded-lg border text-[11px] font-semibold transition-colors flex items-center gap-1 ${
+                                  it.itemType === 'clicker'
+                                    ? 'bg-violet-950/60 border-violet-800/50 text-violet-300 hover:bg-violet-900/60'
+                                    : 'bg-cyan-950/60 border-cyan-800/50 text-cyan-300 hover:bg-cyan-900/60'
+                                }`}
                                 title="Inspeccionar parámetros 3D"
                               >
-                                <Eye className="w-3 h-3" />
-                                <span>{it.config.shape} ({it.config.width}x{it.config.height}mm)</span>
+                                {it.itemType === 'clicker' ? <Key className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                                <span>
+                                  {it.itemType === 'clicker' && it.clickerConfig
+                                    ? `${it.clickerConfig.type === 'clicker' ? 'Clicker MX' : 'Llavero'} (${it.clickerConfig.size}mm)`
+                                    : `Litofanía ${it.config?.shape || 'Flat'} (${it.config?.width || 120}x${it.config?.height || 100}mm)`}
+                                </span>
                               </button>
                             ))}
                           </div>
@@ -549,10 +573,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
             <div className="p-6 border-b border-slate-800 bg-slate-950/60 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
-                  <Box className="w-5 h-5" />
+                  {selectedOrderItem.item.itemType === 'clicker' ? <Key className="w-5 h-5 text-violet-400" /> : <Box className="w-5 h-5 text-cyan-400" />}
                 </div>
                 <div>
-                  <h3 className="font-bold text-lg text-white">Inspección de Litofanía 3D</h3>
+                  <h3 className="font-bold text-lg text-white">
+                    {selectedOrderItem.item.itemType === 'clicker'
+                      ? `Inspección de ${selectedOrderItem.item.clickerConfig?.type === 'clicker' ? 'Clicker Teclado MX 3D' : 'Llavero 3D'}`
+                      : 'Inspección de Litofanía 3D'}
+                  </h3>
                   <p className="text-xs text-slate-400 font-mono">Orden {selectedOrderItem.order.id} • Item {selectedOrderItem.item.id}</p>
                 </div>
               </div>
@@ -574,6 +602,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
                     <div className="w-8 h-8 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
                     <span className="text-xs font-semibold">Generando previsualización 3D...</span>
                   </div>
+                ) : selectedOrderItem.item.itemType === 'clicker' && selectedOrderItem.item.clickerConfig ? (
+                  <ClickerViewer config={selectedOrderItem.item.clickerConfig} processedData={previewClickerProcessedData} />
                 ) : (
                   <LithophaneViewer config={selectedOrderItem.item.config} processedData={previewProcessedData} />
                 )}
@@ -586,32 +616,61 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
                   Parámetros de Impresión 3D
                 </h4>
 
-                <div className="grid grid-cols-2 gap-3 text-xs">
-                  <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
-                    <span className="text-slate-500 block">Geometría</span>
-                    <span className="font-bold text-slate-200 uppercase">{selectedOrderItem.item.config.shape}</span>
+                {selectedOrderItem.item.itemType === 'clicker' && selectedOrderItem.item.clickerConfig ? (
+                  <div className="grid grid-cols-2 gap-3 text-xs">
+                    <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
+                      <span className="text-slate-500 block">Tipo Producto</span>
+                      <span className="font-bold text-slate-200 uppercase">{selectedOrderItem.item.clickerConfig.type}</span>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
+                      <span className="text-slate-500 block">Estilo Base</span>
+                      <span className="font-bold text-slate-200 uppercase">{selectedOrderItem.item.clickerConfig.baseStyle}</span>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
+                      <span className="text-slate-500 block">Tamaño Ancho</span>
+                      <span className="font-bold text-slate-200">{selectedOrderItem.item.clickerConfig.size} mm</span>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
+                      <span className="text-slate-500 block">Switch MX</span>
+                      <span className="font-bold text-slate-200 uppercase">{selectedOrderItem.item.clickerConfig.switchType}</span>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
+                      <span className="text-slate-500 block">Color Tapa</span>
+                      <span className="font-bold text-slate-200 font-mono">{selectedOrderItem.item.clickerConfig.baseColor}</span>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
+                      <span className="text-slate-500 block">Color Trazo</span>
+                      <span className="font-bold text-slate-200 font-mono">{selectedOrderItem.item.clickerConfig.outlineColor}</span>
+                    </div>
                   </div>
-                  <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
-                    <span className="text-slate-500 block">Resolución</span>
-                    <span className="font-bold text-slate-200 uppercase">{selectedOrderItem.item.config.resolutionMode}</span>
+                ) : (
+                  <div className="grid grid-cols-2 gap-3 text-xs">
+                    <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
+                      <span className="text-slate-500 block">Geometría</span>
+                      <span className="font-bold text-slate-200 uppercase">{selectedOrderItem.item.config?.shape || 'flat'}</span>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
+                      <span className="text-slate-500 block">Resolución</span>
+                      <span className="font-bold text-slate-200 uppercase">{selectedOrderItem.item.config?.resolutionMode || 'hd'}</span>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
+                      <span className="text-slate-500 block">Dimensiones</span>
+                      <span className="font-bold text-slate-200">{selectedOrderItem.item.config?.width || 120} x {selectedOrderItem.item.config?.height || 100} mm</span>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
+                      <span className="text-slate-500 block">Grosor Min / Max</span>
+                      <span className="font-bold text-slate-200">{selectedOrderItem.item.config?.minThickness || 0.8} / {selectedOrderItem.item.config?.maxThickness || 3.2} mm</span>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
+                      <span className="text-slate-500 block">Soporte Base</span>
+                      <span className="font-bold text-slate-200">{selectedOrderItem.item.config?.baseType || 'none'}</span>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
+                      <span className="text-slate-500 block">Material Filament</span>
+                      <span className="font-bold text-slate-200">{selectedOrderItem.item.config?.material || 'white-pla'}</span>
+                    </div>
                   </div>
-                  <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
-                    <span className="text-slate-500 block">Dimensiones</span>
-                    <span className="font-bold text-slate-200">{selectedOrderItem.item.config.width} x {selectedOrderItem.item.config.height} mm</span>
-                  </div>
-                  <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
-                    <span className="text-slate-500 block">Grosor Min / Max</span>
-                    <span className="font-bold text-slate-200">{selectedOrderItem.item.config.minThickness} / {selectedOrderItem.item.config.maxThickness} mm</span>
-                  </div>
-                  <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
-                    <span className="text-slate-500 block">Soporte Base</span>
-                    <span className="font-bold text-slate-200">{selectedOrderItem.item.config.baseType}</span>
-                  </div>
-                  <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
-                    <span className="text-slate-500 block">Material Filament</span>
-                    <span className="font-bold text-slate-200">{selectedOrderItem.item.config.material}</span>
-                  </div>
-                </div>
+                )}
 
                 <div className="p-4 rounded-xl bg-cyan-950/20 border border-cyan-800/40 text-xs space-y-1 text-cyan-200">
                   <div className="font-semibold flex items-center gap-1.5">
@@ -625,12 +684,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
                 {/* STL Export Button */}
                 <button
                   onClick={() => {
-                    if (previewProcessedData) {
+                    if (selectedOrderItem.item.itemType === 'clicker' && selectedOrderItem.item.clickerConfig) {
+                      downloadClickerSTL(previewClickerProcessedData, selectedOrderItem.item.clickerConfig);
+                    } else if (previewProcessedData && selectedOrderItem.item.config) {
                       downloadLithophaneSTL(previewProcessedData, selectedOrderItem.item.config);
                     }
                   }}
-                  disabled={!previewProcessedData}
-                  className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-violet-600 hover:from-cyan-400 hover:to-violet-500 text-white font-bold text-sm shadow-lg shadow-cyan-500/25 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                  className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-violet-600 hover:from-cyan-400 hover:to-violet-500 text-white font-bold text-sm shadow-lg shadow-cyan-500/25 transition-all flex items-center justify-center gap-2"
                 >
                   <Download className="w-4 h-4" />
                   <span>Descargar Archivo STL (.stl)</span>

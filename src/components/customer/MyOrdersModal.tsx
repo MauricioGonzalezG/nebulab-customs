@@ -239,15 +239,29 @@ export const MyOrdersModal: React.FC<MyOrdersModalProps> = ({
                   {order.items.map((it, i) => (
                     <div key={i} className="flex items-center justify-between text-xs text-slate-300">
                       <div>
-                        <span className="font-semibold text-slate-200">
-                          Litofanía {it.config.shape === 'arc' ? 'Curva (Arco)' : it.config.shape === 'flat' ? 'Plana' : 'Cilindro'}
-                        </span>
-                        <span className="text-slate-500 block">
-                          Dimensiones: {it.config.width}x{it.config.height}mm • Material: {it.config.material}
-                        </span>
+                        {it.itemType === 'clicker' && it.clickerConfig ? (
+                          <>
+                            <span className="font-semibold text-slate-200">
+                              {it.clickerConfig.type === 'clicker' ? 'Clicker Teclado MX 3D' : 'Llavero 3D'}
+                            </span>
+                            <span className="text-slate-500 block">
+                              Tamaño: {it.clickerConfig.size}mm • Estilo: {it.clickerConfig.baseStyle} • Switch: {it.clickerConfig.switchType}
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="font-semibold text-slate-200">
+                              Litofanía {it.config?.shape === 'arc' ? 'Curva (Arco)' : it.config?.shape === 'flat' ? 'Plana' : 'Cilindro'}
+                            </span>
+                            <span className="text-slate-500 block">
+                              Dimensiones: {it.config?.width}x{it.config?.height}mm • Material: {it.config?.material}
+                            </span>
+                          </>
+                        )}
                       </div>
                       <span className="font-bold text-slate-100">${it.price.toFixed(2)} USD</span>
                     </div>
+
                   ))}
                 </div>
 

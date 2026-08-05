@@ -112,7 +112,9 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                     <div>
                       <div className="flex justify-between items-start">
                         <h4 className="text-xs font-bold text-slate-200 capitalize">
-                          Litofanía {item.config.shape === 'arc' ? 'Curvada' : item.config.shape === 'flat' ? 'Plana' : 'Cilíndrica'}
+                          {item.itemType === 'clicker'
+                            ? (item.clickerConfig?.type === 'clicker' ? 'Clicker MX 3D' : 'Llavero 3D')
+                            : `Litofanía ${item.config.shape === 'arc' ? 'Curvada' : item.config.shape === 'flat' ? 'Plana' : 'Cilíndrica'}`}
                         </h4>
                         <button
                           onClick={() => onRemoveItem(item.id)}
@@ -124,13 +126,32 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
                       {/* Config Tags */}
                       <div className="flex flex-wrap gap-1 mt-1">
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">
-                          {item.config.width}x{item.config.height}mm
-                        </span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-950 text-cyan-400 border border-cyan-800/50">
-                          {item.config.baseType === 'night-light' ? 'Luz Noche' : item.config.baseType === 'led-wooden-base' ? 'Madera LED' : 'Standard'}
-                        </span>
+                        {item.itemType === 'clicker' && item.clickerConfig ? (
+                          <>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">
+                              {item.clickerConfig.size}mm
+                            </span>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-violet-950 text-violet-300 border border-violet-800/50 uppercase font-mono">
+                              Base: {item.clickerConfig.baseStyle}
+                            </span>
+                            {item.clickerConfig.type === 'clicker' && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-950 text-cyan-400 border border-cyan-800/50 uppercase font-mono">
+                                Switch: {item.clickerConfig.switchType}
+                              </span>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">
+                              {item.config.width}x{item.config.height}mm
+                            </span>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-950 text-cyan-400 border border-cyan-800/50">
+                              {item.config.baseType === 'night-light' ? 'Luz Noche' : item.config.baseType === 'led-wooden-base' ? 'Madera LED' : 'Standard'}
+                            </span>
+                          </>
+                        )}
                       </div>
+
                     </div>
 
                     <div className="flex items-center justify-between mt-2">

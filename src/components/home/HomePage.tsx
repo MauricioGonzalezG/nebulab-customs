@@ -3,12 +3,14 @@ import { Box, Sparkles, ShieldCheck, ArrowRight, Lightbulb, Key, Heart, Wrench, 
 
 interface HomePageProps {
   onOpenLithophaneStudio: () => void;
+  onOpenClickerStudio: () => void;
   onOpenAuth?: () => void;
   onOpenMyOrders: () => void;
 }
 
 export const HomePage: React.FC<HomePageProps> = ({
   onOpenLithophaneStudio,
+  onOpenClickerStudio,
   onOpenMyOrders,
 }) => {
   return (
@@ -147,41 +149,49 @@ export const HomePage: React.FC<HomePageProps> = ({
             </button>
           </div>
 
-          {/* Card 3: Clickers / Llaveros (IN CONSTRUCTION) */}
-          <div className="relative rounded-3xl bg-slate-900/40 border border-slate-800/80 p-6 flex flex-col justify-between opacity-85 hover:opacity-100 transition-opacity">
+          {/* Card 3: Clickers & Llaveros 3D (ACTIVE) */}
+          <div className="group relative rounded-3xl bg-slate-900/90 border border-violet-500/40 p-6 flex flex-col justify-between shadow-xl shadow-violet-500/10 hover:border-violet-400 transition-all duration-300 hover:-translate-y-1">
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <div className="w-12 h-12 rounded-2xl bg-slate-800 flex items-center justify-center text-violet-400">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-violet-600 via-fuchsia-600 to-cyan-500 flex items-center justify-center text-white shadow-md shadow-violet-500/20">
                   <Key className="w-6 h-6" />
                 </div>
-                <span className="px-3 py-1 text-[11px] font-bold uppercase tracking-wider bg-amber-500/10 text-amber-400 border border-amber-500/30 rounded-full flex items-center gap-1">
-                  <Wrench className="w-3.5 h-3.5" />
-                  En Construcción
+                <span className="px-3 py-1 text-[11px] font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full flex items-center gap-1">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  Disponible
                 </span>
               </div>
 
               <div>
-                <h3 className="text-xl font-bold text-slate-200 font-outfit">
+                <h3 className="text-xl font-bold text-white font-outfit group-hover:text-violet-300 transition-colors">
                   Clickers & Llaveros 3D
                 </h3>
                 <p className="text-xs text-slate-400 mt-2 leading-relaxed">
-                  Llaveros táctiles con relieve de retroiluminación para llaves y mochilas.
+                  Genera clickers mecánicos con switch MX o llaveros táctiles con relieve a partir de cualquier imagen.
                 </p>
               </div>
 
-              <div className="pt-2 text-xs text-slate-500 italic">
-                En desarrollo técnico de impresión.
+              <div className="pt-2 space-y-1 text-xs text-slate-300 font-medium">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-3.5 h-3.5 text-violet-400" />
+                  <span>Carcasa con Switch MX Cherry</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Box className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Impresión Multi-Filamento AMS</span>
+                </div>
               </div>
             </div>
 
             <button
-              disabled
-              className="mt-6 w-full py-3 px-4 rounded-xl bg-slate-800/80 text-slate-400 font-bold text-xs border border-slate-700/50 cursor-not-allowed flex items-center justify-center gap-2"
+              onClick={onOpenClickerStudio}
+              className="mt-6 w-full py-3 px-4 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2"
             >
-              <Lock className="w-3.5 h-3.5" />
-              <span>Próximamente</span>
+              <span>Personalizar Clicker 3D</span>
+              <ArrowRight className="w-4 h-4" />
             </button>
           </div>
+
 
           {/* Card 4: Centros de Mesa LED (IN CONSTRUCTION) */}
           <div className="relative rounded-3xl bg-slate-900/40 border border-slate-800/80 p-6 flex flex-col justify-between opacity-85 hover:opacity-100 transition-opacity">
