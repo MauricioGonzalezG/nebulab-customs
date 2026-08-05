@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { CartItem, Order, ShippingDetails } from '../../types';
 import { tursoService } from '../../lib/turso';
+import { buildWompiCheckoutUrl } from '../../lib/wompi';
 import { useAuth } from '../../context/AuthContext';
-import { X, CheckCircle2, Download, Truck, Lock, ArrowLeft, User, Plus, MapPin, Edit2 } from 'lucide-react';
+import { useCurrency } from '../../context/CurrencyContext';
+import { X, CheckCircle2, Download, Truck, Lock, ArrowLeft, User, Plus, MapPin, Edit2, CreditCard, ShieldCheck, MessageSquare } from 'lucide-react';
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -20,6 +22,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   onDownloadSTL
 }) => {
   const { customerUser } = useAuth();
+  const { formatPriceUsdOnly, pricingData } = useCurrency();
   const [step, setStep] = useState<'shipping' | 'payment' | 'confirmation'>('shipping');
   const [isProcessing, setIsProcessing] = useState(false);
   const [completedOrder, setCompletedOrder] = useState<Order | null>(null);
@@ -27,6 +30,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [isEditingSavedAddress, setIsEditingSavedAddress] = useState(false);
 
   const [savedAddress, setSavedAddress] = useState<ShippingDetails | null>(null);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'wompi' | 'whatsapp'>('wompi');
 
   const [shipping, setShipping] = useState<ShippingDetails>({
     fullName: customerUser?.name || '',
@@ -94,7 +98,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   if (!isOpen) return null;
 
   const subtotal = items.reduce((acc, item) => acc + item.price * item.quantity, 0);
-  const shippingFee = subtotal >= 50 ? 0 : 4.90;
+  const freeThresholdUsd = pricingData.shipping.freeThresholdUsd;
+  const shippingFee = subtotal >= freeThresholdUsd || items.length === 0 ? 0 : pricingData.shipping.standardFeeUsd;
   const total = subtotal + shippingFee;
 
   const handleShippingSubmit = (e: React.FormEvent) => {
@@ -127,44 +132,56 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     return `https://wa.me/573232218586?text=${encodeURIComponent(msg)}`;
   };
 
-  const handlePay = (e: React.FormEvent) => {
+  const handlePay = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsProcessing(true);
 
-    setTimeout(async () => {
-      const order: Order = {
-        id: `LITHO-${Math.floor(100000 + Math.random() * 900000)}`,
-        items: [...items],
-        subtotal,
-        shippingFee,
-        total,
-        shippingDetails: shipping,
-        paymentMethod: 'whatsapp',
-        status: 'confirmed',
-        createdAt: new Date().toISOString()
-      };
+    const orderId = `LITHO-${Math.floor(100000 + Math.random() * 900000)}`;
+    const order: Order = {
+      id: orderId,
+      items: [...items],
+      subtotal,
+      shippingFee,
+      total,
+      shippingDetails: shipping,
+      paymentMethod: selectedPaymentMethod,
+      status: 'confirmed',
+      createdAt: new Date().toISOString()
+    };
 
-      try {
-        // Save shipping details locally for future orders
-        if (shipping.email) {
-          localStorage.setItem(`nebulab_saved_address_${shipping.email.toLowerCase()}`, JSON.stringify(shipping));
-        }
-        // Automatically create or update customer account with email and password
-        await tursoService.createOrGetCustomerFromOrder(shipping.fullName, shipping.email, accountPassword);
-        await tursoService.saveOrder(order);
-      } catch (err) {
-        console.error('Error saving order/customer to DB:', err);
+    try {
+      if (shipping.email) {
+        localStorage.setItem(`nebulab_saved_address_${shipping.email.toLowerCase()}`, JSON.stringify(shipping));
       }
+      await tursoService.createOrGetCustomerFromOrder(shipping.fullName, shipping.email, accountPassword);
+      await tursoService.saveOrder(order);
+    } catch (err) {
+      console.error('Error saving order/customer to DB:', err);
+    }
 
-      setCompletedOrder(order);
-      setIsProcessing(false);
-      setStep('confirmation');
-      onOrderCompleted(order);
+    setCompletedOrder(order);
+    setIsProcessing(false);
+    setStep('confirmation');
+    onOrderCompleted(order);
 
-      // Open WhatsApp automatically
+    if (selectedPaymentMethod === 'wompi') {
+      try {
+        const wompiUrl = await buildWompiCheckoutUrl({
+          reference: order.id,
+          amountUsd: order.total,
+          customerEmail: shipping.email,
+          customerFullName: shipping.fullName,
+          customerPhone: shipping.phone,
+          redirectUrl: window.location.href,
+        });
+        window.open(wompiUrl, '_blank');
+      } catch (err) {
+        console.error('Error generating Wompi URL:', err);
+      }
+    } else {
       const waUrl = generateWhatsAppUrl(order);
       window.open(waUrl, '_blank');
-    }, 1200);
+    }
   };
 
   return (
@@ -189,7 +206,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 {step === 'confirmation' && '¡Pedido Confirmado con Éxito!'}
               </h3>
               <p className="text-xs text-slate-400">
-                {step !== 'confirmation' ? `Total a pagar: $${total.toFixed(2)} USD` : `Orden ID: ${completedOrder?.id}`}
+                {step !== 'confirmation' ? `Total a pagar: ${formatPriceUsdOnly(total)}` : `Orden ID: ${completedOrder?.id}`}
               </p>
             </div>
           </div>
@@ -499,15 +516,67 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               <p>Dirección: {shipping.address}, {shipping.city} ({shipping.country}) - Tel: {shipping.phone}</p>
             </div>
 
-            {/* WhatsApp Direct Order Confirmation */}
-            <div className="p-5 rounded-2xl bg-emerald-950/20 border border-emerald-800/40 space-y-3">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 font-bold">
-                  WA
+            <div className="space-y-3">
+              <label className="text-xs font-bold text-slate-300 uppercase tracking-wider block">
+                Selecciona tu Método de Pago Preferido:
+              </label>
+
+              {/* Payment Option 1: Wompi Gateway */}
+              <div
+                onClick={() => setSelectedPaymentMethod('wompi')}
+                className={`p-4 rounded-2xl border cursor-pointer transition-all ${
+                  selectedPaymentMethod === 'wompi'
+                    ? 'bg-slate-900 border-cyan-500 ring-1 ring-cyan-500 shadow-lg shadow-cyan-500/10'
+                    : 'bg-slate-950/50 border-slate-800 hover:border-slate-700'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-500 to-violet-600 flex items-center justify-center text-white font-bold shadow-md">
+                      <CreditCard className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-bold text-sm text-white">Pasarela de Pago Wompi</h4>
+                        <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 rounded-full">
+                          Recomendado
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        Bancolombia, Nequi, PSE, Daviplata, Tarjetas de Crédito y Débito
+                      </p>
+                    </div>
+                  </div>
+                  <input type="radio" checked={selectedPaymentMethod === 'wompi'} onChange={() => {}} className="accent-cyan-500" />
                 </div>
-                <div>
-                  <h4 className="font-bold text-sm text-emerald-300">Coordinar Pedido y Pago por WhatsApp Directo</h4>
-                  <p className="text-xs text-slate-400">Atención personalizada con el diseñador 3D para transferencia Bancolombia, Nequi o PayPal.</p>
+                <div className="mt-3 pt-2.5 border-t border-slate-800/60 flex items-center justify-between text-[11px] text-slate-400 font-mono">
+                  <span className="flex items-center gap-1 text-emerald-400 font-semibold">
+                    <ShieldCheck className="w-3.5 h-3.5" /> Pago 100% Cifrado y Seguro
+                  </span>
+                  <span>Sin costo adicional</span>
+                </div>
+              </div>
+
+              {/* Payment Option 2: WhatsApp Direct */}
+              <div
+                onClick={() => setSelectedPaymentMethod('whatsapp')}
+                className={`p-4 rounded-2xl border cursor-pointer transition-all ${
+                  selectedPaymentMethod === 'whatsapp'
+                    ? 'bg-slate-900 border-emerald-500 ring-1 ring-emerald-500 shadow-lg shadow-emerald-500/10'
+                    : 'bg-slate-950/50 border-slate-800 hover:border-slate-700'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 font-bold">
+                      <MessageSquare className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-sm text-emerald-300">Coordinar Pedido y Pago por WhatsApp Directo</h4>
+                      <p className="text-xs text-slate-400">Atención personalizada con el equipo técnico para transferencias directas o PayPal.</p>
+                    </div>
+                  </div>
+                  <input type="radio" checked={selectedPaymentMethod === 'whatsapp'} onChange={() => {}} className="accent-emerald-500" />
                 </div>
               </div>
             </div>
@@ -516,17 +585,26 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             <button
               type="submit"
               disabled={isProcessing}
-              className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-extrabold text-sm shadow-lg shadow-emerald-500/25 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              className={`w-full py-4 px-6 rounded-2xl font-extrabold text-sm shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 ${
+                selectedPaymentMethod === 'wompi'
+                  ? 'bg-gradient-to-r from-cyan-500 to-violet-600 hover:from-cyan-400 hover:to-violet-500 text-white shadow-cyan-500/25'
+                  : 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white shadow-emerald-500/25'
+              }`}
             >
               {isProcessing ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span>Procesando e iniciando WhatsApp...</span>
+                  <span>Procesando pago...</span>
+                </>
+              ) : selectedPaymentMethod === 'wompi' ? (
+                <>
+                  <CreditCard className="w-5 h-5" />
+                  <span>Pagar con Wompi ({formatPriceUsdOnly(total)})</span>
                 </>
               ) : (
                 <>
                   <CheckCircle2 className="w-5 h-5" />
-                  <span>Confirmar Pedido (${total.toFixed(2)} USD)</span>
+                  <span>Confirmar e Iniciar WhatsApp ({formatPriceUsdOnly(total)})</span>
                 </>
               )}
             </button>

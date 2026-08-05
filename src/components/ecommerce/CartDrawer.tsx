@@ -1,6 +1,7 @@
 import React from 'react';
 import { CartItem } from '../../types';
 import { X, Trash2, ShoppingBag, ArrowRight, ShieldCheck } from 'lucide-react';
+import { useCurrency } from '../../context/CurrencyContext';
 
 interface CartDrawerProps {
   isOpen: boolean;
@@ -19,12 +20,15 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   onRemoveItem,
   onCheckout
 }) => {
+  const { formatPriceUsdOnly, pricingData } = useCurrency();
+
   if (!isOpen) return null;
 
-  const subtotal = items.reduce((acc, item) => acc + item.price * item.quantity, 0);
-  const freeShippingThreshold = 50;
-  const shippingFee = subtotal >= freeShippingThreshold || items.length === 0 ? 0 : 4.90;
-  const total = subtotal + shippingFee;
+  const subtotalUsd = items.reduce((acc, item) => acc + item.price * item.quantity, 0);
+  const freeThresholdUsd = pricingData.shipping.freeThresholdUsd;
+  const isFreeShipping = subtotalUsd >= freeThresholdUsd || items.length === 0;
+  const shippingFeeUsd = isFreeShipping ? 0 : pricingData.shipping.standardFeeUsd;
+  const totalUsd = subtotalUsd + shippingFeeUsd;
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">
@@ -56,7 +60,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
           {/* Free Shipping Progress bar */}
           <div className="bg-slate-950/60 p-4 border-b border-slate-800/80">
-            {subtotal >= freeShippingThreshold ? (
+            {isFreeShipping ? (
               <div className="text-xs text-emerald-400 font-semibold flex items-center gap-2">
                 <ShieldCheck className="w-4 h-4" />
                 <span>¡Genial! Tienes Envío GRATIS asegurado.</span>
@@ -64,15 +68,15 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
             ) : (
               <div className="space-y-1.5">
                 <div className="flex justify-between text-xs text-slate-300">
-                  <span>Agrega ${(freeShippingThreshold - subtotal).toFixed(2)} más para Envío Gratis</span>
+                  <span>Agrega {formatPriceUsdOnly(freeThresholdUsd - subtotalUsd)} más para Envío Gratis</span>
                   <span className="font-bold text-cyan-400">
-                    {Math.round((subtotal / freeShippingThreshold) * 100)}%
+                    {Math.round((subtotalUsd / freeThresholdUsd) * 100)}%
                   </span>
                 </div>
                 <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-gradient-to-r from-cyan-500 to-emerald-400 transition-all duration-300"
-                    style={{ width: `${Math.min(100, (subtotal / freeShippingThreshold) * 100)}%` }}
+                    style={{ width: `${Math.min(100, (subtotalUsd / freeThresholdUsd) * 100)}%` }}
                   />
                 </div>
               </div>
@@ -171,7 +175,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
                     <div className="flex items-center justify-between mt-2">
                       <span className="text-sm font-bold text-white font-mono">
-                        ${(item.price * item.quantity).toFixed(2)}
+                        {formatPriceUsdOnly(item.price * item.quantity)}
                       </span>
 
                       <div className="flex items-center gap-2 bg-slate-800 rounded-lg p-1">
@@ -204,17 +208,17 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
               <div className="space-y-2 text-xs">
                 <div className="flex justify-between text-slate-400">
                   <span>Subtotal</span>
-                  <span className="font-mono text-slate-200">${subtotal.toFixed(2)}</span>
+                  <span className="font-mono text-slate-200">{formatPriceUsdOnly(subtotalUsd)}</span>
                 </div>
                 <div className="flex justify-between text-slate-400">
                   <span>Envío Estimado</span>
                   <span className="font-mono text-slate-200">
-                    {shippingFee === 0 ? <span className="text-emerald-400 font-bold">GRATIS</span> : `$${shippingFee.toFixed(2)}`}
+                    {shippingFeeUsd === 0 ? <span className="text-emerald-400 font-bold">GRATIS</span> : formatPriceUsdOnly(shippingFeeUsd)}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm font-bold text-white pt-2 border-t border-slate-800">
                   <span>Total</span>
-                  <span className="font-mono text-cyan-400">${total.toFixed(2)} USD</span>
+                  <span className="font-mono text-cyan-400">{formatPriceUsdOnly(totalUsd)}</span>
                 </div>
               </div>
 

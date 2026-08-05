@@ -1,5 +1,6 @@
 import React from 'react';
 import { ShoppingBag, Box, HelpCircle, LayoutDashboard, User, Package, Home, Key, Heart } from 'lucide-react';
+import { CurrencySelector, useCurrency } from '../context/CurrencyContext';
 
 
 interface HeaderProps {
@@ -35,6 +36,7 @@ export const Header: React.FC<HeaderProps> = ({
   isAdminAuthenticated = false,
   currentView = 'home'
 }) => {
+  const { formatPriceUsdOnly } = useCurrency();
   return (
     <header className="sticky top-0 z-40 w-full bg-slate-950/80 backdrop-blur-xl border-b border-slate-800/80">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
@@ -162,6 +164,8 @@ export const Header: React.FC<HeaderProps> = ({
           )}
 
 
+          <CurrencySelector />
+
           <button
             onClick={onOpenHelp}
             className="p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition-colors"
@@ -183,7 +187,7 @@ export const Header: React.FC<HeaderProps> = ({
                   {cartCount}
                 </span>
                 <span className="text-xs font-bold text-cyan-100 hidden md:inline">
-                  ${cartTotal.toFixed(2)}
+                  {formatPriceUsdOnly(cartTotal)}
                 </span>
               </div>
             )}

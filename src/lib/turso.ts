@@ -257,6 +257,10 @@ export const tursoService = {
         `,
         args: ['admin-1', DEFAULT_ADMIN_EMAIL, DEFAULT_ADMIN_PASSWORD],
       });
+
+      // Create indexes for faster queries as orders grow
+      await tursoClient.execute(`CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at DESC);`);
+      await tursoClient.execute(`CREATE INDEX IF NOT EXISTS idx_customers_email ON customers(email);`);
     } catch (err) {
       console.error('Error initializing Turso tables:', err);
     }
@@ -393,8 +397,8 @@ export const tursoService = {
     return { id: customerId, name: cleanName, email: cleanEmail };
   },
 
-  getCustomersWithMetrics: async (): Promise<CustomerWithMetrics[]> => {
-    const allOrders = await tursoService.getOrders();
+  getCustomersWithMetrics: async (existingOrders?: Order[]): Promise<CustomerWithMetrics[]> => {
+    const allOrders = existingOrders ? existingOrders : await tursoService.getOrders();
     let rawCustomers: { id: string; name: string; email: string; createdAt: string }[] = [];
 
     if (tursoClient && isConfigured) {

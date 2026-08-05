@@ -16,6 +16,8 @@ import {
   Phone,
   User,
 } from 'lucide-react';
+import { getPricingDataSync } from '../../lib/priceConfig';
+import { useCurrency } from '../../context/CurrencyContext';
 
 interface CollarStudioProps {
   onBackToHome: () => void;
@@ -28,6 +30,11 @@ export const CollarStudio: React.FC<CollarStudioProps> = ({
   onAddToCart,
   onBuyNow,
 }) => {
+  const { formatPrice } = useCurrency();
+  const pData = getPricingDataSync();
+  const collarPriceCop = pData.collar.basePriceCop;
+  const collarPriceUsd = pData.collar.basePriceUsd;
+
   const [config, setConfig] = useState<CollarConfig>(createDefaultCollarConfig);
   const [processedData, setProcessedData] = useState<ProcessedCollarData | null>(null);
   const [currentImgElement, setCurrentImgElement] = useState<HTMLImageElement | null>(null);
@@ -93,7 +100,7 @@ export const CollarStudio: React.FC<CollarStudioProps> = ({
       config: {} as any,
       collarConfig: { ...config },
       previewImageDataUrl: processedData?.previewDataUrl || config.imageUrl || '',
-      price: 14.90,
+      price: collarPriceUsd,
       quantity: 1,
       createdAt: new Date().toISOString(),
     };
@@ -426,7 +433,7 @@ export const CollarStudio: React.FC<CollarStudioProps> = ({
             <div className="flex items-center justify-between">
               <div>
                 <span className="text-[11px] text-slate-400 font-bold uppercase block">Precio Unitario 3D</span>
-                <span className="text-2xl font-extrabold text-white font-outfit">$14.90 USD</span>
+                <span className="text-xl sm:text-2xl font-extrabold text-white font-outfit">{formatPrice(collarPriceCop, collarPriceUsd)}</span>
               </div>
               <span className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full">
                 Impreso & Ensamblado

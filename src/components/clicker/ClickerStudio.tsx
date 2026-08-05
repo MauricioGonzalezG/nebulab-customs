@@ -19,6 +19,8 @@ import {
   ChevronUp,
   Key,
 } from 'lucide-react';
+import { getPricingDataSync } from '../../lib/priceConfig';
+import { useCurrency } from '../../context/CurrencyContext';
 
 
 interface ClickerStudioProps {
@@ -32,6 +34,7 @@ export const ClickerStudio: React.FC<ClickerStudioProps> = ({
   onAddToCart,
   onBuyNow,
 }) => {
+  const { formatPrice } = useCurrency();
   const [config, setConfig] = useState<ClickerConfig>(createDefaultClickerConfig());
   const [processedData, setProcessedData] = useState<ProcessedClickerData | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -63,8 +66,14 @@ export const ClickerStudio: React.FC<ClickerStudioProps> = ({
     };
   }, [config.imageUrl, config.removeBackground, config.baseColor, config.outlineColor, config.size]);
 
-  // Price calculation based on Clicker vs Keychain and Size
-  const unitPrice = config.type === 'clicker' ? 14.9 + (config.size > 40 ? 3 : 0) : 9.9 + (config.size > 40 ? 2 : 0);
+  // Price calculation based on XML configuration
+  const pData = getPricingDataSync();
+  const unitPriceCop = config.type === 'clicker'
+    ? pData.clicker.clickerBaseCop + (config.size > 40 ? pData.clicker.sizeExtraCop : 0)
+    : pData.clicker.keychainBaseCop + (config.size > 40 ? pData.clicker.sizeExtraCop : 0);
+  const unitPriceUsd = config.type === 'clicker'
+    ? pData.clicker.clickerBaseUsd + (config.size > 40 ? pData.clicker.sizeExtraUsd : 0)
+    : pData.clicker.keychainBaseUsd + (config.size > 40 ? pData.clicker.sizeExtraUsd : 0);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -118,7 +127,7 @@ export const ClickerStudio: React.FC<ClickerStudioProps> = ({
       config: dummyLithoConfig,
       clickerConfig: config,
       previewImageDataUrl: processedData?.previewDataUrl || config.imageUrl || '',
-      price: unitPrice,
+      price: unitPriceUsd,
       quantity: 1,
       createdAt: new Date().toISOString(),
     };
@@ -185,7 +194,7 @@ export const ClickerStudio: React.FC<ClickerStudioProps> = ({
               className="px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-violet-600 hover:from-cyan-400 hover:to-violet-500 text-white text-xs font-bold shadow-lg shadow-cyan-500/20 transition-all flex items-center gap-1.5"
             >
               <ShoppingBag className="w-3.5 h-3.5" />
-              <span>Agregar (${unitPrice.toFixed(2)})</span>
+              <span>Agregar al Carrito</span>
             </button>
           </div>
 
@@ -677,7 +686,7 @@ export const ClickerStudio: React.FC<ClickerStudioProps> = ({
             <div className="flex items-center justify-between">
               <div>
                 <span className="text-xs font-bold text-slate-400 block uppercase">Precio Unitario 3D</span>
-                <span className="text-2xl font-extrabold text-white font-outfit">${unitPrice.toFixed(2)} USD</span>
+                <span className="text-xl sm:text-2xl font-extrabold text-white font-outfit">{formatPrice(unitPriceCop, unitPriceUsd)}</span>
               </div>
               <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold uppercase">
                 Impreso & Ensamblado

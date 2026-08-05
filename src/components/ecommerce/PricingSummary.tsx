@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { LithophaneConfig } from '../../types';
 import { ShoppingBag, CreditCard, Gift, Truck, Clock, ShieldCheck, Check } from 'lucide-react';
+import { getPricingDataSync } from '../../lib/priceConfig';
+import { useCurrency } from '../../context/CurrencyContext';
 
 interface PricingSummaryProps {
   config: LithophaneConfig;
@@ -15,28 +17,46 @@ export function calculatePrice(config: LithophaneConfig, giftBox: boolean = fals
   baseExtra: number;
   giftExtra: number;
   totalPrice: number;
+  basePriceCop: number;
+  sizeExtraCop: number;
+  baseExtraCop: number;
+  giftExtraCop: number;
+  totalPriceCop: number;
 } {
-  const basePrice = 14.90;
-  
-  // Area multiplier (100mm x 100mm = baseline 1.0)
+  const data = getPricingDataSync();
+  const litho = data.lithophane;
+
+  const basePriceCop = litho.basePriceCop;
+  const basePriceUsd = litho.basePriceUsd;
+
   const area = (config.width * config.height) / 10000;
-  const sizeExtra = Math.max(0, (area - 1.0) * 5.5);
+  const sizeExtraCop = Math.max(0, (area - 1.0) * litho.sizeExtraMultiplierCop);
+  const sizeExtraUsd = Math.max(0, (area - 1.0) * litho.sizeExtraMultiplierUsd);
 
-  let baseExtra = 0;
-  if (config.baseType === 'night-light') baseExtra = 8.50;
-  if (config.baseType === 'led-wooden-base') baseExtra = 14.00;
-  if (config.baseType === 'flat-stand') baseExtra = 4.00;
+  let baseExtraCop = 0;
+  let baseExtraUsd = 0;
+  if (config.baseType && litho.bases[config.baseType]) {
+    baseExtraCop = litho.bases[config.baseType].cop;
+    baseExtraUsd = litho.bases[config.baseType].usd;
+  }
 
-  const giftExtra = giftBox ? 3.50 : 0.0;
+  const giftExtraCop = giftBox ? litho.giftBoxCop : 0;
+  const giftExtraUsd = giftBox ? litho.giftBoxUsd : 0;
 
-  const totalPrice = basePrice + sizeExtra + baseExtra + giftExtra;
+  const totalPriceCop = basePriceCop + sizeExtraCop + baseExtraCop + giftExtraCop;
+  const totalPrice = basePriceUsd + sizeExtraUsd + baseExtraUsd + giftExtraUsd;
 
   return {
-    basePrice,
-    sizeExtra,
-    baseExtra,
-    giftExtra,
-    totalPrice
+    basePrice: basePriceUsd,
+    sizeExtra: sizeExtraUsd,
+    baseExtra: baseExtraUsd,
+    giftExtra: giftExtraUsd,
+    totalPrice,
+    basePriceCop,
+    sizeExtraCop,
+    baseExtraCop,
+    giftExtraCop,
+    totalPriceCop,
   };
 }
 
@@ -45,6 +65,7 @@ export const PricingSummary: React.FC<PricingSummaryProps> = ({
   onAddToCart,
   onBuyNow
 }) => {
+  const { formatPrice } = useCurrency();
   const [giftBox, setGiftBox] = useState(false);
   const [addedAnimation, setAddedAnimation] = useState(false);
 
@@ -65,10 +86,9 @@ export const PricingSummary: React.FC<PricingSummaryProps> = ({
             Precio Personalizado
           </span>
           <div className="flex items-baseline gap-2 mt-0.5">
-            <span className="text-3xl font-extrabold text-white font-outfit">
-              ${priceDetails.totalPrice.toFixed(2)}
+            <span className="text-2xl sm:text-3xl font-extrabold text-white font-outfit">
+              {formatPrice(priceDetails.totalPriceCop, priceDetails.totalPrice)}
             </span>
-            <span className="text-xs text-slate-400">USD</span>
           </div>
         </div>
         
@@ -82,33 +102,33 @@ export const PricingSummary: React.FC<PricingSummaryProps> = ({
       <div className="space-y-2 text-xs text-slate-300">
         <div className="flex justify-between">
           <span className="text-slate-400">Litofanía 3D Base (hasta 10x10cm)</span>
-          <span>${priceDetails.basePrice.toFixed(2)}</span>
+          <span>{formatPrice(priceDetails.basePriceCop, priceDetails.basePrice)}</span>
         </div>
 
-        {priceDetails.sizeExtra > 0 && (
+        {priceDetails.sizeExtraCop > 0 && (
           <div className="flex justify-between">
             <span className="text-slate-400">
               Dimensiones ({config.width}x{config.height} mm)
             </span>
-            <span className="text-cyan-400">+${priceDetails.sizeExtra.toFixed(2)}</span>
+            <span className="text-cyan-400">+{formatPrice(priceDetails.sizeExtraCop, priceDetails.sizeExtra)}</span>
           </div>
         )}
 
-        {priceDetails.baseExtra > 0 && (
+        {priceDetails.baseExtraCop > 0 && (
           <div className="flex justify-between">
             <span className="text-slate-400">
               {config.baseType === 'night-light' && 'Soporte Luz de Noche LED'}
               {config.baseType === 'led-wooden-base' && 'Base Madera LED RGB'}
               {config.baseType === 'flat-stand' && 'Soporte de Escritorio'}
             </span>
-            <span className="text-cyan-400">+${priceDetails.baseExtra.toFixed(2)}</span>
+            <span className="text-cyan-400">+{formatPrice(priceDetails.baseExtraCop, priceDetails.baseExtra)}</span>
           </div>
         )}
 
         {giftBox && (
           <div className="flex justify-between">
             <span className="text-slate-400">Caja de Regalo Premium & Tarjeta</span>
-            <span className="text-cyan-400">+$3.50</span>
+            <span className="text-cyan-400">+{formatPrice(priceDetails.giftExtraCop, priceDetails.giftExtra)}</span>
           </div>
         )}
       </div>

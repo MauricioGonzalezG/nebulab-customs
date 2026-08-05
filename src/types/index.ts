@@ -131,7 +131,7 @@ export interface Order {
   shippingFee: number;
   total: number;
   shippingDetails: ShippingDetails;
-  paymentMethod: 'whatsapp' | 'card' | 'paypal' | 'mercadopago';
+  paymentMethod: 'whatsapp' | 'card' | 'paypal' | 'mercadopago' | 'wompi';
   status: 'confirmed' | 'processing' | 'completed' | 'cancelled';
   createdAt: string;
 }

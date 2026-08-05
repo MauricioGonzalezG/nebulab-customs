@@ -64,12 +64,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
   const fetchDashboardData = async () => {
     setIsLoading(true);
     try {
-      const fetchedOrders = await tursoService.getOrders();
+      const [fetchedOrders, status] = await Promise.all([
+        tursoService.getOrders(),
+        tursoService.getDbStatus(),
+      ]);
       setOrders(fetchedOrders);
-      const fetchedCustomers = await tursoService.getCustomersWithMetrics();
-      setCustomers(fetchedCustomers);
-      const status = await tursoService.getDbStatus();
       setDbStatus(status);
+
+      const fetchedCustomers = await tursoService.getCustomersWithMetrics(fetchedOrders);
+      setCustomers(fetchedCustomers);
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
     } finally {

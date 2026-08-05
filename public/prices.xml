@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<pricingConfig>
+  <currencies default="COP">
+    <currency code="COP" symbol="$" suffix="COP" rate="1.0" format="integer" />
+    <currency code="USD" symbol="$" suffix="USD" rate="0.00025" format="decimal" />
+  </currencies>
+
+  <shipping>
+    <standardFee cop="20000" usd="4.90" />
+    <freeShippingThreshold cop="200000" usd="50.00" />
+  </shipping>
+
+  <products>
+    <lithophane>
+      <basePrice cop="60000" usd="14.90" />
+      <sizeExtraMultiplier cop="22000" usd="5.50" />
+      <bases>
+        <base id="night-light" cop="34000" usd="8.50" />
+        <base id="led-wooden-base" cop="56000" usd="14.00" />
+        <base id="flat-stand" cop="16000" usd="4.00" />
+      </bases>
+      <giftBox cop="14000" usd="3.50" />
+    </lithophane>
+
+    <clicker>
+      <clickerBase cop="60000" usd="14.90" />
+      <keychainBase cop="40000" usd="9.90" />
+      <sizeExtra cop="12000" usd="3.00" />
+    </clicker>
+
+    <collar>
+      <basePrice cop="60000" usd="14.90" />
+    </collar>
+  </products>
+</pricingConfig>
