@@ -79,13 +79,18 @@ export const LithophaneViewer: React.FC<LithophaneViewerProps> = ({
       new THREE.Color(0xffa834),
       config.lightWarmth / 100
     );
+    const beamLength = config.strutLength !== undefined ? config.strutLength : 60;
     const puckY = -config.height / 2 + 15;
+    const rOut = (config.puckDiameter || 60) / 2;
+    const tiltRad = ((config.puckAngle || 45) * Math.PI) / 180;
+    const backLightZ = -beamLength - rOut * Math.cos(tiltRad);
+
     const backLight = new THREE.PointLight(
       backLightColor,
       config.enableLight ? (config.lightIntensity / 100) * 5.0 : 0.0,
       400
     );
-    backLight.position.set(0, puckY, -60);
+    backLight.position.set(0, puckY, backLightZ);
     scene.add(backLight);
 
     // 5. Root Group for Lithophane Assembly

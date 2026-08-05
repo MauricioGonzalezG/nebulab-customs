@@ -259,10 +259,10 @@ export function createBaseMesh(config: LithophaneConfig): THREE.Group {
     height,
     shape,
     arcAngle,
-    puckDiameter = 60,
-    puckDepth = 26,
-    puckAngle = 45,
-    puckArcCoverage = 240,
+    puckDiameter = 70,
+    puckDepth = 25,
+    puckAngle = 55,
+    puckArcCoverage = 180,
     strutCount = 4
   } = config;
 
@@ -291,13 +291,15 @@ export function createBaseMesh(config: LithophaneConfig): THREE.Group {
     const rIn = rOut - 3.5;
     const tiltRad = (puckAngle * Math.PI) / 180;
 
-    // Floor Level: Lowest Y of the lithophane/frame
-    const floorY = -height / 2;
+    // Floor Level: Lowest Y of the lithophane frame (sitting flush on print bed)
+    const frameMargin = config.frameWidth || 0;
+    const floorY = -height / 2 - frameMargin;
 
-    // 1. Support Beams (Thinner: 5mm height, 6mm width, sitting flush on floor Y = floorY)
+    // 1. Support Beams (sitting flush on floor Y = floorY, extending to the back)
     const beamH = 5;
     const beamW = 6;
-    const puckDistanceZ = -75;
+    const beamLength = config.strutLength !== undefined ? config.strutLength : 60;
+    const puckDistanceZ = -beamLength;
 
     const uPoints: number[] = [];
     const count = Math.max(2, strutCount);
@@ -312,11 +314,11 @@ export function createBaseMesh(config: LithophaneConfig): THREE.Group {
       const angle = (u - 0.5) * arcRad;
 
       let startX = (u - 0.5) * width;
-      let startZ = 0;
+      let startZ = -0.6; // Back of frame/lithophane
 
       if (shape === 'arc' && arcAngle > 0) {
         startX = Math.sin(angle) * radius;
-        startZ = Math.cos(angle) * radius - radius;
+        startZ = Math.cos(angle) * radius - radius - 0.6;
       }
 
       const startPt = new THREE.Vector3(startX, floorY + beamH / 2, startZ);
@@ -332,13 +334,12 @@ export function createBaseMesh(config: LithophaneConfig): THREE.Group {
       group.add(beamMesh);
     });
 
-    // 2. Cup Group (Positioned so its lowest tilted edge touches floorY = -height/2 exactly)
+    // 2. Cup Group (Shifted horizontally so its front base meets the rear end of connectors)
     const cupGroup = new THREE.Group();
-    // Lowest point of tilted cylinder of radius rOut at tiltRad is Y_min = Y_cup - rOut * sin(tiltRad)
-    // To make Y_min = floorY, Y_cup = floorY + rOut * sin(tiltRad)
     const cupCenterY = floorY + rOut * Math.sin(tiltRad);
+    const cupZ = puckDistanceZ - rOut * Math.cos(tiltRad);
 
-    cupGroup.position.set(0, cupCenterY, puckDistanceZ);
+    cupGroup.position.set(0, cupCenterY, cupZ);
     cupGroup.rotation.x = tiltRad;
 
     // C-Shaped Open Socket Wall (Hollow C-cup with open notch pointing STRAIGHT UPWARDS)

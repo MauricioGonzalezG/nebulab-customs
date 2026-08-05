@@ -29,6 +29,7 @@ export interface LithophaneConfig {
   puckAngle: number;      // degrees (e.g., 45deg)
   puckArcCoverage: number;// degrees for open C-cup (e.g., 240deg)
   strutCount: number;     // 3 or 4 support beams
+  strutLength?: number;   // mm (e.g., 60mm default, modifiable)
   showLampPuck: boolean;  // Inserted / Removed toggle for battery LED puck lamp
 
   // Lighting Simulation

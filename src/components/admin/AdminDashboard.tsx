@@ -4,6 +4,7 @@ import { tursoService, CustomerWithMetrics } from '../../lib/turso';
 import { Order, CartItem } from '../../types';
 import { downloadLithophaneSTL } from '../../core/stlExporter';
 import { downloadClickerSTL } from '../../core/clickerStlExporter';
+import { downloadClicker3MF } from '../../core/clicker3mfExporter';
 import { processImageForLithophane, createPlaceholderImage, ProcessedImageData } from '../../core/imageProcessor';
 import { processClickerImage, ProcessedClickerData } from '../../core/clickerProcessor';
 import { processCollarImage, ProcessedCollarData } from '../../core/collarProcessor';
@@ -733,20 +734,34 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
                   <p>{selectedOrderItem.order.shippingDetails.address}, {selectedOrderItem.order.shippingDetails.city}</p>
                 </div>
 
-                {/* STL Export Button */}
-                <button
-                  onClick={() => {
-                    if (selectedOrderItem.item.itemType === 'clicker' && selectedOrderItem.item.clickerConfig) {
-                      downloadClickerSTL(previewClickerProcessedData, selectedOrderItem.item.clickerConfig);
-                    } else if (previewProcessedData && selectedOrderItem.item.config) {
-                      downloadLithophaneSTL(previewProcessedData, selectedOrderItem.item.config);
-                    }
-                  }}
-                  className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-violet-600 hover:from-cyan-400 hover:to-violet-500 text-white font-bold text-sm shadow-lg shadow-cyan-500/25 transition-all flex items-center justify-center gap-2"
-                >
-                  <Download className="w-4 h-4" />
-                  <span>Descargar Archivo STL (.stl)</span>
-                </button>
+                {/* 3D Export Buttons */}
+                <div className="space-y-2">
+                  {selectedOrderItem.item.itemType === 'clicker' && selectedOrderItem.item.clickerConfig && (
+                    <button
+                      onClick={() => {
+                        downloadClicker3MF(previewClickerProcessedData, selectedOrderItem.item.clickerConfig!);
+                      }}
+                      className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-violet-600 hover:from-cyan-400 hover:to-violet-500 text-white font-bold text-sm shadow-lg shadow-cyan-500/25 transition-all flex items-center justify-center gap-2"
+                    >
+                      <Download className="w-4 h-4" />
+                      <span>Descargar Archivo .3MF (Multi-Color Bambu/Orca)</span>
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() => {
+                      if (selectedOrderItem.item.itemType === 'clicker' && selectedOrderItem.item.clickerConfig) {
+                        downloadClickerSTL(previewClickerProcessedData, selectedOrderItem.item.clickerConfig);
+                      } else if (previewProcessedData && selectedOrderItem.item.config) {
+                        downloadLithophaneSTL(previewProcessedData, selectedOrderItem.item.config);
+                      }
+                    }}
+                    className="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs transition-colors flex items-center justify-center gap-2"
+                  >
+                    <Download className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>Descargar Archivo STL Monocromático (.stl)</span>
+                  </button>
+                </div>
               </div>
 
             </div>

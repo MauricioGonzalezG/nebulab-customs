@@ -7,6 +7,7 @@ import {
   createDefaultClickerConfig,
 } from '../../core/clickerProcessor';
 import { downloadClickerSTL } from '../../core/clickerStlExporter';
+import { downloadClicker3MF } from '../../core/clicker3mfExporter';
 import { ClickerViewer } from '../3d/ClickerViewer';
 import {
   Upload,
@@ -182,11 +183,21 @@ export const ClickerStudio: React.FC<ClickerStudioProps> = ({
             </div>
 
             <button
-              onClick={() => downloadClickerSTL(processedData, config)}
-              className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-all flex items-center gap-1.5"
+              onClick={() => downloadClicker3MF(processedData, config)}
+              className="px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-violet-600 hover:from-cyan-400 hover:to-violet-500 text-white text-xs font-bold shadow-lg shadow-cyan-500/20 transition-all flex items-center gap-1.5"
+              title="Descargar modelo .3mf multi-color completo para Bambu Studio, OrcaSlicer o PrusaSlicer"
             >
-              <Download className="w-3.5 h-3.5 text-cyan-400" />
-              <span className="hidden sm:inline">Descargar 3MF / STL</span>
+              <Download className="w-3.5 h-3.5" />
+              <span>Descargar .3MF (Multi-Color)</span>
+            </button>
+
+            <button
+              onClick={() => downloadClickerSTL(processedData, config)}
+              className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-all flex items-center gap-1.5"
+              title="Descargar archivo STL clásico"
+            >
+              <Download className="w-3.5 h-3.5 text-slate-400" />
+              <span className="hidden md:inline">STL</span>
             </button>
 
             <button

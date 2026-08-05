@@ -1,6 +1,7 @@
 import React from 'react';
 import { BaseType, LithophaneConfig, MaterialType } from '../../types';
-import { Lightbulb, Box, Palette, Zap, Sparkles } from 'lucide-react';
+import { Lightbulb, Box, Palette, Zap, Sparkles, AlertTriangle } from 'lucide-react';
+import { useCurrency } from '../../context/CurrencyContext';
 
 interface BaseSectionProps {
   config: LithophaneConfig;
@@ -8,29 +9,27 @@ interface BaseSectionProps {
 }
 
 export const BaseSection: React.FC<BaseSectionProps> = ({ config, onChange }) => {
-  const bases: { id: BaseType; name: string; price: number; desc: string }[] = [
+  const { formatPrice, pricingData } = useCurrency();
+
+  const bases: { id: BaseType; name: string; desc: string }[] = [
     {
       id: 'night-light',
-      name: 'Luz de Noche LED (Socket)',
-      price: 8.50,
-      desc: 'Soporte con conector directo a enchufe de pared (Como en la foto de referencia)'
+      name: 'Lámpara LED Puck a Baterías (Socket Incluido)',
+      desc: 'Soporte con vaso para lámpara LED a baterías de fácil montaje (Lámpara incluida)'
     },
     {
       id: 'led-wooden-base',
       name: 'Base de Madera LED RGB',
-      price: 14.00,
       desc: 'Base elegante de madera natural con iluminación LED USB recargable'
     },
     {
       id: 'flat-stand',
       name: 'Soporte de Escritorio',
-      price: 4.00,
       desc: 'Patas de plástico para exhibir en mesas o repisas'
     },
     {
       id: 'none',
       name: 'Sin Base (Solo Litofanía)',
-      price: 0,
       desc: 'Solo el panel 3D para colgar o instalar por tu cuenta'
     }
   ];
@@ -62,6 +61,15 @@ export const BaseSection: React.FC<BaseSectionProps> = ({ config, onChange }) =>
     }
   ];
 
+  const isPuckModified = (
+    (config.puckDiameter || 70) !== 70 ||
+    (config.puckDepth || 25) !== 25 ||
+    (config.puckAngle || 55) !== 55 ||
+    (config.puckArcCoverage || 180) !== 180 ||
+    (config.strutCount || 4) !== 4 ||
+    (config.strutLength || 60) !== 60
+  );
+
   return (
     <div className="space-y-6">
       {/* Base Type Selector */}
@@ -74,6 +82,10 @@ export const BaseSection: React.FC<BaseSectionProps> = ({ config, onChange }) =>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {bases.map((b) => {
             const isSelected = config.baseType === b.id;
+            const copVal = pricingData.lithophane.bases[b.id]?.cop || 0;
+            const usdVal = pricingData.lithophane.bases[b.id]?.usd || 0;
+            const priceText = copVal === 0 ? 'Incluido' : `+${formatPrice(copVal, usdVal)}`;
+
             return (
               <button
                 key={b.id}
@@ -87,7 +99,7 @@ export const BaseSection: React.FC<BaseSectionProps> = ({ config, onChange }) =>
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-xs font-bold text-slate-100">{b.name}</span>
                   <span className="text-xs font-mono font-bold text-cyan-400">
-                    {b.price === 0 ? 'Incluido' : `+$${b.price.toFixed(2)}`}
+                    {priceText}
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-400 leading-snug">{b.desc}</p>
@@ -105,18 +117,47 @@ export const BaseSection: React.FC<BaseSectionProps> = ({ config, onChange }) =>
             <span>Parametrización del Socket LED Puck (Lámpara)</span>
           </h3>
 
+          {/* Warning Banner when measures are modified */}
+          {isPuckModified && (
+            <div className="p-3.5 rounded-xl bg-amber-950/50 border border-amber-500/50 text-amber-300 text-xs space-y-2">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold text-amber-200 block">⚠️ Advertencia de Compatibilidad</span>
+                  <p className="text-[11px] leading-relaxed text-amber-300/90 mt-0.5">
+                    Si adquieres el paquete con la lámpara LED Puck incluida y alteras estas medidas estándar (70mm, 25mm, 55°, 180°), podrías tener problemas para insertar la lámpara que se envía incluida.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => onChange({
+                  puckDiameter: 70,
+                  puckDepth: 25,
+                  puckAngle: 55,
+                  puckArcCoverage: 180,
+                  strutCount: 4,
+                  strutLength: 60
+                })}
+                className="px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 text-[11px] font-bold border border-amber-500/40 transition-colors"
+              >
+                Restablecer Medidas Estándar Recomendadas (70mm / 25mm / 55° / 180°)
+              </button>
+            </div>
+          )}
+
           {/* Puck Diameter */}
           <div className="space-y-1.5">
             <div className="flex justify-between text-xs">
               <span className="text-slate-300">Diámetro del Vaso Puck</span>
-              <span className="text-cyan-400 font-mono font-bold">{config.puckDiameter || 60} mm</span>
+              <span className="text-cyan-400 font-mono font-bold">{config.puckDiameter || 70} mm</span>
             </div>
             <input
               type="range"
               min="48"
               max="80"
               step="1"
-              value={config.puckDiameter || 60}
+              value={config.puckDiameter || 70}
               onChange={(e) => onChange({ puckDiameter: Number(e.target.value) })}
               className="w-full accent-cyan-500 bg-slate-800 h-2 rounded-lg cursor-pointer"
             />
@@ -126,14 +167,14 @@ export const BaseSection: React.FC<BaseSectionProps> = ({ config, onChange }) =>
           <div className="space-y-1.5">
             <div className="flex justify-between text-xs">
               <span className="text-slate-300">Profundidad del Vaso</span>
-              <span className="text-cyan-400 font-mono font-bold">{config.puckDepth || 26} mm</span>
+              <span className="text-cyan-400 font-mono font-bold">{config.puckDepth || 25} mm</span>
             </div>
             <input
               type="range"
               min="15"
               max="40"
               step="1"
-              value={config.puckDepth || 26}
+              value={config.puckDepth || 25}
               onChange={(e) => onChange({ puckDepth: Number(e.target.value) })}
               className="w-full accent-cyan-500 bg-slate-800 h-2 rounded-lg cursor-pointer"
             />
@@ -143,14 +184,14 @@ export const BaseSection: React.FC<BaseSectionProps> = ({ config, onChange }) =>
           <div className="space-y-1.5">
             <div className="flex justify-between text-xs">
               <span className="text-slate-300">Ángulo de Inclinación</span>
-              <span className="text-cyan-400 font-mono font-bold">{config.puckAngle || 45}°</span>
+              <span className="text-cyan-400 font-mono font-bold">{config.puckAngle || 55}°</span>
             </div>
             <input
               type="range"
               min="30"
               max="70"
               step="5"
-              value={config.puckAngle || 45}
+              value={config.puckAngle || 55}
               onChange={(e) => onChange({ puckAngle: Number(e.target.value) })}
               className="w-full accent-cyan-500 bg-slate-800 h-2 rounded-lg cursor-pointer"
             />
@@ -160,14 +201,14 @@ export const BaseSection: React.FC<BaseSectionProps> = ({ config, onChange }) =>
           <div className="space-y-1.5">
             <div className="flex justify-between text-xs">
               <span className="text-slate-300">Abertura del Vaso (C-Socket Arc)</span>
-              <span className="text-cyan-400 font-mono font-bold">{config.puckArcCoverage || 240}°</span>
+              <span className="text-cyan-400 font-mono font-bold">{config.puckArcCoverage || 180}°</span>
             </div>
             <input
               type="range"
               min="180"
               max="300"
               step="10"
-              value={config.puckArcCoverage || 240}
+              value={config.puckArcCoverage || 180}
               onChange={(e) => onChange({ puckArcCoverage: Number(e.target.value) })}
               className="w-full accent-cyan-500 bg-slate-800 h-2 rounded-lg cursor-pointer"
             />
@@ -192,6 +233,23 @@ export const BaseSection: React.FC<BaseSectionProps> = ({ config, onChange }) =>
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Strut Length Slider */}
+          <div className="space-y-1.5 pt-2 border-t border-slate-800">
+            <div className="flex justify-between text-xs">
+              <span className="text-slate-300 font-semibold">Largo de los Conectores (Brazos)</span>
+              <span className="text-cyan-400 font-mono font-bold">{config.strutLength || 60} mm</span>
+            </div>
+            <input
+              type="range"
+              min="40"
+              max="120"
+              step="5"
+              value={config.strutLength || 60}
+              onChange={(e) => onChange({ strutLength: Number(e.target.value) })}
+              className="w-full accent-cyan-500 bg-slate-800 h-2 rounded-lg cursor-pointer"
+            />
           </div>
 
           {/* Show / Hide Puck Lamp Toggle */}
