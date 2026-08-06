@@ -12,7 +12,7 @@
 
   <products>
     <lithophane>
-      <basePrice cop="5000" usd="14.90" />
+      <basePrice cop="60000" usd="14.90" />
       <sizeExtraMultiplier cop="22000" usd="5.50" />
       <bases>
         <base id="night-light" cop="34000" usd="8.50" />
