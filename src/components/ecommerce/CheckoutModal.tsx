@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { CartItem, Order, ShippingDetails } from '../../types';
 import { tursoService } from '../../lib/turso';
-import { buildWompiCheckoutUrl } from '../../lib/wompi';
+import { createMercadoPagoPreference } from '../../lib/mercadopago';
 import { useAuth } from '../../context/AuthContext';
 import { useCurrency } from '../../context/CurrencyContext';
-import { X, CheckCircle2, Download, Truck, Lock, ArrowLeft, User, Plus, MapPin, Edit2, CreditCard, ShieldCheck, MessageSquare } from 'lucide-react';
+import { X, CheckCircle2, Download, Truck, Lock, ArrowLeft, User, Plus, MapPin, Edit2, ShieldCheck, MessageSquare, Wallet } from 'lucide-react';
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -30,7 +30,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [isEditingSavedAddress, setIsEditingSavedAddress] = useState(false);
 
   const [savedAddress, setSavedAddress] = useState<ShippingDetails | null>(null);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'wompi' | 'whatsapp'>('wompi');
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'mercadopago' | 'whatsapp'>('mercadopago');
 
   const [shipping, setShipping] = useState<ShippingDetails>({
     fullName: customerUser?.name || '',
@@ -146,6 +146,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       shippingDetails: shipping,
       paymentMethod: selectedPaymentMethod,
       status: 'confirmed',
+      paymentStatus: 'pending',
       createdAt: new Date().toISOString()
     };
 
@@ -164,19 +165,22 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     setStep('confirmation');
     onOrderCompleted(order);
 
-    if (selectedPaymentMethod === 'wompi') {
+    if (selectedPaymentMethod === 'mercadopago') {
       try {
-        const wompiUrl = await buildWompiCheckoutUrl({
-          reference: order.id,
+        const mpUrl = await createMercadoPagoPreference({
+          orderId: order.id,
           amountUsd: order.total,
           customerEmail: shipping.email,
           customerFullName: shipping.fullName,
           customerPhone: shipping.phone,
           redirectUrl: window.location.href,
         });
-        window.open(wompiUrl, '_blank');
-      } catch (err) {
-        console.error('Error generating Wompi URL:', err);
+        if (mpUrl) {
+          window.open(mpUrl, '_blank');
+        }
+      } catch (err: any) {
+        console.error('Error generating Mercado Pago preference:', err);
+        alert(`Error con Mercado Pago: ${err.message || 'Verifica la configuración de Access Token.'}`);
       }
     } else {
       const waUrl = generateWhatsAppUrl(order);
@@ -521,39 +525,39 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 Selecciona tu Método de Pago Preferido:
               </label>
 
-              {/* Payment Option 1: Wompi Gateway */}
+              {/* Payment Option 1: Mercado Pago Gateway */}
               <div
-                onClick={() => setSelectedPaymentMethod('wompi')}
+                onClick={() => setSelectedPaymentMethod('mercadopago')}
                 className={`p-4 rounded-2xl border cursor-pointer transition-all ${
-                  selectedPaymentMethod === 'wompi'
-                    ? 'bg-slate-900 border-cyan-500 ring-1 ring-cyan-500 shadow-lg shadow-cyan-500/10'
+                  selectedPaymentMethod === 'mercadopago'
+                    ? 'bg-slate-900 border-sky-500 ring-1 ring-sky-500 shadow-lg shadow-sky-500/10'
                     : 'bg-slate-950/50 border-slate-800 hover:border-slate-700'
                 }`}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-500 to-violet-600 flex items-center justify-center text-white font-bold shadow-md">
-                      <CreditCard className="w-5 h-5" />
+                    <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-sky-500 to-blue-600 flex items-center justify-center text-white font-bold shadow-md">
+                      <Wallet className="w-5 h-5" />
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <h4 className="font-bold text-sm text-white">Pasarela de Pago Wompi</h4>
-                        <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 rounded-full">
+                        <h4 className="font-bold text-sm text-white">Mercado Pago (Checkout Pro)</h4>
+                        <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-sky-500/10 text-sky-400 border border-sky-500/30 rounded-full">
                           Recomendado
                         </span>
                       </div>
                       <p className="text-xs text-slate-400 mt-0.5">
-                        Bancolombia, Nequi, PSE, Daviplata, Tarjetas de Crédito y Débito
+                        PSE, Tarjetas de Crédito, Débito, Nequi, Daviplata y Efecty
                       </p>
                     </div>
                   </div>
-                  <input type="radio" checked={selectedPaymentMethod === 'wompi'} onChange={() => {}} className="accent-cyan-500" />
+                  <input type="radio" checked={selectedPaymentMethod === 'mercadopago'} onChange={() => {}} className="accent-sky-500" />
                 </div>
                 <div className="mt-3 pt-2.5 border-t border-slate-800/60 flex items-center justify-between text-[11px] text-slate-400 font-mono">
-                  <span className="flex items-center gap-1 text-emerald-400 font-semibold">
-                    <ShieldCheck className="w-3.5 h-3.5" /> Pago 100% Cifrado y Seguro
+                  <span className="flex items-center gap-1 text-sky-400 font-semibold">
+                    <ShieldCheck className="w-3.5 h-3.5" /> Pago Seguro con Mercado Pago
                   </span>
-                  <span>Sin costo adicional</span>
+                  <span>Varias opciones de pago</span>
                 </div>
               </div>
 
@@ -586,8 +590,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               type="submit"
               disabled={isProcessing}
               className={`w-full py-4 px-6 rounded-2xl font-extrabold text-sm shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 ${
-                selectedPaymentMethod === 'wompi'
-                  ? 'bg-gradient-to-r from-cyan-500 to-violet-600 hover:from-cyan-400 hover:to-violet-500 text-white shadow-cyan-500/25'
+                selectedPaymentMethod === 'mercadopago'
+                  ? 'bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white shadow-sky-500/25'
                   : 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white shadow-emerald-500/25'
               }`}
             >
@@ -596,10 +600,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                   <span>Procesando pago...</span>
                 </>
-              ) : selectedPaymentMethod === 'wompi' ? (
+              ) : selectedPaymentMethod === 'mercadopago' ? (
                 <>
-                  <CreditCard className="w-5 h-5" />
-                  <span>Pagar con Wompi ({formatPriceUsdOnly(total)})</span>
+                  <Wallet className="w-5 h-5" />
+                  <span>Pagar con Mercado Pago ({formatPriceUsdOnly(total)})</span>
                 </>
               ) : (
                 <>

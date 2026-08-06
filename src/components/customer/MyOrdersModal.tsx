@@ -206,31 +206,55 @@ export const MyOrdersModal: React.FC<MyOrdersModalProps> = ({
                     </span>
                   </div>
 
-                  {/* Status badge */}
-                  <div
-                    className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 w-fit ${
-                      order.status === 'confirmed'
-                        ? 'bg-cyan-950/60 border border-cyan-500/30 text-cyan-400'
-                        : order.status === 'processing'
-                        ? 'bg-amber-950/60 border border-amber-500/30 text-amber-300'
-                        : order.status === 'completed'
-                        ? 'bg-emerald-950/60 border border-emerald-500/30 text-emerald-400'
-                        : 'bg-rose-950/60 border border-rose-500/30 text-rose-400'
-                    }`}
-                  >
-                    {order.status === 'confirmed' && <Clock className="w-3.5 h-3.5" />}
-                    {order.status === 'processing' && <Truck className="w-3.5 h-3.5 animate-pulse" />}
-                    {order.status === 'completed' && <CheckCircle2 className="w-3.5 h-3.5" />}
-                    {order.status === 'cancelled' && <XCircle className="w-3.5 h-3.5" />}
-                    <span className="capitalize">
-                      {order.status === 'confirmed'
-                        ? 'Pedido Confirmado'
-                        : order.status === 'processing'
-                        ? 'En Fabricación 3D'
-                        : order.status === 'completed'
-                        ? 'Entregado'
-                        : 'Cancelado'}
-                    </span>
+                  {/* Status badges */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {/* Payment status badge */}
+                    <div
+                      className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${
+                        order.paymentStatus === 'approved'
+                          ? 'bg-emerald-950/60 border-emerald-500/30 text-emerald-400'
+                          : order.paymentStatus === 'rejected'
+                          ? 'bg-rose-950/60 border-rose-500/30 text-rose-400'
+                          : order.paymentStatus === 'refunded'
+                          ? 'bg-purple-950/60 border-purple-500/30 text-purple-400'
+                          : 'bg-amber-950/60 border-amber-500/30 text-amber-300'
+                      }`}
+                    >
+                      {order.paymentStatus === 'approved'
+                        ? '🟢 Pago Aprobado'
+                        : order.paymentStatus === 'rejected'
+                        ? '🔴 Pago Rechazado'
+                        : order.paymentStatus === 'refunded'
+                        ? '🟣 Pago Reembolsado'
+                        : '🟡 Pendiente de Pago'}
+                    </div>
+
+                    {/* Order delivery status badge */}
+                    <div
+                      className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 w-fit ${
+                        order.status === 'confirmed'
+                          ? 'bg-cyan-950/60 border border-cyan-500/30 text-cyan-400'
+                          : order.status === 'processing'
+                          ? 'bg-amber-950/60 border border-amber-500/30 text-amber-300'
+                          : order.status === 'completed'
+                          ? 'bg-emerald-950/60 border border-emerald-500/30 text-emerald-400'
+                          : 'bg-rose-950/60 border border-rose-500/30 text-rose-400'
+                      }`}
+                    >
+                      {order.status === 'confirmed' && <Clock className="w-3.5 h-3.5" />}
+                      {order.status === 'processing' && <Truck className="w-3.5 h-3.5 animate-pulse" />}
+                      {order.status === 'completed' && <CheckCircle2 className="w-3.5 h-3.5" />}
+                      {order.status === 'cancelled' && <XCircle className="w-3.5 h-3.5" />}
+                      <span className="capitalize">
+                        {order.status === 'confirmed'
+                          ? 'Pedido Confirmado'
+                          : order.status === 'processing'
+                          ? 'En Fabricación 3D'
+                          : order.status === 'completed'
+                          ? 'Entregado'
+                          : 'Cancelado'}
+                      </span>
+                    </div>
                   </div>
                 </div>
 

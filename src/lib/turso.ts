@@ -244,9 +244,17 @@ export const tursoService = {
           shipping_details_json TEXT NOT NULL,
           payment_method TEXT NOT NULL,
           status TEXT NOT NULL,
+          payment_status TEXT NOT NULL DEFAULT 'pending',
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
       `);
+
+      // Migration for existing tables without payment_status column
+      try {
+        await tursoClient.execute(`ALTER TABLE orders ADD COLUMN payment_status TEXT DEFAULT 'pending';`);
+      } catch (e) {
+        // Column already exists
+      }
 
       // Create order_images table for storing original photos without bloating the main orders list
       await tursoClient.execute(`
@@ -487,6 +495,7 @@ export const tursoService = {
         shippingDetails: JSON.parse(String(row.shipping_details_json || '{}')),
         paymentMethod: String(row.payment_method) as Order['paymentMethod'],
         status: String(row.status) as Order['status'],
+        paymentStatus: (row.payment_status ? String(row.payment_status) : 'pending') as Order['paymentStatus'],
         createdAt: String(row.created_at),
       }));
     } catch (err) {
@@ -656,8 +665,8 @@ export const tursoService = {
     try {
       await tursoClient.execute({
         sql: `
-          INSERT INTO orders (id, items_json, subtotal, shipping_fee, total, shipping_details_json, payment_method, status, created_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO orders (id, items_json, subtotal, shipping_fee, total, shipping_details_json, payment_method, status, payment_status, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           ON CONFLICT(id) DO UPDATE SET
             items_json = excluded.items_json,
             subtotal = excluded.subtotal,
@@ -665,7 +674,8 @@ export const tursoService = {
             total = excluded.total,
             shipping_details_json = excluded.shipping_details_json,
             payment_method = excluded.payment_method,
-            status = excluded.status;
+            status = excluded.status,
+            payment_status = excluded.payment_status;
         `,
         args: [
           sanitizedOrder.id,
@@ -676,6 +686,7 @@ export const tursoService = {
           JSON.stringify(sanitizedOrder.shippingDetails),
           sanitizedOrder.paymentMethod,
           sanitizedOrder.status,
+          sanitizedOrder.paymentStatus || 'pending',
           sanitizedOrder.createdAt || new Date().toISOString(),
         ],
       });
@@ -698,6 +709,23 @@ export const tursoService = {
       });
     } catch (err) {
       console.error('Error updating order status in Turso:', err);
+    }
+  },
+
+  updatePaymentStatus: async (orderId: string, paymentStatus: Order['paymentStatus']): Promise<void> => {
+    const local = seedInitialLocalOrders();
+    const updatedLocal = local.map((o) => (o.id === orderId ? { ...o, paymentStatus } : o));
+    localStorage.setItem(LOCAL_STORAGE_ORDERS_KEY, JSON.stringify(updatedLocal));
+
+    if (!tursoClient || !isConfigured) return;
+
+    try {
+      await tursoClient.execute({
+        sql: `UPDATE orders SET payment_status = ? WHERE id = ?`,
+        args: [paymentStatus || 'pending', orderId],
+      });
+    } catch (err) {
+      console.error('Error updating payment status in Turso:', err);
     }
   },
 };

@@ -98,6 +98,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
     }
   };
 
+  // Handle payment status update
+  const handlePaymentStatusChange = async (orderId: string, newPaymentStatus: Order['paymentStatus']) => {
+    try {
+      await tursoService.updatePaymentStatus(orderId, newPaymentStatus);
+      setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, paymentStatus: newPaymentStatus } : o)));
+    } catch (err) {
+      alert('Error al actualizar el estado de pago.');
+    }
+  };
+
   const [downloadingImageKey, setDownloadingImageKey] = useState<string | null>(null);
 
   // On-demand download of item image from Turso DB / LocalStorage
@@ -423,14 +433,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
                     <th className="px-6 py-4">Cliente & Contacto</th>
                     <th className="px-6 py-4">Productos 3D</th>
                     <th className="px-6 py-4">Total</th>
-                    <th className="px-6 py-4">Estado</th>
+                    <th className="px-6 py-4">Estado Pago</th>
+                    <th className="px-6 py-4">Estado Pedido</th>
                     <th className="px-6 py-4 text-right">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/60">
                   {filteredOrders.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
+                      <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
                         No se encontraron órdenes registradas.
                       </td>
                     </tr>
@@ -512,7 +523,29 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
                           ${order.total.toFixed(2)} USD
                         </td>
 
-                        {/* Status Selector */}
+                        {/* Payment Status Selector */}
+                        <td className="px-6 py-4">
+                          <select
+                            value={order.paymentStatus || 'pending'}
+                            onChange={(e) => handlePaymentStatusChange(order.id, e.target.value as Order['paymentStatus'])}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-bold focus:outline-none border cursor-pointer ${
+                              order.paymentStatus === 'approved'
+                                ? 'bg-emerald-950/60 border-emerald-500/40 text-emerald-400'
+                                : order.paymentStatus === 'rejected'
+                                ? 'bg-rose-950/60 border-rose-500/40 text-rose-400'
+                                : order.paymentStatus === 'refunded'
+                                ? 'bg-purple-950/60 border-purple-500/40 text-purple-400'
+                                : 'bg-amber-950/60 border-amber-500/40 text-amber-300'
+                            }`}
+                          >
+                            <option value="pending" className="bg-slate-900 text-slate-200">🟡 Pendiente</option>
+                            <option value="approved" className="bg-slate-900 text-slate-200">🟢 Aprobado</option>
+                            <option value="rejected" className="bg-slate-900 text-slate-200">🔴 Rechazado</option>
+                            <option value="refunded" className="bg-slate-900 text-slate-200">🟣 Reembolsado</option>
+                          </select>
+                        </td>
+
+                        {/* Order Status Selector */}
                         <td className="px-6 py-4">
                           <select
                             value={order.status}

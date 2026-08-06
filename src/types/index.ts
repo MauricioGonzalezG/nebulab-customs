@@ -134,5 +134,6 @@ export interface Order {
   shippingDetails: ShippingDetails;
   paymentMethod: 'whatsapp' | 'card' | 'paypal' | 'mercadopago' | 'wompi';
   status: 'confirmed' | 'processing' | 'completed' | 'cancelled';
+  paymentStatus?: 'pending' | 'approved' | 'rejected' | 'refunded';
   createdAt: string;
 }
