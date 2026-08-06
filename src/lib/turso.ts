@@ -248,6 +248,20 @@ export const tursoService = {
         );
       `);
 
+      // Create order_images table for storing original photos without bloating the main orders list
+      await tursoClient.execute(`
+        CREATE TABLE IF NOT EXISTS order_images (
+          id TEXT PRIMARY KEY,
+          order_id TEXT NOT NULL,
+          item_id TEXT NOT NULL,
+          item_type TEXT NOT NULL,
+          image_data TEXT NOT NULL,
+          preview_data TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY(order_id) REFERENCES orders(id) ON DELETE CASCADE
+        );
+      `);
+
       // Seed default admin user
       await tursoClient.execute({
         sql: `
@@ -261,6 +275,7 @@ export const tursoService = {
       // Create indexes for faster queries as orders grow
       await tursoClient.execute(`CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at DESC);`);
       await tursoClient.execute(`CREATE INDEX IF NOT EXISTS idx_customers_email ON customers(email);`);
+      await tursoClient.execute(`CREATE INDEX IF NOT EXISTS idx_order_images_order_id ON order_images(order_id);`);
     } catch (err) {
       console.error('Error initializing Turso tables:', err);
     }
@@ -492,10 +507,148 @@ export const tursoService = {
     return allOrders.find((o) => o.id.trim().toUpperCase() === cleanId) || null;
   },
 
+  getOrderImage: async (orderId: string, itemId: string): Promise<{ imageData: string | null; previewData: string | null }> => {
+    // 1. Try fetching from Turso DB first
+    if (tursoClient && isConfigured) {
+      try {
+        const res = await tursoClient.execute({
+          sql: `SELECT image_data, preview_data FROM order_images WHERE order_id = ? AND item_id = ? LIMIT 1`,
+          args: [orderId, itemId],
+        });
+        if (res.rows.length > 0) {
+          const row = res.rows[0];
+          return {
+            imageData: row.image_data ? String(row.image_data) : null,
+            previewData: row.preview_data ? String(row.preview_data) : null,
+          };
+        }
+      } catch (err) {
+        console.error('Error fetching order image from Turso:', err);
+      }
+    }
+
+    // 2. Try LocalStorage fallback
+    try {
+      const raw = localStorage.getItem('nebulab_order_images_v1');
+      if (raw) {
+        const map = JSON.parse(raw);
+        const imageObj = map[`${orderId}_${itemId}`] || map[itemId];
+        if (imageObj) {
+          return {
+            imageData: imageObj.imageData || null,
+            previewData: imageObj.previewData || null,
+          };
+        }
+      }
+    } catch (e) {
+      console.error('Error reading order image from localStorage:', e);
+    }
+
+    // 3. Fallback to order item config if direct URL exists (e.g. sample image or unstripped item)
+    const order = await tursoService.getOrderById(orderId);
+    if (order) {
+      const item = order.items.find((i) => i.id === itemId);
+      if (item) {
+        const directUrl =
+          (item.itemType === 'collar' ? item.collarConfig?.imageUrl : null) ||
+          (item.itemType === 'clicker' ? item.clickerConfig?.imageUrl : null) ||
+          item.config?.imageUrl ||
+          item.previewImageDataUrl;
+
+        if (directUrl && directUrl !== '[STORED_IN_TURSO]') {
+          return {
+            imageData: directUrl,
+            previewData: item.previewImageDataUrl && item.previewImageDataUrl !== '[STORED_IN_TURSO]' ? item.previewImageDataUrl : null,
+          };
+        }
+      }
+    }
+
+    return { imageData: null, previewData: null };
+  },
+
   saveOrder: async (order: Order): Promise<void> => {
-    // Always sync with localStorage
+    // 1. Process and extract images from items
+    const localImagesKey = 'nebulab_order_images_v1';
+    let localImagesMap: Record<string, { imageData: string; previewData?: string }> = {};
+    try {
+      const existingImagesRaw = localStorage.getItem(localImagesKey);
+      if (existingImagesRaw) {
+        localImagesMap = JSON.parse(existingImagesRaw);
+      }
+    } catch (e) {
+      localImagesMap = {};
+    }
+
+    const sanitizedItems = order.items.map((item) => {
+      const itemCopy = JSON.parse(JSON.stringify(item));
+      const mainImageUrl =
+        (item.itemType === 'collar' ? item.collarConfig?.imageUrl : null) ||
+        (item.itemType === 'clicker' ? item.clickerConfig?.imageUrl : null) ||
+        item.config?.imageUrl ||
+        item.previewImageDataUrl ||
+        '';
+
+      const previewUrl = item.previewImageDataUrl || '';
+      const imageKey = `${order.id}_${item.id}`;
+
+      // Store original image in LocalStorage images map
+      if (mainImageUrl) {
+        localImagesMap[imageKey] = {
+          imageData: mainImageUrl,
+          previewData: previewUrl,
+        };
+      }
+
+      // Store original image in Turso order_images table if configured
+      if (tursoClient && isConfigured && mainImageUrl) {
+        const itemType = item.itemType || 'lithophane';
+        tursoClient
+          .execute({
+            sql: `
+              INSERT INTO order_images (id, order_id, item_id, item_type, image_data, preview_data)
+              VALUES (?, ?, ?, ?, ?, ?)
+              ON CONFLICT(id) DO UPDATE SET
+                image_data = excluded.image_data,
+                preview_data = excluded.preview_data;
+            `,
+            args: [imageKey, order.id, item.id, itemType, mainImageUrl, previewUrl],
+          })
+          .catch((err) => console.error('Error storing item image in Turso order_images:', err));
+      }
+
+      // Sanitize heavy base64 strings in items_json so getOrders() stays super lightweight!
+      if (itemCopy.config?.imageUrl && itemCopy.config.imageUrl.startsWith('data:')) {
+        itemCopy.config.imageUrl = '[STORED_IN_TURSO]';
+      }
+      if (itemCopy.clickerConfig?.imageUrl && itemCopy.clickerConfig.imageUrl.startsWith('data:')) {
+        itemCopy.clickerConfig.imageUrl = '[STORED_IN_TURSO]';
+      }
+      if (itemCopy.collarConfig?.imageUrl && itemCopy.collarConfig.imageUrl.startsWith('data:')) {
+        itemCopy.collarConfig.imageUrl = '[STORED_IN_TURSO]';
+      }
+      if (itemCopy.previewImageDataUrl && itemCopy.previewImageDataUrl.startsWith('data:')) {
+        itemCopy.previewImageDataUrl = '[STORED_IN_TURSO]';
+      }
+
+      return itemCopy;
+    });
+
+    try {
+      localStorage.setItem(localImagesKey, JSON.stringify(localImagesMap));
+    } catch (e) {
+      console.warn('LocalStorage quota limit reached when saving image fallback:', e);
+    }
+
+    // Sanitize order copy for local storage orders list
+    const sanitizedOrder: Order = {
+      ...order,
+      items: sanitizedItems,
+    };
+
+    // Always sync order metadata with localStorage
     const local = seedInitialLocalOrders();
-    const updatedLocal = [order, ...local.filter((o) => o.id !== order.id)];
+    const updatedLocal = [sanitizedOrder, ...local.filter((o) => o.id !== sanitizedOrder.id)];
     localStorage.setItem(LOCAL_STORAGE_ORDERS_KEY, JSON.stringify(updatedLocal));
 
     if (!tursoClient || !isConfigured) return;
@@ -515,15 +668,15 @@ export const tursoService = {
             status = excluded.status;
         `,
         args: [
-          order.id,
-          JSON.stringify(order.items),
-          order.subtotal,
-          order.shippingFee,
-          order.total,
-          JSON.stringify(order.shippingDetails),
-          order.paymentMethod,
-          order.status,
-          order.createdAt || new Date().toISOString(),
+          sanitizedOrder.id,
+          JSON.stringify(sanitizedOrder.items),
+          sanitizedOrder.subtotal,
+          sanitizedOrder.shippingFee,
+          sanitizedOrder.total,
+          JSON.stringify(sanitizedOrder.shippingDetails),
+          sanitizedOrder.paymentMethod,
+          sanitizedOrder.status,
+          sanitizedOrder.createdAt || new Date().toISOString(),
         ],
       });
     } catch (err) {

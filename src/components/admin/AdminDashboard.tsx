@@ -12,6 +12,8 @@ import { LithophaneViewer } from '../3d/LithophaneViewer';
 import { ClickerViewer } from '../3d/ClickerViewer';
 import { CollarViewer } from '../3d/CollarViewer';
 
+import { downloadOrderImage } from '../../lib/imageDownloader';
+
 import {
   LayoutDashboard,
   LogOut,
@@ -32,6 +34,7 @@ import {
   Sliders,
   Users,
   Key,
+  Image as ImageIcon,
 } from 'lucide-react';
 
 interface AdminDashboardProps {
@@ -95,17 +98,58 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
     }
   };
 
+  const [downloadingImageKey, setDownloadingImageKey] = useState<string | null>(null);
+
+  // On-demand download of item image from Turso DB / LocalStorage
+  const handleDownloadItemImage = async (orderId: string, itemId: string, itemType?: string) => {
+    const imageKey = `${orderId}_${itemId}`;
+    setDownloadingImageKey(imageKey);
+    try {
+      const { imageData } = await tursoService.getOrderImage(orderId, itemId);
+      if (imageData && imageData !== '[STORED_IN_TURSO]') {
+        const ext = imageData.startsWith('data:image/png')
+          ? 'png'
+          : imageData.startsWith('data:image/webp')
+          ? 'webp'
+          : 'jpg';
+        const filename = `foto_${itemType || 'producto'}_${orderId}_${itemId}.${ext}`;
+        downloadOrderImage(imageData, filename);
+      } else {
+        alert('No se encontró la imagen original almacenada para este producto.');
+      }
+    } catch (err) {
+      console.error('Error al descargar imagen:', err);
+      alert('Error al consultar la imagen desde Turso DB.');
+    } finally {
+      setDownloadingImageKey(null);
+    }
+  };
+
   // When admin inspects an order item
   const handleInspectItem = async (order: Order, item: CartItem) => {
     setSelectedOrderItem({ order, item });
     setIsProcessing3D(true);
 
     try {
+      let sourceUrl =
+        (item.itemType === 'collar' ? item.collarConfig?.imageUrl : item.itemType === 'clicker' ? item.clickerConfig?.imageUrl : item.config?.imageUrl) ||
+        item.previewImageDataUrl ||
+        '';
+
+      if (!sourceUrl || sourceUrl === '[STORED_IN_TURSO]') {
+        const fetched = await tursoService.getOrderImage(order.id, item.id);
+        if (fetched.imageData) {
+          sourceUrl = fetched.imageData;
+        } else if (fetched.previewData) {
+          sourceUrl = fetched.previewData;
+        }
+      }
+
       const img = new Image();
       img.crossOrigin = 'anonymous';
 
       if (item.itemType === 'collar' && item.collarConfig) {
-        img.src = item.previewImageDataUrl || item.collarConfig.imageUrl || '';
+        img.src = sourceUrl;
         img.onload = () => {
           const processed = processCollarImage(img, item.collarConfig!);
           setPreviewCollarProcessedData(processed);
@@ -115,7 +159,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
           setIsProcessing3D(false);
         };
       } else if (item.itemType === 'clicker' && item.clickerConfig) {
-        img.src = item.previewImageDataUrl || item.clickerConfig.imageUrl || '';
+        img.src = sourceUrl;
         img.onload = () => {
           const processed = processClickerImage(img, item.clickerConfig!);
           setPreviewClickerProcessedData(processed);
@@ -125,14 +169,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
           setIsProcessing3D(false);
         };
       } else {
-
-        img.src = item.previewImageDataUrl || item.config.imageUrl || '';
+        img.src = sourceUrl;
         img.onload = () => {
-          const gridRes = item.config.resolutionMode === 'ultra' ? 450 : item.config.resolutionMode === 'hd' ? 300 : 180;
+          const gridRes = item.config?.resolutionMode === 'ultra' ? 450 : item.config?.resolutionMode === 'hd' ? 300 : 180;
           const processed = processImageForLithophane(img, {
-            brightness: item.config.brightness,
-            contrast: item.config.contrast,
-            invert: item.config.invert,
+            brightness: item.config?.brightness || 0,
+            contrast: item.config?.contrast || 0,
+            invert: item.config?.invert || false,
             gridResolution: gridRes,
           });
           setPreviewProcessedData(processed);
@@ -141,11 +184,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
 
         img.onerror = async () => {
           const placeholderImg = await createPlaceholderImage();
-          const gridRes = item.config.resolutionMode === 'ultra' ? 450 : item.config.resolutionMode === 'hd' ? 300 : 180;
+          const gridRes = item.config?.resolutionMode === 'ultra' ? 450 : item.config?.resolutionMode === 'hd' ? 300 : 180;
           const processed = processImageForLithophane(placeholderImg, {
-            brightness: item.config.brightness,
-            contrast: item.config.contrast,
-            invert: item.config.invert,
+            brightness: item.config?.brightness || 0,
+            contrast: item.config?.contrast || 0,
+            invert: item.config?.invert || false,
             gridResolution: gridRes,
           });
           setPreviewProcessedData(processed);
@@ -423,27 +466,43 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
                               {order.items.length} {order.items.length === 1 ? 'Producto' : 'Productos'}
                             </span>
                             {order.items.map((it, idx) => (
-                              <button
-                                key={idx}
-                                onClick={() => handleInspectItem(order, it)}
-                                className={`px-2 py-1 rounded-lg border text-[11px] font-semibold transition-colors flex items-center gap-1 ${
-                                  it.itemType === 'collar'
-                                    ? 'bg-rose-950/60 border-rose-800/50 text-rose-300 hover:bg-rose-900/60'
-                                    : it.itemType === 'clicker'
-                                    ? 'bg-violet-950/60 border-violet-800/50 text-violet-300 hover:bg-violet-900/60'
-                                    : 'bg-cyan-950/60 border-cyan-800/50 text-cyan-300 hover:bg-cyan-900/60'
-                                }`}
-                                title="Inspeccionar parámetros 3D"
-                              >
-                                {it.itemType === 'clicker' ? <Key className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
-                                <span>
-                                {it.itemType === 'collar' && it.collarConfig
-                                    ? `Collar ${it.collarConfig.petName || 'Mascota'} (${it.collarConfig.size})`
-                                    : it.itemType === 'clicker' && it.clickerConfig
-                                    ? `${it.clickerConfig.type === 'clicker' ? 'Clicker MX' : 'Llavero'} (${it.clickerConfig.size}mm)`
-                                    : `Litofanía ${it.config?.shape === 'arc' ? 'Curva' : it.config?.shape === 'flat' ? 'Plana' : 'Cilíndrica'} (${it.config?.width || 120}×${it.config?.height || 100}mm)`}
-                                </span>
-                              </button>
+                              <div key={idx} className="flex items-center gap-1">
+                                <button
+                                  onClick={() => handleInspectItem(order, it)}
+                                  className={`px-2 py-1 rounded-lg border text-[11px] font-semibold transition-colors flex items-center gap-1 ${
+                                    it.itemType === 'collar'
+                                      ? 'bg-rose-950/60 border-rose-800/50 text-rose-300 hover:bg-rose-900/60'
+                                      : it.itemType === 'clicker'
+                                      ? 'bg-violet-950/60 border-violet-800/50 text-violet-300 hover:bg-violet-900/60'
+                                      : 'bg-cyan-950/60 border-cyan-800/50 text-cyan-300 hover:bg-cyan-900/60'
+                                  }`}
+                                  title="Inspeccionar parámetros 3D"
+                                >
+                                  {it.itemType === 'clicker' ? <Key className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                                  <span>
+                                    {it.itemType === 'collar' && it.collarConfig
+                                      ? `Collar ${it.collarConfig.petName || 'Mascota'} (${it.collarConfig.size})`
+                                      : it.itemType === 'clicker' && it.clickerConfig
+                                      ? `${it.clickerConfig.type === 'clicker' ? 'Clicker MX' : 'Llavero'} (${it.clickerConfig.size}mm)`
+                                      : `Litofanía ${it.config?.shape === 'arc' ? 'Curva' : it.config?.shape === 'flat' ? 'Plana' : 'Cilíndrica'} (${it.config?.width || 120}×${it.config?.height || 100}mm)`}
+                                  </span>
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDownloadItemImage(order.id, it.id, it.itemType);
+                                  }}
+                                  disabled={downloadingImageKey === `${order.id}_${it.id}`}
+                                  className="p-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-400 border border-slate-700 transition-colors flex items-center gap-1 disabled:opacity-50"
+                                  title="Descargar Foto Original de Turso DB"
+                                >
+                                  {downloadingImageKey === `${order.id}_${it.id}` ? (
+                                    <RefreshCw className="w-3 h-3 animate-spin text-cyan-400" />
+                                  ) : (
+                                    <ImageIcon className="w-3 h-3 text-cyan-400" />
+                                  )}
+                                </button>
+                              </div>
                             ))}
                           </div>
                         </td>
@@ -479,13 +538,29 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
                         <td className="px-6 py-4 text-right">
                           <div className="flex items-center justify-end gap-2">
                             {order.items.length > 0 && (
-                              <button
-                                onClick={() => handleInspectItem(order, order.items[0])}
-                                className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-400 transition-colors"
-                                title="Inspeccionar en 3D & Descargar STL"
-                              >
-                                <Box className="w-4 h-4" />
-                              </button>
+                              <>
+                                <button
+                                  onClick={() =>
+                                    handleDownloadItemImage(order.id, order.items[0].id, order.items[0].itemType)
+                                  }
+                                  disabled={downloadingImageKey === `${order.id}_${order.items[0].id}`}
+                                  className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-400 border border-slate-700 transition-colors flex items-center justify-center gap-1 disabled:opacity-50"
+                                  title="Descargar Foto Original de la Orden"
+                                >
+                                  {downloadingImageKey === `${order.id}_${order.items[0].id}` ? (
+                                    <RefreshCw className="w-4 h-4 animate-spin text-cyan-400" />
+                                  ) : (
+                                    <ImageIcon className="w-4 h-4 text-cyan-400" />
+                                  )}
+                                </button>
+                                <button
+                                  onClick={() => handleInspectItem(order, order.items[0])}
+                                  className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-400 transition-colors"
+                                  title="Inspeccionar en 3D & Descargar STL"
+                                >
+                                  <Box className="w-4 h-4" />
+                                </button>
+                              </>
                             )}
                             <a
                               href={`https://wa.me/${order.shippingDetails.phone.replace(/[^0-9]/g, '')}`}
@@ -734,14 +809,40 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
                   <p>{selectedOrderItem.order.shippingDetails.address}, {selectedOrderItem.order.shippingDetails.city}</p>
                 </div>
 
-                {/* 3D Export Buttons */}
+                {/* 3D Export & Image Download Buttons */}
                 <div className="space-y-2">
+                  <button
+                    onClick={() => {
+                      handleDownloadItemImage(
+                        selectedOrderItem.order.id,
+                        selectedOrderItem.item.id,
+                        selectedOrderItem.item.itemType
+                      );
+                    }}
+                    disabled={
+                      downloadingImageKey === `${selectedOrderItem.order.id}_${selectedOrderItem.item.id}`
+                    }
+                    className="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 font-semibold text-xs border border-cyan-500/30 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    {downloadingImageKey === `${selectedOrderItem.order.id}_${selectedOrderItem.item.id}` ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin text-cyan-400" />
+                        <span>Consultando Turso DB...</span>
+                      </>
+                    ) : (
+                      <>
+                        <ImageIcon className="w-3.5 h-3.5 text-cyan-400" />
+                        <span>Descargar Foto Original de Referencia</span>
+                      </>
+                    )}
+                  </button>
+
                   {selectedOrderItem.item.itemType === 'clicker' && selectedOrderItem.item.clickerConfig && (
                     <button
                       onClick={() => {
                         downloadClicker3MF(previewClickerProcessedData, selectedOrderItem.item.clickerConfig!);
                       }}
-                      className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-violet-600 hover:from-cyan-400 hover:to-violet-500 text-white font-bold text-sm shadow-lg shadow-cyan-500/25 transition-all flex items-center justify-center gap-2"
+                      className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-violet-600 hover:from-cyan-400 hover:to-violet-500 text-white font-bold text-sm shadow-lg shadow-cyan-500/25 transition-all flex items-center justify-center gap-2"
                     >
                       <Download className="w-4 h-4" />
                       <span>Descargar Archivo .3MF (Multi-Color Bambu/Orca)</span>
