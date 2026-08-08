@@ -3,6 +3,8 @@
  * Allows payments via PSE, Credit/Debit Cards, Nequi, Daviplata, Efecty & Mercado Pago Wallet.
  */
 
+import { BRAND } from './brand';
+
 export interface MercadoPagoConfig {
   publicKey: string;
   accessToken: string;
@@ -45,15 +47,15 @@ export async function createMercadoPagoPreference(params: {
     items: [
       {
         id: params.orderId,
-        title: `Pedido Nebulab 3D #${params.orderId}`,
-        description: 'Impresiones y productos tridimensionales personalizados Nebulab 3D',
+        title: `Pedido ${BRAND.name} #${params.orderId}`,
+        description: `Productos 3D personalizados · ${BRAND.name}`,
         quantity: 1,
         currency_id: currency,
         unit_price: unitPrice,
       },
     ],
     payer: {
-      name: params.customerFullName || 'Cliente Nebulab',
+      name: params.customerFullName || `Cliente ${BRAND.name}`,
       email: params.customerEmail,
       phone: {
         number: params.customerPhone ? params.customerPhone.replace(/[^0-9]/g, '') : '',

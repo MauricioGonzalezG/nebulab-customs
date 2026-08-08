@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { ClickerConfig } from '../../types';
 import { ProcessedClickerData } from '../../core/clickerProcessor';
+import { applyStandardOrbitControls } from './viewerControls';
 
 interface ClickerViewerProps {
   config: ClickerConfig;
@@ -47,10 +48,9 @@ export const ClickerViewer: React.FC<ClickerViewerProps> = ({ config, processedD
     container.innerHTML = '';
     container.appendChild(renderer.domElement);
 
-    // Controls
+    // Controls — same interaction map as Lithophane / Collar
     const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.05;
+    applyStandardOrbitControls(controls);
     controls.maxPolarAngle = Math.PI / 2 + 0.15;
 
     if (cameraStateRef.current) {

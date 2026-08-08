@@ -248,7 +248,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold text-white font-outfit">Nebulab Admin Studio</h1>
+                <h1 className="text-xl font-bold text-white font-outfit">Nebulab Studio Admin</h1>
                 <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 rounded-full">
                   Panel Principal
                 </span>

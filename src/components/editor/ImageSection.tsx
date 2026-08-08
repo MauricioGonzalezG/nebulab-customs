@@ -1,6 +1,6 @@
-import React, { useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { LithophaneConfig } from '../../types';
-import { Upload, Image as ImageIcon, Sliders, RefreshCw, Sun, Contrast, ArrowLeftRight } from 'lucide-react';
+import { Upload, Image as ImageIcon, Sliders, RefreshCw, Sun, Contrast, ArrowLeftRight, Sparkles, X } from 'lucide-react';
 
 interface ImageSectionProps {
   config: LithophaneConfig;
@@ -8,23 +8,58 @@ interface ImageSectionProps {
   onImageLoaded: (imgElement: HTMLImageElement) => void;
 }
 
+export const LITHOPHANE_SAMPLE_IMAGES = [
+  {
+    id: 'portrait',
+    name: 'Pareja / Retrato',
+    url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80'
+  },
+  {
+    id: 'dog',
+    name: 'Mascota / Perro',
+    url: 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&w=600&q=80'
+  },
+  {
+    id: 'landscape',
+    name: 'Paisaje / Montañas',
+    url: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=600&q=80'
+  }
+] as const;
+
 export const ImageSection: React.FC<ImageSectionProps> = ({
   config,
   onChange,
   onImageLoaded
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showUploadHint, setShowUploadHint] = useState(() => {
+    try {
+      return window.localStorage.getItem('nebulab_lithophane_upload_hint_seen') !== 'true';
+    } catch {
+      return true;
+    }
+  });
+
+  const dismissUploadHint = () => {
+    setShowUploadHint(false);
+    try {
+      window.localStorage.setItem('nebulab_lithophane_upload_hint_seen', 'true');
+    } catch {
+      // Ignore storage restrictions; the hint can still be dismissed for this visit.
+    }
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      dismissUploadHint();
       const reader = new FileReader();
       reader.onload = (event) => {
         const url = event.target?.result as string;
         const img = new Image();
         img.crossOrigin = 'Anonymous';
         img.onload = () => {
-          onChange({ imageUrl: url });
+          onChange({ imageUrl: url, sampleId: undefined });
           onImageLoaded(img);
         };
         img.src = url;
@@ -33,31 +68,16 @@ export const ImageSection: React.FC<ImageSectionProps> = ({
     }
   };
 
-  const handleLoadSample = (sampleUrl: string) => {
+  const handleLoadSample = (sampleId: string, sampleUrl: string) => {
+    dismissUploadHint();
     const img = new Image();
     img.crossOrigin = 'Anonymous';
     img.onload = () => {
-      onChange({ imageUrl: sampleUrl });
+      onChange({ imageUrl: sampleUrl, sampleId });
       onImageLoaded(img);
     };
     img.src = sampleUrl;
   };
-
-  // Sample portrait images for quick testing
-  const sampleImages = [
-    {
-      name: 'Pareja / Retrato',
-      url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80'
-    },
-    {
-      name: 'Mascota / Perro',
-      url: 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&w=600&q=80'
-    },
-    {
-      name: 'Paisaje / Montañas',
-      url: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=600&q=80'
-    }
-  ];
 
   return (
     <div className="space-y-6">
@@ -72,6 +92,31 @@ export const ImageSection: React.FC<ImageSectionProps> = ({
           onClick={() => fileInputRef.current?.click()}
           className="relative border-2 border-dashed border-slate-700 hover:border-cyan-500/80 bg-slate-900/60 hover:bg-slate-900 rounded-2xl p-6 text-center cursor-pointer transition-all duration-200 group shadow-inner"
         >
+          {showUploadHint && (
+            <div
+              className="absolute z-20 -top-3 right-3 w-[min(250px,calc(100%-1.5rem))] rounded-xl border border-violet-400/60 bg-slate-950 px-3.5 py-3 text-left shadow-2xl shadow-violet-950/40"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <span className="absolute -bottom-2 right-8 h-4 w-4 rotate-45 border-b border-r border-violet-400/60 bg-slate-950" />
+              <div className="relative flex items-start gap-2">
+                <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-violet-300" />
+                <div className="pr-4">
+                  <p className="text-xs font-bold text-white">Empieza aquí</p>
+                  <p className="mt-1 text-[11px] leading-relaxed text-slate-300">
+                    Haz clic en esta zona para cargar tu propia foto.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={dismissUploadHint}
+                  className="absolute -right-1 -top-1 rounded-md p-1 text-slate-500 hover:text-white"
+                  aria-label="Cerrar indicación"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+          )}
           <input
             ref={fileInputRef}
             type="file"
@@ -101,11 +146,15 @@ export const ImageSection: React.FC<ImageSectionProps> = ({
           O prueba con una foto de muestra:
         </span>
         <div className="grid grid-cols-3 gap-2">
-          {sampleImages.map((sample, i) => (
+          {LITHOPHANE_SAMPLE_IMAGES.map((sample) => (
             <button
-              key={i}
-              onClick={() => handleLoadSample(sample.url)}
-              className="group relative h-16 rounded-xl overflow-hidden border border-slate-800 hover:border-cyan-500 transition-all text-left"
+              key={sample.id}
+              onClick={() => handleLoadSample(sample.id, sample.url)}
+              className={`group relative h-16 rounded-xl overflow-hidden border transition-all text-left ${
+                config.sampleId === sample.id
+                  ? 'border-violet-400 ring-1 ring-violet-400/50'
+                  : 'border-slate-800 hover:border-cyan-500'
+              }`}
             >
               <img
                 src={sample.url}

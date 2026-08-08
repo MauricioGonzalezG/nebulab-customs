@@ -80,7 +80,7 @@ export const MyOrdersModal: React.FC<MyOrdersModalProps> = ({
               <Package className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-lg text-white font-outfit">Consulta Segura de Pedidos Nebulab 3D</h3>
+              <h3 className="font-bold text-lg text-white font-outfit">Mis pedidos · Nebulab Studio</h3>
               <p className="text-xs text-slate-400 font-inter">
                 {customerUser ? (
                   <span>

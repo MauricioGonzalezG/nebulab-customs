@@ -17,7 +17,7 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
         <div className="flex items-center justify-between border-b border-slate-800 pb-4">
           <div className="flex items-center gap-2.5">
             <Sparkles className="w-5 h-5 text-cyan-400" />
-            <h3 className="text-lg font-bold font-outfit">¿Cómo Funciona LithoCraft Studio?</h3>
+            <h3 className="text-lg font-bold font-outfit">¿Cómo funciona Nebulab Studio?</h3>
           </div>
           <button
             onClick={onClose}
@@ -34,9 +34,9 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
               1
             </span>
             <div>
-              <h4 className="font-bold text-slate-200">Sube tu Imagen Preferida</h4>
+              <h4 className="font-bold text-slate-200">Elige tu producto</h4>
               <p className="text-slate-400 mt-0.5">
-                Fotos de retratos, parejas, mascotas o paisajes con buen contraste funcionan excelente. Puedes usar las fotos de muestra para probar de inmediato.
+                Desde el inicio puedes abrir el estudio de <strong>litofanías</strong>, <strong>collares para mascotas</strong> o <strong>clickers y llaveros</strong>.
               </p>
             </div>
           </div>
@@ -46,9 +46,9 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
               2
             </span>
             <div>
-              <h4 className="font-bold text-slate-200">Elige la Forma 3D & Simula la Luz</h4>
+              <h4 className="font-bold text-slate-200">Sube tu imagen y personaliza</h4>
               <p className="text-slate-400 mt-0.5">
-                Selecciona entre estilo <strong>Curvado/Arco</strong>, <strong>Plano</strong> o <strong>Cilíndrico</strong>. Pulsa el botón <strong>"Encender Luz"</strong> en el visor 3D para ver el efecto de iluminación LED en tiempo real.
+                Ajusta forma, colores, tamaños y textos. En el visor 3D: <strong>clic izquierdo</strong> rota, <strong>clic derecho</strong> desplaza y la <strong>rueda</strong> hace zoom.
               </p>
             </div>
           </div>
@@ -58,9 +58,9 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
               3
             </span>
             <div>
-              <h4 className="font-bold text-slate-200">Selecciona el Soporte y Realiza tu Compra</h4>
+              <h4 className="font-bold text-slate-200">Pide o descarga tu archivo</h4>
               <p className="text-slate-400 mt-0.5">
-                Elige el conector de luz de noche (Socket mount) o base de madera LED. Haz tu pedido directamente o descarga el archivo STL listo para imprimir en 3D.
+                Agrega al carrito y paga en línea, o descarga el <strong>STL / 3MF</strong> listo para imprimir. Consulta el estado de tus pedidos desde tu cuenta.
               </p>
             </div>
           </div>

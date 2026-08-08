@@ -49,7 +49,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSucce
             </div>
             <div>
               <h3 className="font-bold text-lg text-white font-outfit">Panel de Administración</h3>
-              <p className="text-xs text-slate-400 font-inter">Autenticación Segura Nebulab 3D</p>
+              <p className="text-xs text-slate-400 font-inter">Acceso de administración · Nebulab Studio</p>
             </div>
           </div>
           <button
@@ -123,7 +123,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSucce
         {/* Footer info */}
         <div className="px-6 py-4 bg-slate-950/80 border-t border-slate-800 text-center text-xs text-slate-500 flex items-center justify-center gap-2">
           <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-          <span>Acceso exclusivo para administradores de Nebulab 3D</span>
+          <span>Acceso exclusivo para administradores de Nebulab Studio</span>
         </div>
       </div>
     </div>

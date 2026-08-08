@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { getPricingDataSync } from '../../lib/priceConfig';
 import { useCurrency } from '../../context/CurrencyContext';
+import { VIEWER_CONTROL_HINT } from '../3d/viewerControls';
 
 interface CollarStudioProps {
   onBackToHome: () => void;
@@ -122,11 +123,11 @@ export const CollarStudio: React.FC<CollarStudioProps> = ({
           <div>
             <h1 className="text-base sm:text-lg font-extrabold font-outfit text-white flex items-center gap-2">
               <span>Collares para Mascotas 3D</span>
-              <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
-                Placas Grabadas 3D
+              <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30">
+                Nebulab Studio
               </span>
             </h1>
-            <p className="text-xs text-slate-400">Diseño y personalización tridimensional de placas y collares</p>
+            <p className="text-xs text-slate-400">Placas grabadas y collares personalizados en 3D</p>
           </div>
         </div>
 
@@ -377,7 +378,7 @@ export const CollarStudio: React.FC<CollarStudioProps> = ({
           </div>
 
           <div className="absolute bottom-4 text-center text-[11px] text-slate-400 bg-slate-900/80 backdrop-blur-md px-4 py-1.5 rounded-full border border-slate-800/80">
-            Arrastra para rotar 360° • Rueda para zoom • Clic derecho para desplazar
+            {VIEWER_CONTROL_HINT}
           </div>
         </div>
 

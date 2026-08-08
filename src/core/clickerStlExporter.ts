@@ -5,7 +5,7 @@ export const downloadClickerSTL = (
   processedData: ProcessedClickerData | null,
   config: ClickerConfig
 ) => {
-  const header = `solid Nebulab3D_Clicker_${config.type}_${config.size}mm\n`;
+  const header = `solid NebulabStudio_Clicker_${config.type}_${config.size}mm\n`;
   let body = '';
 
   const scale = config.size / 2;
@@ -61,14 +61,14 @@ export const downloadClickerSTL = (
     body += `facet normal 1 0 0\n  outer loop\n    vertex ${x1} ${y1} ${-baseH}\n    vertex ${x2} ${y2} ${-baseH}\n    vertex ${x1} ${y1} 0\n  endloop\nendfacet\n`;
   }
 
-  const footer = `endsolid Nebulab3D_Clicker_${config.type}_${config.size}mm\n`;
+  const footer = `endsolid NebulabStudio_Clicker_${config.type}_${config.size}mm\n`;
   const stlString = header + body + footer;
 
   const blob = new Blob([stlString], { type: 'text/plain' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = `Nebulab3D_${config.type}_${config.size}mm_${Date.now()}.stl`;
+  link.download = `NebulabStudio_${config.type}_${config.size}mm_${Date.now()}.stl`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);

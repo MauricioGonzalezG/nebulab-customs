@@ -77,7 +77,7 @@ export function exportToSTL(object: THREE.Object3D, filename: string = 'lithopha
   const dataView = new DataView(buffer);
 
   // Write 80-byte header
-  const headerText = 'LithoCraft Studio - 3D Lithophane STL Model';
+  const headerText = 'Nebulab Studio - 3D Lithophane STL Model';
   for (let i = 0; i < 80; i++) {
     dataView.setUint8(i, i < headerText.length ? headerText.charCodeAt(i) : 32);
   }

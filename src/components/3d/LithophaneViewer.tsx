@@ -1,10 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { LithophaneConfig } from '../../types';
 import { ProcessedImageData } from '../../core/imageProcessor';
 import { createBaseMesh, createFrameMesh, createLithophaneGeometry, createLithophaneMaterial } from '../../core/lithophaneBuilder';
 import { exportToSTL, downloadLithophaneSTL } from '../../core/stlExporter';
 import { Lightbulb, RotateCcw, Download, Eye, Maximize2, Sparkles } from 'lucide-react';
+import { VIEWER_CONTROL_HINT, applyStandardOrbitControls } from './viewerControls';
 
 interface LithophaneViewerProps {
   config: LithophaneConfig;
@@ -18,63 +20,89 @@ export const LithophaneViewer: React.FC<LithophaneViewerProps> = ({
   onToggleLight
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const mountRef = useRef<HTMLDivElement>(null);
   const rootGroupRef = useRef<THREE.Group | null>(null);
+  const controlsRef = useRef<OrbitControls | null>(null);
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+
+  // Preserve camera between parameter changes so the view does not jump
+  const cameraStateRef = useRef<{ position: THREE.Vector3; target: THREE.Vector3 } | null>(null);
 
   const [wireframe, setWireframe] = useState(false);
-  const [isRotating, setIsRotating] = useState(false); // Default NO rotation as requested
-
-  // Orbit state references for custom lightweight orbit control
-  const isDraggingRef = useRef(false);
-  const previousMousePosition = useRef({ x: 0, y: 0 });
-  const rotationRef = useRef({ x: 0.05, y: 0.15 });
-  const zoomRef = useRef(200);
+  const [isRotating, setIsRotating] = useState(false);
 
   useEffect(() => {
-    if (!containerRef.current || !canvasRef.current) return;
+    const container = containerRef.current;
+    const mount = mountRef.current;
+    if (!container || !mount) return;
 
-    const width = containerRef.current.clientWidth;
-    const height = containerRef.current.clientHeight;
+    const width = container.clientWidth || 500;
+    const height = container.clientHeight || 450;
 
-    // 1. Scene setup (ItsLitho style soft sky cyan background)
+    // Scene with a light pastel background for stronger model contrast
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x8bd4e5); // Soft Sky Cyan (ItsLitho style)
+    scene.background = new THREE.Color(0xb7e3ef);
 
-    // ItsLitho style Grid Helper floor
-    const gridHelper = new THREE.GridHelper(600, 40, 0x4aaec4, 0x78cfdf);
+    const gridHelper = new THREE.GridHelper(600, 40, 0x5caebe, 0x8ccfdb);
     gridHelper.position.y = -85;
     scene.add(gridHelper);
 
-    // 2. Camera setup
-    const camera = new THREE.PerspectiveCamera(45, width / height, 1, 2000);
-    camera.position.set(0, 0, zoomRef.current);
+    // Camera
+    const camera = new THREE.PerspectiveCamera(45, width / height || 1, 1, 2000);
+    cameraRef.current = camera;
 
-    // 3. Renderer setup
+    const maxDim = Math.max(config.width, config.height);
+    const defaultDistance = maxDim * 2.2;
+
+    if (cameraStateRef.current) {
+      camera.position.copy(cameraStateRef.current.position);
+    } else {
+      camera.position.set(0, maxDim * 0.15, defaultDistance);
+    }
+
+    // Renderer
     const renderer = new THREE.WebGLRenderer({
-      canvas: canvasRef.current,
       antialias: true,
       preserveDrawingBuffer: true,
-      powerPreference: 'high-performance'
+      powerPreference: 'high-performance',
     });
     renderer.setSize(width, height);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 3));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.1;
     renderer.shadowMap.enabled = true;
 
-    // 4. Lighting setup
+    mount.innerHTML = '';
+    mount.appendChild(renderer.domElement);
+
+    // OrbitControls — same mouse map as Clicker / Collar
+    const controls = new OrbitControls(camera, renderer.domElement);
+    applyStandardOrbitControls(controls);
+    controls.minDistance = 60;
+    controls.maxDistance = 600;
+    controls.autoRotate = isRotating;
+    controls.autoRotateSpeed = 1.2;
+    controlsRef.current = controls;
+
+    if (cameraStateRef.current) {
+      controls.target.copy(cameraStateRef.current.target);
+      controls.update();
+    } else {
+      controls.target.set(0, 0, 0);
+      controls.update();
+    }
+
+    // Lighting
     const ambientLight = new THREE.AmbientLight(
       config.enableLight ? 0x444455 : 0xffffff,
       config.enableLight ? 0.8 : 1.3
     );
     scene.add(ambientLight);
 
-    // Front soft directional light
     const frontLight = new THREE.DirectionalLight(0xffffff, config.enableLight ? 0.5 : 0.9);
     frontLight.position.set(100, 150, 200);
     scene.add(frontLight);
 
-    // Backlight (LED light coming directly from the battery LED puck lamp cup!)
     const backLightColor = new THREE.Color(0xffffff).lerp(
       new THREE.Color(0xffa834),
       config.lightWarmth / 100
@@ -93,14 +121,12 @@ export const LithophaneViewer: React.FC<LithophaneViewerProps> = ({
     backLight.position.set(0, puckY, backLightZ);
     scene.add(backLight);
 
-    // 5. Root Group for Lithophane Assembly
+    // Root group
     const rootGroup = new THREE.Group();
     rootGroupRef.current = rootGroup;
     scene.add(rootGroup);
 
-    // 6. Build 3D Lithophane Mesh if data available
     if (processedData) {
-      // Load photographic texture map for ItsLitho photo rendering
       const textureLoader = new THREE.TextureLoader();
       const photoTexture = textureLoader.load(processedData.previewDataUrl, () => {
         renderer.render(scene, camera);
@@ -115,92 +141,63 @@ export const LithophaneViewer: React.FC<LithophaneViewerProps> = ({
       lithoMesh.receiveShadow = true;
       rootGroup.add(lithoMesh);
 
-      // Add Frame if enabled
       const frameMesh = createFrameMesh(config);
       if (frameMesh) {
-        frameMesh.position.set(0, 0, 0);
         rootGroup.add(frameMesh);
       }
 
-      // Add Base / Stand
       const baseGroup = createBaseMesh(config);
       rootGroup.add(baseGroup);
-
-      const maxDim = Math.max(config.width, config.height);
-      zoomRef.current = maxDim * 2.2;
     }
 
-    // Animation Loop
     let animationFrameId: number;
     const renderLoop = () => {
-      if (isRotating && !isDraggingRef.current) {
-        rotationRef.current.y += 0.005; // Slow auto-rotation
-      }
-
-      rootGroup.rotation.x = rotationRef.current.x;
-      rootGroup.rotation.y = rotationRef.current.y;
-      camera.position.z = zoomRef.current;
-      camera.lookAt(0, 0, 0);
-
+      controls.update();
       renderer.render(scene, camera);
       animationFrameId = requestAnimationFrame(renderLoop);
     };
-
     renderLoop();
 
-    // Resize handler
-    const handleResize = () => {
-      if (!containerRef.current) return;
-      const w = containerRef.current.clientWidth;
-      const h = containerRef.current.clientHeight;
+    const resizeRenderer = () => {
+      if (!container) return;
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+      if (w === 0 || h === 0) return;
+
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
       renderer.setSize(w, h);
     };
 
-    window.addEventListener('resize', handleResize);
+    resizeRenderer();
+    const resizeObserver = new ResizeObserver(resizeRenderer);
+    resizeObserver.observe(container);
+    window.addEventListener('resize', resizeRenderer);
 
     return () => {
-      window.removeEventListener('resize', handleResize);
+      cameraStateRef.current = {
+        position: camera.position.clone(),
+        target: controls.target.clone(),
+      };
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', resizeRenderer);
       cancelAnimationFrame(animationFrameId);
+      controls.dispose();
       renderer.dispose();
+      controlsRef.current = null;
+      cameraRef.current = null;
     };
   }, [config, processedData, wireframe, isRotating]);
 
-  // Mouse / Touch Interaction Controls
-  const handleMouseDown = (e: React.MouseEvent) => {
-    isDraggingRef.current = true;
-    previousMousePosition.current = { x: e.clientX, y: e.clientY };
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDraggingRef.current) return;
-    const deltaX = e.clientX - previousMousePosition.current.x;
-    const deltaY = e.clientY - previousMousePosition.current.y;
-
-    rotationRef.current.y += deltaX * 0.01;
-    rotationRef.current.x += deltaY * 0.01;
-
-    // Clamp vertical rotation so it doesn't flip upside down
-    rotationRef.current.x = Math.max(-Math.PI / 3, Math.min(Math.PI / 3, rotationRef.current.x));
-
-    previousMousePosition.current = { x: e.clientX, y: e.clientY };
-  };
-
-  const handleMouseUp = () => {
-    isDraggingRef.current = false;
-  };
-
-  const handleWheel = (e: React.WheelEvent) => {
-    zoomRef.current += e.deltaY * 0.15;
-    zoomRef.current = Math.max(60, Math.min(600, zoomRef.current));
-  };
-
   const resetView = () => {
-    rotationRef.current = { x: 0.15, y: 0 };
-    if (config) {
-      zoomRef.current = Math.max(config.width, config.height) * 2.2;
+    const maxDim = Math.max(config.width, config.height);
+    const distance = maxDim * 2.2;
+    if (cameraRef.current && controlsRef.current) {
+      cameraRef.current.position.set(0, maxDim * 0.15, distance);
+      controlsRef.current.target.set(0, 0, 0);
+      controlsRef.current.update();
     }
+    cameraStateRef.current = null;
   };
 
   const handleDownloadSTL = () => {
@@ -215,25 +212,18 @@ export const LithophaneViewer: React.FC<LithophaneViewerProps> = ({
     <div
       ref={containerRef}
       className="relative w-full h-[520px] md:h-full min-h-[450px] bg-slate-950 rounded-2xl overflow-hidden shadow-2xl border border-slate-800/80 cursor-grab active:cursor-grabbing select-none"
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
-      onWheel={handleWheel}
     >
-      <canvas ref={canvasRef} className="w-full h-full block" />
+      {/* WebGL mount — kept separate so React overlays are not wiped */}
+      <div ref={mountRef} className="absolute inset-0 w-full h-full" />
 
-      {/* Floating Toolbar & Overlays */}
-      <div className="absolute top-4 left-4 right-4 flex items-center justify-between pointer-events-none">
-        {/* Title / Status Tag */}
-        <div className="bg-slate-900/85 backdrop-blur-md px-3.5 py-1.8 rounded-full border border-slate-700/60 text-xs font-medium text-slate-200 flex items-center gap-2 pointer-events-auto shadow-lg">
+      {/* Floating Toolbar */}
+      <div className="absolute top-4 left-4 right-4 flex items-center justify-between pointer-events-none z-10">
+        <div className="bg-slate-900/85 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-slate-700/60 text-xs font-medium text-slate-200 flex items-center gap-2 pointer-events-auto shadow-lg">
           <Sparkles className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
           <span>Vista 3D Interactiva</span>
         </div>
 
-        {/* Action Controls */}
         <div className="flex items-center gap-2 pointer-events-auto">
-          {/* Light Toggle Switch */}
           <button
             onClick={onToggleLight}
             className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all duration-300 shadow-md ${
@@ -241,7 +231,7 @@ export const LithophaneViewer: React.FC<LithophaneViewerProps> = ({
                 ? 'bg-amber-400 text-slate-950 shadow-amber-400/20 shadow-lg scale-105'
                 : 'bg-slate-800/90 hover:bg-slate-700 text-slate-300 border border-slate-700'
             }`}
-            title="Simular Luz Trasera LED (ON/OFF)"
+            title="Simular luz trasera LED (ON/OFF)"
           >
             <Lightbulb className={`w-4 h-4 ${config.enableLight ? 'fill-slate-950 animate-bounce' : ''}`} />
             <span>{config.enableLight ? 'Luz ENCENDIDA' : 'Encender Luz'}</span>
@@ -254,7 +244,7 @@ export const LithophaneViewer: React.FC<LithophaneViewerProps> = ({
                 ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500'
                 : 'bg-slate-800/90 text-slate-300 border-slate-700 hover:bg-slate-700'
             }`}
-            title="Malla Wireframe 3D"
+            title="Malla wireframe 3D"
           >
             <Eye className="w-4 h-4" />
           </button>
@@ -274,15 +264,14 @@ export const LithophaneViewer: React.FC<LithophaneViewerProps> = ({
           <button
             onClick={resetView}
             className="p-2 rounded-full bg-slate-800/90 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-all"
-            title="Restablecer Cámara"
+            title="Restablecer cámara"
           >
             <Maximize2 className="w-4 h-4" />
           </button>
         </div>
       </div>
 
-      {/* Floating Bottom Left: STL Export Button */}
-      <div className="absolute bottom-4 left-4 pointer-events-auto">
+      <div className="absolute bottom-4 left-4 pointer-events-auto z-10">
         <button
           onClick={handleDownloadSTL}
           className="flex items-center gap-2 px-3.5 py-2 bg-slate-900/90 hover:bg-slate-800 text-cyan-400 border border-cyan-500/40 hover:border-cyan-400 rounded-xl text-xs font-semibold shadow-xl transition-all duration-200 hover:scale-105 active:scale-95"
@@ -292,10 +281,9 @@ export const LithophaneViewer: React.FC<LithophaneViewerProps> = ({
         </button>
       </div>
 
-      {/* Floating Bottom Right: Controls Guidance */}
-      <div className="absolute bottom-4 right-4 pointer-events-none hidden sm:block">
+      <div className="absolute bottom-4 right-4 pointer-events-none hidden sm:block z-10">
         <div className="bg-slate-900/70 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-slate-800 text-[11px] text-slate-400">
-          Arrastra para rotar • Rueda para zoom
+          {VIEWER_CONTROL_HINT}
         </div>
       </div>
     </div>

@@ -1,30 +1,42 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Space+Mono:wght@400;700&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  font-family: 'Montserrat', system-ui, sans-serif;
   color-scheme: dark;
+  --brand-bg: #101011;
+  --brand-panel: #18171b;
+  --brand-panel-soft: rgba(24, 23, 27, 0.82);
+  --brand-text: #f5f3f7;
+  --brand-muted: #aaa6b2;
+  --brand-purple: #8d5ce8;
+  --brand-blue: #5f8dff;
+  --brand-line: rgba(255, 255, 255, 0.12);
 }
 
 body {
   margin: 0;
   padding: 0;
-  background-color: #020617;
-  color: #f8fafc;
+  background-color: var(--brand-bg);
+  color: var(--brand-text);
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 .font-outfit {
-  font-family: 'Outfit', sans-serif;
+  font-family: 'Montserrat', sans-serif;
 }
 
 .font-inter {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Montserrat', sans-serif;
+}
+
+.font-mono {
+  font-family: 'Space Mono', monospace;
 }
 
 /* Custom Scrollbars */
@@ -34,16 +46,16 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: #090d16;
+  background: #0a0a0b;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #1e293b;
+  background: #3c334d;
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #334155;
+  background: #65518a;
 }
 
 /* Custom Range Input Styling */
@@ -69,8 +81,224 @@ input[type='range']::-webkit-slider-thumb:hover {
 
 /* Glassmorphism utility */
 .glass-panel {
-  background: rgba(15, 23, 42, 0.8);
+  background: var(--brand-panel-soft);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.brand-shell {
+  background-color: var(--brand-bg);
+  background-image:
+    radial-gradient(circle at 75% 18%, rgba(100, 92, 255, 0.13), transparent 32rem),
+    radial-gradient(circle at 12% 72%, rgba(141, 92, 232, 0.08), transparent 28rem);
+}
+
+.brand-grid {
+  background-image:
+    linear-gradient(rgba(132, 70, 194, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(132, 70, 194, 0.07) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+.brand-header {
+  background: rgba(16, 16, 17, 0.86) !important;
+  border-color: var(--brand-line) !important;
+}
+
+.brand-mobile-menu {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  left: 1rem;
+  right: 1rem;
+  padding: 0.5rem;
+  background: rgba(24, 23, 27, 0.98);
+  border: 1px solid var(--brand-line);
+  border-radius: 0.9rem;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.4);
+}
+
+.brand-mobile-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 0.65rem;
+  padding: 0.75rem;
+  border-radius: 0.65rem;
+  color: var(--brand-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-align: left;
+  transition: background 150ms ease, color 150ms ease;
+}
+
+.brand-mobile-item:hover {
+  background: rgba(141, 92, 232, 0.14);
+  color: #fff;
+}
+
+.brand-mobile-quote {
+  margin-top: 0.35rem;
+  color: #fff;
+  background: linear-gradient(100deg, var(--brand-purple), var(--brand-blue));
+}
+
+.brand-nav {
+  background: rgba(24, 23, 27, 0.78) !important;
+  border-color: var(--brand-line) !important;
+}
+
+.brand-nav-active {
+  background: linear-gradient(100deg, var(--brand-purple), var(--brand-blue)) !important;
+  color: #fff !important;
+  box-shadow: 0 8px 24px rgba(95, 141, 255, 0.18);
+}
+
+.brand-nav-inactive {
+  color: var(--brand-muted) !important;
+}
+
+.brand-nav-inactive:hover {
+  color: var(--brand-text) !important;
+}
+
+.brand-currency {
+  background: rgba(24, 23, 27, 0.78) !important;
+  border-color: var(--brand-line) !important;
+}
+
+.brand-currency-active {
+  background: linear-gradient(100deg, var(--brand-purple), var(--brand-blue)) !important;
+  color: #fff !important;
+  box-shadow: 0 5px 16px rgba(95, 141, 255, 0.16);
+}
+
+.brand-logo {
+  height: 2.25rem;
+  width: auto;
+  max-width: 10rem;
+  object-fit: contain;
+}
+
+.brand-quote-button,
+.brand-primary {
+  background: linear-gradient(100deg, var(--brand-purple), var(--brand-blue));
+  color: #fff;
+  box-shadow: 0 12px 30px rgba(95, 141, 255, 0.2);
+}
+
+.brand-quote-button:hover,
+.brand-primary:hover {
+  filter: brightness(1.12);
+  transform: translateY(-1px);
+}
+
+.brand-outline {
+  border: 1px solid rgba(141, 92, 232, 0.85);
+  color: #d6c6ff;
+  background: rgba(16, 16, 17, 0.65);
+}
+
+.brand-outline:hover {
+  border-color: #a98cff;
+  background: rgba(141, 92, 232, 0.12);
+  color: #fff;
+}
+
+.brand-hero {
+  isolation: isolate;
+}
+
+.brand-hero-title {
+  font-family: 'Montserrat', sans-serif;
+  font-size: clamp(2.6rem, 5vw, 5.1rem);
+  font-weight: 900;
+  letter-spacing: -0.075em;
+  line-height: 0.98;
+}
+
+.brand-hero-title span {
+  background: linear-gradient(100deg, #ad79f5, #5f9aff 68%, #bca5ff);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+.brand-eyebrow {
+  color: #bca0f6;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.brand-terminal {
+  background: rgba(15, 15, 17, 0.82);
+  border: 1px solid rgba(141, 92, 232, 0.4);
+  box-shadow: 18px 18px 0 rgba(95, 141, 255, 0.08);
+  font-family: 'Space Mono', monospace;
+}
+
+.brand-terminal-line {
+  color: #bca0f6;
+}
+
+.brand-card {
+  background: linear-gradient(145deg, rgba(27, 26, 31, 0.96), rgba(18, 18, 20, 0.96));
+  border: 1px solid var(--brand-line);
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.22);
+}
+
+.brand-card:hover {
+  border-color: rgba(141, 92, 232, 0.72);
+  transform: translateY(-4px);
+}
+
+.brand-card-image {
+  transition: transform 500ms ease;
+}
+
+.brand-card:hover .brand-card-image {
+  transform: scale(1.05);
+}
+
+.brand-contact {
+  background: linear-gradient(120deg, rgba(54, 34, 87, 0.7), rgba(24, 45, 94, 0.62));
+  border: 1px solid rgba(141, 92, 232, 0.52);
+}
+
+.brand-stat {
+  border-left: 1px solid var(--brand-line);
+}
+
+@media (max-width: 640px) {
+  .brand-stat:first-child {
+    border-left: 0;
+  }
+
+  .brand-logo {
+    max-width: 8rem;
+  }
+}
+
+/* Re-tone existing Tailwind surfaces so the product studios share the brand shell. */
+.brand-shell [class*='bg-slate-950'] {
+  background-color: rgba(16, 16, 17, 0.94) !important;
+}
+
+.brand-shell [class*='bg-slate-900'] {
+  background-color: rgba(24, 23, 27, 0.9) !important;
+}
+
+.brand-shell [class*='border-slate-800'] {
+  border-color: var(--brand-line) !important;
+}
+
+.brand-shell [class*='text-cyan-'] {
+  color: #b69aff !important;
+}
+
+.brand-shell [class*='border-cyan-'] {
+  border-color: rgba(141, 92, 232, 0.58) !important;
 }

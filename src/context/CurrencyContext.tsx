@@ -82,12 +82,12 @@ export const CurrencySelector: React.FC = () => {
   const { currency, setCurrency } = useCurrency();
 
   return (
-    <div className="flex items-center bg-slate-900/80 p-1 rounded-xl border border-slate-800 text-xs font-bold font-mono">
+    <div className="brand-currency flex items-center bg-slate-900/80 p-1 rounded-xl border border-slate-800 text-xs font-bold font-mono">
       <button
         onClick={() => setCurrency('COP')}
         className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 ${
           currency === 'COP'
-            ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-sm'
+            ? 'brand-currency-active'
             : 'text-slate-400 hover:text-slate-200'
         }`}
         title="Moneda principal: Peso Colombiano (COP)"
@@ -100,7 +100,7 @@ export const CurrencySelector: React.FC = () => {
         onClick={() => setCurrency('USD')}
         className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 ${
           currency === 'USD'
-            ? 'bg-gradient-to-r from-cyan-500 to-violet-600 text-white shadow-sm'
+            ? 'brand-currency-active'
             : 'text-slate-400 hover:text-slate-200'
         }`}
         title="Moneda internacional: Dólar Estadounidense (USD)"

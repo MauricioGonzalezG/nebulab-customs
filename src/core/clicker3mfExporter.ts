@@ -145,6 +145,6 @@ export async function downloadClicker3MF(
     });
   }
 
-  const filename = `Nebulab3D_Clicker_Multicolor_${config.type}_${config.size}mm_${Date.now()}.3mf`;
+  const filename = `NebulabStudio_Clicker_Multicolor_${config.type}_${config.size}mm_${Date.now()}.3mf`;
   await download3MFFile(objects, filename);
 }

@@ -5,6 +5,7 @@ export type MaterialType = 'white-pla' | 'warm-ivory' | 'marble' | 'glow-blue';
 export interface LithophaneConfig {
   // Image properties
   imageUrl: string | null;
+  sampleId?: string;
   brightness: number; // -100 to 100
   contrast: number;   // -100 to 100
   invert: boolean;    // true = dark is thick, false = light is thick

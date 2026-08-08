@@ -5,6 +5,7 @@ import { createMercadoPagoPreference } from '../../lib/mercadopago';
 import { useAuth } from '../../context/AuthContext';
 import { useCurrency } from '../../context/CurrencyContext';
 import { X, CheckCircle2, Download, Truck, Lock, ArrowLeft, User, Plus, MapPin, Edit2, ShieldCheck, MessageSquare, Wallet } from 'lucide-react';
+import { BRAND, getWhatsAppUrl } from '../../lib/brand';
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -126,10 +127,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       .join('\n\n');
 
 
-    const msg = `¡Hola! Quisiera realizar el pedido de mis productos personalizados Nebulab 3D:\n\n🆔 *Orden ID:* ${order.id}\n👤 *Cliente:* ${order.shippingDetails.fullName}\n📱 *Teléfono:* ${order.shippingDetails.phone}\n📍 *Dirección:* ${order.shippingDetails.address}, ${order.shippingDetails.city} (${order.shippingDetails.country})\n\n📦 *Detalles del Producto:*\n${itemDetails}\n\n💰 *Total a Pagar:* $${order.total.toFixed(2)} USD\n\n¿Me ayudan a coordinar el pago y la entrega?`;
+    const msg = `¡Hola! Quisiera realizar el pedido de mis productos personalizados ${BRAND.name}:\n\n🆔 *Orden ID:* ${order.id}\n👤 *Cliente:* ${order.shippingDetails.fullName}\n📱 *Teléfono:* ${order.shippingDetails.phone}\n📍 *Dirección:* ${order.shippingDetails.address}, ${order.shippingDetails.city} (${order.shippingDetails.country})\n\n📦 *Detalles del Producto:*\n${itemDetails}\n\n💰 *Total a Pagar:* $${order.total.toFixed(2)} USD\n\n¿Me ayudan a coordinar el pago y la entrega?`;
 
 
-    return `https://wa.me/573232218586?text=${encodeURIComponent(msg)}`;
+    return getWhatsAppUrl(msg);
   };
 
   const handlePay = async (e: React.FormEvent) => {

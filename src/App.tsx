@@ -5,7 +5,7 @@ import { downloadLithophaneSTL } from './core/stlExporter';
 import { Header } from './components/Header';
 import { HomePage } from './components/home/HomePage';
 import { LithophaneViewer } from './components/3d/LithophaneViewer';
-import { ImageSection } from './components/editor/ImageSection';
+import { ImageSection, LITHOPHANE_SAMPLE_IMAGES } from './components/editor/ImageSection';
 import { ShapeSection } from './components/editor/ShapeSection';
 import { BaseSection } from './components/editor/BaseSection';
 import { PricingSummary, calculatePrice } from './components/ecommerce/PricingSummary';
@@ -20,6 +20,7 @@ import { ClickerStudio } from './components/clicker/ClickerStudio';
 import { CollarStudio } from './components/collar/CollarStudio';
 import { useAuth } from './context/AuthContext';
 import { ImageIcon, Layers, Lightbulb, Sparkles, CheckCircle2, ArrowLeft, Lock } from 'lucide-react';
+import { BRAND, getWhatsAppUrl } from './lib/brand';
 
 const getViewFromPath = (path: string): 'home' | 'studio' | 'clicker' | 'collar' | 'admin' => {
   const p = path.toLowerCase();
@@ -48,7 +49,8 @@ export const App: React.FC = () => {
 
   // Default Lithophane configuration
   const [config, setConfig] = useState<LithophaneConfig>({
-    imageUrl: null,
+    imageUrl: LITHOPHANE_SAMPLE_IMAGES[1].url,
+    sampleId: LITHOPHANE_SAMPLE_IMAGES[1].id,
     brightness: 10,
     contrast: 25,
     invert: false,
@@ -86,11 +88,15 @@ export const App: React.FC = () => {
   // Active control tab
   const [activeTab, setActiveTab] = useState<'image' | 'shape' | 'base'>('image');
 
-  // Load default placeholder image on startup
+  // Start with the dog sample so the 3D viewer is useful immediately.
   useEffect(() => {
-    createPlaceholderImage().then((img) => {
-      setCurrentImageElement(img);
-    });
+    const defaultImage = new Image();
+    defaultImage.crossOrigin = 'Anonymous';
+    defaultImage.onload = () => setCurrentImageElement(defaultImage);
+    defaultImage.onerror = () => {
+      createPlaceholderImage().then((img) => setCurrentImageElement(img));
+    };
+    defaultImage.src = LITHOPHANE_SAMPLE_IMAGES[1].url;
   }, []);
 
   // Re-process image whenever config adjustments change
@@ -236,7 +242,7 @@ export const App: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-inter flex flex-col selection:bg-cyan-500 selection:text-slate-950">
+    <div className="brand-shell min-h-screen bg-slate-950 text-slate-100 font-inter flex flex-col selection:bg-cyan-500 selection:text-slate-950">
       
       {/* Navbar Header */}
       <Header
@@ -291,11 +297,11 @@ export const App: React.FC = () => {
             >
 
               <ArrowLeft className="w-4 h-4 text-cyan-400" />
-              <span>Volver a Inicio / Opciones</span>
+              <span>Volver al catálogo</span>
             </button>
 
             <span className="text-xs text-slate-400 font-mono">
-              Creador de Litofanías 3D Nebulab
+              {BRAND.name} · {BRAND.workspaceName}
             </span>
           </div>
 
@@ -305,9 +311,9 @@ export const App: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-xl font-bold font-outfit text-white flex items-center gap-2">
-                    <span>Visualizador de Litofanía 3D</span>
+                    <span>Vista previa 3D</span>
                     <span className="text-xs font-normal text-slate-400 bg-slate-900 px-2.5 py-1 rounded-full border border-slate-800">
-                      Previsualización en tiempo real
+                      En tiempo real
                     </span>
                   </h2>
                 </div>
@@ -484,8 +490,15 @@ export const App: React.FC = () => {
       {/* Footer */}
       <footer className="mt-12 bg-slate-950 border-t border-slate-900 py-8 text-center text-xs text-slate-500">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p>© 2026 Nebulab 3D Studio • Plataforma de Impresión y Personalización 3D</p>
+          <div className="flex flex-col items-center sm:items-start gap-1">
+            <p>© 2026 {BRAND.name} · {BRAND.locations}</p>
+            <span className="text-[10px] text-slate-600 font-mono">{BRAND.tagline.toUpperCase()}</span>
+          </div>
           <div className="flex items-center gap-4 text-slate-400">
+            <a href={getWhatsAppUrl()} target="_blank" rel="noreferrer" className="hover:text-white transition-colors">WhatsApp</a>
+            <span>•</span>
+            <a href={BRAND.instagramUrl} target="_blank" rel="noreferrer" className="hover:text-white transition-colors">{BRAND.instagramHandle}</a>
+            <span>•</span>
             <a href="#" onClick={(e) => { e.preventDefault(); setIsHelpOpen(true); }} className="hover:text-cyan-400">Guía de uso</a>
             <span>•</span>
             <a href="#" onClick={(e) => { e.preventDefault(); alert('Términos y condiciones de impresión 3D'); }} className="hover:text-cyan-400">Términos y Condiciones</a>

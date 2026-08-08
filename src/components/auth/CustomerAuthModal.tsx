@@ -63,8 +63,8 @@ export const CustomerAuthModal: React.FC<CustomerAuthModalProps> = ({ isOpen, on
               <User className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h3 className="font-bold text-lg text-white font-outfit">Mi Cuenta Nebulab</h3>
-              <p className="text-xs text-slate-400 font-inter">Accede a tus pedidos e impresiones 3D</p>
+              <h3 className="font-bold text-lg text-white font-outfit">Mi cuenta · Nebulab Studio</h3>
+              <p className="text-xs text-slate-400 font-inter">Accede a tus pedidos y personalizaciones 3D</p>
             </div>
           </div>
           <button

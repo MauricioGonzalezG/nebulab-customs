@@ -1,5 +1,14 @@
 import React from 'react';
-import { Box, Sparkles, ShieldCheck, ArrowRight, Lightbulb, Key, Heart, Wrench, Lock, CheckCircle2 } from 'lucide-react';
+import {
+  ArrowRight,
+  ArrowUpRight,
+  Box,
+  Heart,
+  Key,
+  ShieldCheck,
+  Sparkles,
+} from 'lucide-react';
+import { BRAND, getWhatsAppUrl } from '../../lib/brand';
 
 interface HomePageProps {
   onOpenLithophaneStudio: () => void;
@@ -13,266 +22,176 @@ export const HomePage: React.FC<HomePageProps> = ({
   onOpenLithophaneStudio,
   onOpenClickerStudio,
   onOpenCollarStudio,
-  onOpenMyOrders,
 }) => {
+  const services: Array<{
+    eyebrow: string;
+    title: string;
+    description: string;
+    image: string;
+    icon: React.ElementType;
+    accent: string;
+    actionLabel: string;
+    onAction: () => void;
+  }> = [
+    {
+      eyebrow: 'REGALOS PERSONALIZADOS',
+      title: 'Litofanías 3D',
+      description: 'Convierte tus fotos en piezas de luz con relieve, marco y base LED listos para regalar.',
+      image: 'https://www.nebulab3d.com.co/images/lamparas/lampara-02.jpg',
+      icon: Box,
+      accent: 'text-violet-300',
+      actionLabel: 'Abrir estudio',
+      onAction: onOpenLithophaneStudio,
+    },
+    {
+      eyebrow: 'HECHO A TU MEDIDA',
+      title: 'Collares para mascotas',
+      description: 'Placas tridimensionales con nombre y teléfono para acompañar a tu mascota todos los días.',
+      image: '/brand/collares-kolla.png',
+      icon: Heart,
+      accent: 'text-pink-300',
+      actionLabel: 'Diseñar collar',
+      onAction: onOpenCollarStudio,
+    },
+    {
+      eyebrow: 'POPULAR',
+      title: 'Clickers & llaveros',
+      description: 'Diseños funcionales, relieves y piezas con identidad para llevar tus ideas contigo.',
+      image: '/brand/llavero-perro.png',
+      icon: Key,
+      accent: 'text-blue-300',
+      actionLabel: 'Personalizar pieza',
+      onAction: onOpenClickerStudio,
+    },
+  ];
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-inter selection:bg-cyan-500 selection:text-slate-950">
-      
-      {/* Hero Section */}
-      <section className="relative overflow-hidden pt-12 pb-20 border-b border-slate-900">
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-tr from-cyan-500/15 via-violet-600/15 to-fuchsia-600/15 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-6 relative z-10">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-xs font-semibold">
-            <Sparkles className="w-4 h-4 text-cyan-400" />
-            <span>Estudio de Impresión 3D y Litofanías Personalizadas</span>
-          </div>
-
-          <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight text-white font-outfit max-w-4xl mx-auto leading-tight">
-            Transformamos tus recuerdos en{' '}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-violet-400 to-fuchsia-400">
-              Esculturas de Luz 3D
-            </span>
+    <div className="brand-page min-h-screen text-slate-100 font-inter selection:bg-violet-500 selection:text-white">
+      <section className="brand-hero brand-grid relative overflow-hidden border-b border-white/10">
+        <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_50%_20%,rgba(123,89,214,0.16),transparent_38%)]" />
+        <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-24 text-center">
+          <p className="brand-eyebrow mb-5">{BRAND.name} · Studio</p>
+          <h1 className="text-4xl sm:text-5xl font-black tracking-tight text-white font-outfit">
+            Personaliza tu producto 3D
           </h1>
-
-          <p className="text-base sm:text-lg text-slate-300 max-w-2xl mx-auto font-inter">
-            Personaliza tus fotografías con filtros ópticos de luz LED, bases de madera tallada y relieves tridimensionales de alta precisión.
-          </p>
-
-          <div className="pt-4 flex flex-wrap items-center justify-center gap-4">
-            <button
-              onClick={onOpenLithophaneStudio}
-              className="px-8 py-4 rounded-2xl bg-gradient-to-r from-cyan-500 via-violet-600 to-fuchsia-600 hover:from-cyan-400 hover:to-fuchsia-500 text-white font-bold text-base shadow-xl shadow-cyan-500/25 transition-all duration-200 hover:scale-105 active:scale-95 flex items-center gap-2"
-            >
-              <Box className="w-5 h-5" />
-              <span>Diseñar Litofanía 3D</span>
-              <ArrowRight className="w-5 h-5 ml-1" />
-            </button>
-
-            <button
-              onClick={onOpenMyOrders}
-              className="px-6 py-4 rounded-2xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-200 font-semibold text-sm transition-all hover:scale-105"
-            >
-              Consultar Mis Pedidos
-            </button>
-          </div>
+          <button
+            onClick={onOpenLithophaneStudio}
+            className="brand-primary mt-8 inline-flex items-center gap-2 rounded-lg px-6 py-3.5 text-xs font-bold uppercase tracking-[0.12em] transition-all"
+          >
+            <Box className="w-4 h-4" />
+            Entrar a personalizar
+            <ArrowUpRight className="w-4 h-4" />
+          </button>
         </div>
       </section>
 
-      {/* Catalog & Customization Options Section */}
-      <section className="py-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
-        
-        <div className="text-center space-y-3">
-          <h2 className="text-3xl font-extrabold text-white font-outfit">Opciones de Personalización 3D</h2>
-          <p className="text-slate-400 text-sm max-w-xl mx-auto">
-            Explora nuestras colecciones exclusivas fabricadas en eco-PLA con resolución milimétrica.
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-24">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-5 mb-10">
+          <div>
+            <p className="brand-eyebrow mb-3">Lo que hacemos</p>
+            <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-white font-outfit">
+              Productos que no existen
+              <br />
+              <span className="text-violet-300">hasta que los imaginas.</span>
+            </h2>
+          </div>
+          <p className="max-w-sm text-sm leading-relaxed text-slate-400">
+            Elige un punto de partida, personalízalo en línea y revisa tu pieza en 3D antes de pedirla.
           </p>
         </div>
 
-        {/* Category Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          
-          {/* Card 1: Litofanías 3D (ACTIVE) */}
-          <div className="group relative rounded-3xl bg-slate-900/90 border border-cyan-500/40 p-6 flex flex-col justify-between shadow-xl shadow-cyan-500/10 hover:border-cyan-400 transition-all duration-300 hover:-translate-y-1">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-cyan-500 to-violet-600 flex items-center justify-center text-white shadow-md shadow-cyan-500/20">
-                  <Box className="w-6 h-6" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          {services.map((service) => {
+            const Icon = service.icon;
+            return (
+              <article key={service.title} className="brand-card group rounded-2xl overflow-hidden transition-all duration-300">
+                <div className="relative h-48 overflow-hidden">
+                  <img
+                    src={service.image}
+                    alt={service.title}
+                    loading="lazy"
+                    className="brand-card-image h-full w-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#121214] via-[#121214]/20 to-transparent" />
+                  <span className="brand-eyebrow absolute bottom-4 left-5">{service.eyebrow}</span>
                 </div>
-                <span className="px-3 py-1 text-[11px] font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full flex items-center gap-1">
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  Disponible
-                </span>
-              </div>
-
-              <div>
-                <h3 className="text-xl font-bold text-white font-outfit group-hover:text-cyan-300 transition-colors">
-                  Litofanías 3D
-                </h3>
-                <p className="text-xs text-slate-400 mt-2 leading-relaxed">
-                  Paneles ópticos curvos, planos y cilíndricos con iluminación de noche LED y grabado fotográfico.
-                </p>
-              </div>
-
-              <div className="pt-2 space-y-1 text-xs text-slate-300 font-medium">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>Resolución Ultra HD (450 px)</span>
+                <div className="p-5">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <h3 className="text-xl font-bold text-white font-outfit">{service.title}</h3>
+                      <p className="mt-2 text-sm leading-relaxed text-slate-400">{service.description}</p>
+                    </div>
+                    <Icon className={`w-5 h-5 shrink-0 ${service.accent}`} />
+                  </div>
+                  <button
+                    onClick={service.onAction}
+                    className="mt-6 inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.12em] text-violet-300 hover:text-white transition-colors"
+                  >
+                    {service.actionLabel}
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Lightbulb className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Base LED Cálida / RGB incluida</span>
-                </div>
-              </div>
-            </div>
-
-            <button
-              onClick={onOpenLithophaneStudio}
-              className="mt-6 w-full py-3 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-violet-600 hover:from-cyan-400 hover:to-violet-500 text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2"
-            >
-              <span>Personalizar Ahora</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          </div>
-
-          {/* Card 2: Collares para Mascotas 3D (ACTIVE) */}
-          <div className="group relative rounded-3xl bg-slate-900/90 border border-rose-500/40 p-6 flex flex-col justify-between shadow-xl shadow-rose-500/10 hover:border-rose-400 transition-all duration-300 hover:-translate-y-1">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-rose-500 to-amber-600 flex items-center justify-center text-white shadow-md shadow-rose-500/20">
-                  <Heart className="w-6 h-6" />
-                </div>
-                <span className="px-3 py-1 text-[11px] font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full flex items-center gap-1">
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  Disponible
-                </span>
-              </div>
-
-              <div>
-                <h3 className="text-xl font-bold text-white font-outfit group-hover:text-rose-300 transition-colors">
-                  Collares para Mascotas 3D
-                </h3>
-                <p className="text-xs text-slate-400 mt-2 leading-relaxed">
-                  Collares textiles de alta resistencia con placas tridimensionales personalizadas para perro o gato.
-                </p>
-              </div>
-
-              <div className="pt-2 space-y-1 text-xs text-slate-300 font-medium">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="w-3.5 h-3.5 text-rose-400" />
-                  <span>Placa Grabada con Nombre y Teléfono</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Heart className="w-3.5 h-3.5 text-amber-400" />
-                  <span>5 Colores de Correa & Placas Eco-PLA</span>
-                </div>
-              </div>
-            </div>
-
-            <button
-              onClick={onOpenCollarStudio}
-              className="mt-6 w-full py-3 px-4 rounded-xl bg-gradient-to-r from-rose-500 to-amber-600 hover:from-rose-400 hover:to-amber-500 text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2"
-            >
-              <span>Diseñar Collar 3D</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          </div>
-
-
-          {/* Card 3: Clickers & Llaveros 3D (ACTIVE) */}
-          <div className="group relative rounded-3xl bg-slate-900/90 border border-violet-500/40 p-6 flex flex-col justify-between shadow-xl shadow-violet-500/10 hover:border-violet-400 transition-all duration-300 hover:-translate-y-1">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-violet-600 via-fuchsia-600 to-cyan-500 flex items-center justify-center text-white shadow-md shadow-violet-500/20">
-                  <Key className="w-6 h-6" />
-                </div>
-                <span className="px-3 py-1 text-[11px] font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full flex items-center gap-1">
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  Disponible
-                </span>
-              </div>
-
-              <div>
-                <h3 className="text-xl font-bold text-white font-outfit group-hover:text-violet-300 transition-colors">
-                  Clickers & Llaveros 3D
-                </h3>
-                <p className="text-xs text-slate-400 mt-2 leading-relaxed">
-                  Genera clickers mecánicos con switch MX o llaveros táctiles con relieve a partir de cualquier imagen.
-                </p>
-              </div>
-
-              <div className="pt-2 space-y-1 text-xs text-slate-300 font-medium">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="w-3.5 h-3.5 text-violet-400" />
-                  <span>Carcasa con Switch MX Cherry</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Box className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>Impresión Multi-Filamento AMS</span>
-                </div>
-              </div>
-            </div>
-
-            <button
-              onClick={onOpenClickerStudio}
-              className="mt-6 w-full py-3 px-4 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2"
-            >
-              <span>Personalizar Clicker 3D</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          </div>
-
-
-          {/* Card 4: Centros de Mesa LED (IN CONSTRUCTION) */}
-          <div className="relative rounded-3xl bg-slate-900/40 border border-slate-800/80 p-6 flex flex-col justify-between opacity-85 hover:opacity-100 transition-opacity">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="w-12 h-12 rounded-2xl bg-slate-800 flex items-center justify-center text-fuchsia-400">
-                  <Lightbulb className="w-6 h-6" />
-                </div>
-                <span className="px-3 py-1 text-[11px] font-bold uppercase tracking-wider bg-amber-500/10 text-amber-400 border border-amber-500/30 rounded-full flex items-center gap-1">
-                  <Wrench className="w-3.5 h-3.5" />
-                  En Construcción
-                </span>
-              </div>
-
-              <div>
-                <h3 className="text-xl font-bold text-slate-200 font-outfit">
-                  Centros de Mesa LED
-                </h3>
-                <p className="text-xs text-slate-400 mt-2 leading-relaxed">
-                  Lámparas cilíndricas y cubos 3D panorámicos para decoración de salas y dormitorios.
-                </p>
-              </div>
-
-              <div className="pt-2 text-xs text-slate-500 italic">
-                En desarrollo de soporte y circuitos.
-              </div>
-            </div>
-
-            <button
-              disabled
-              className="mt-6 w-full py-3 px-4 rounded-xl bg-slate-800/80 text-slate-400 font-bold text-xs border border-slate-700/50 cursor-not-allowed flex items-center justify-center gap-2"
-            >
-              <Lock className="w-3.5 h-3.5" />
-              <span>Próximamente</span>
-            </button>
-          </div>
-
+              </article>
+            );
+          })}
         </div>
 
+        <div className="brand-contact mt-6 rounded-2xl p-6 sm:p-8 flex flex-col lg:flex-row lg:items-center justify-between gap-7">
+          <div>
+            <p className="brand-eyebrow mb-3">¿No ves lo que buscas?</p>
+            <h3 className="text-2xl sm:text-3xl font-black text-white font-outfit">Cuéntanos tu idea.</h3>
+            <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-300">
+              Desde una pieza para tu negocio hasta un regalo imposible de encontrar. Te ayudamos a convertirlo en un objeto real.
+            </p>
+          </div>
+          <a
+            href={getWhatsAppUrl('Hola Nebulab 3D, tengo una idea especial')}
+            target="_blank"
+            rel="noreferrer"
+            className="brand-primary inline-flex shrink-0 items-center justify-center gap-2 rounded-lg px-5 py-3 text-xs font-bold uppercase tracking-[0.12em] transition-all"
+          >
+            Pedir cotización
+            <ArrowUpRight className="w-4 h-4" />
+          </a>
+        </div>
       </section>
 
-      {/* Trust & Features Section */}
-      <section className="py-16 bg-slate-900/60 border-t border-b border-slate-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 sm:grid-cols-3 gap-8 text-center">
-          <div className="space-y-2">
-            <div className="w-10 h-10 rounded-xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center mx-auto">
-              <Sparkles className="w-5 h-5" />
-            </div>
-            <h4 className="font-bold text-white text-base">Presición Milimétrica</h4>
-            <p className="text-xs text-slate-400">Algoritmo de relieve en escala de grises HD.</p>
+      <section className="brand-grid border-y border-white/10 bg-black/10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 sm:grid-cols-3 gap-6">
+          <div className="brand-stat pl-0 sm:pl-6">
+            <div className="text-4xl font-black text-white font-outfit">4+</div>
+            <div className="brand-eyebrow mt-2">Impresoras activas</div>
           </div>
-
-          <div className="space-y-2">
-            <div className="w-10 h-10 rounded-xl bg-violet-500/10 text-violet-400 flex items-center justify-center mx-auto">
-              <ShieldCheck className="w-5 h-5" />
-            </div>
-            <h4 className="font-bold text-white text-base">Garantía de Impresión 3D</h4>
-            <p className="text-xs text-slate-400">Revisión de STL previo a cada fabricación.</p>
+          <div className="brand-stat pl-0 sm:pl-6">
+            <div className="text-4xl font-black text-white font-outfit">100%</div>
+            <div className="brand-eyebrow mt-2">Personalizados</div>
           </div>
-
-          <div className="space-y-2">
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center mx-auto">
-              <Box className="w-5 h-5" />
-            </div>
-            <h4 className="font-bold text-white text-base">Envíos Seguros a Todo el País</h4>
-            <p className="text-xs text-slate-400">Empaque protegido anti-impactos para regalo.</p>
+          <div className="brand-stat pl-0 sm:pl-6">
+            <div className="text-4xl font-black text-white font-outfit">2</div>
+            <div className="brand-eyebrow mt-2">Ciudades conectadas</div>
           </div>
         </div>
       </section>
 
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        <div className="grid md:grid-cols-3 gap-5">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
+            <Sparkles className="w-5 h-5 text-violet-300 mb-5" />
+            <h4 className="text-lg font-bold text-white font-outfit">Innovador</h4>
+            <p className="mt-2 text-sm leading-relaxed text-slate-400">Creatividad aplicada para llevar la impresión 3D a soluciones originales y sorprendentes.</p>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
+            <Heart className="w-5 h-5 text-pink-300 mb-5" />
+            <h4 className="text-lg font-bold text-white font-outfit">Cercano</h4>
+            <p className="mt-2 text-sm leading-relaxed text-slate-400">Comunicación directa y simple desde la primera idea hasta la entrega de tu pieza.</p>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
+            <ShieldCheck className="w-5 h-5 text-blue-300 mb-5" />
+            <h4 className="text-lg font-bold text-white font-outfit">Confiable</h4>
+            <p className="mt-2 text-sm leading-relaxed text-slate-400">Calidad, cumplimiento y acompañamiento para que tu idea llegue bien hecha.</p>
+          </div>
+        </div>
+      </section>
     </div>
   );
 };

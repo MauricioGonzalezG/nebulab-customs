@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { getPricingDataSync } from '../../lib/priceConfig';
 import { useCurrency } from '../../context/CurrencyContext';
+import { VIEWER_CONTROL_HINT } from '../3d/viewerControls';
 
 
 interface ClickerStudioProps {
@@ -152,12 +153,12 @@ export const ClickerStudio: React.FC<ClickerStudioProps> = ({
 
             <div>
               <h1 className="text-base font-bold text-white font-outfit flex items-center gap-2">
-                <span>Generador de Clickers & Llaveros 3D</span>
-                <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 rounded-full">
-                  V2.0
+                <span>Clickers & Llaveros 3D</span>
+                <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-violet-500/10 text-violet-400 border border-violet-500/30 rounded-full">
+                  Nebulab Studio
                 </span>
               </h1>
-              <p className="text-[11px] text-slate-400">Diseño tridimensional a partir de tus fotos o ilustraciones</p>
+              <p className="text-[11px] text-slate-400">Personaliza a partir de tus fotos o ilustraciones</p>
             </div>
           </div>
 
@@ -629,7 +630,7 @@ export const ClickerStudio: React.FC<ClickerStudioProps> = ({
 
           {/* Bottom Controls Hint Overlay */}
           <div className="absolute bottom-6 text-[11px] text-slate-500 bg-slate-900/70 px-4 py-1.5 rounded-full border border-slate-800 pointer-events-none">
-            Arrastra para rotar 360° • Rueda para zoom • Clic derecho para desplazar
+            {VIEWER_CONTROL_HINT}
           </div>
 
         </div>
