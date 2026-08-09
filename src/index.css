@@ -193,35 +193,8 @@ input[type='range']::-webkit-slider-thumb:hover {
   transform: translateY(-1px);
 }
 
-.brand-outline {
-  border: 1px solid rgba(141, 92, 232, 0.85);
-  color: #d6c6ff;
-  background: rgba(16, 16, 17, 0.65);
-}
-
-.brand-outline:hover {
-  border-color: #a98cff;
-  background: rgba(141, 92, 232, 0.12);
-  color: #fff;
-}
-
 .brand-hero {
   isolation: isolate;
-}
-
-.brand-hero-title {
-  font-family: 'Montserrat', sans-serif;
-  font-size: clamp(2.6rem, 5vw, 5.1rem);
-  font-weight: 900;
-  letter-spacing: -0.075em;
-  line-height: 0.98;
-}
-
-.brand-hero-title span {
-  background: linear-gradient(100deg, #ad79f5, #5f9aff 68%, #bca5ff);
-  background-clip: text;
-  -webkit-background-clip: text;
-  color: transparent;
 }
 
 .brand-eyebrow {
@@ -231,17 +204,6 @@ input[type='range']::-webkit-slider-thumb:hover {
   font-weight: 700;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-}
-
-.brand-terminal {
-  background: rgba(15, 15, 17, 0.82);
-  border: 1px solid rgba(141, 92, 232, 0.4);
-  box-shadow: 18px 18px 0 rgba(95, 141, 255, 0.08);
-  font-family: 'Space Mono', monospace;
-}
-
-.brand-terminal-line {
-  color: #bca0f6;
 }
 
 .brand-card {

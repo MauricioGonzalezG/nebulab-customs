@@ -159,7 +159,13 @@ export function createFrameMesh(config: LithophaneConfig): THREE.Mesh | null {
   const frameMat = new THREE.MeshStandardMaterial({
     color: 0x18181b, // Sleek matte dark slate black
     roughness: 0.7,
-    metalness: 0.1
+    metalness: 0.1,
+    // The outer side of a curved frame can face away from the camera
+    // depending on the viewing angle; keep the solid side visible then.
+    side: THREE.DoubleSide,
+    polygonOffset: true,
+    polygonOffsetFactor: -4,
+    polygonOffsetUnits: -4
   });
 
   const outerW = width + frameWidth * 2;
@@ -167,8 +173,10 @@ export function createFrameMesh(config: LithophaneConfig): THREE.Mesh | null {
   const arcRad = (arcAngle * Math.PI) / 180;
   const radius = (shape === 'arc' && arcRad > 0.01) ? width / arcRad : 1000;
 
-  const uFrame = frameWidth / outerW;
   const vFrame = frameWidth / outerH;
+  // Let the side bars overlap the lithophane edge slightly so its textured
+  // closing face cannot peek through at oblique viewing angles.
+  const sideBarU = (frameWidth + Math.min(1, frameWidth * 0.5)) / outerW;
 
   const positions: number[] = [];
   const indices: number[] = [];
@@ -236,9 +244,9 @@ export function createFrameMesh(config: LithophaneConfig): THREE.Mesh | null {
   // Bottom Frame Bar (40 smooth arc segments)
   addBoxSection(0, 1, 1 - vFrame, 1, 40, 1);
   // Left Side Bar
-  addBoxSection(0, uFrame, vFrame, 1 - vFrame, 1, 10);
+  addBoxSection(0, sideBarU, vFrame, 1 - vFrame, 1, 10);
   // Right Side Bar
-  addBoxSection(1 - uFrame, 1, vFrame, 1 - vFrame, 1, 10);
+  addBoxSection(1 - sideBarU, 1, vFrame, 1 - vFrame, 1, 10);
 
   const frameGeo = new THREE.BufferGeometry();
   frameGeo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
