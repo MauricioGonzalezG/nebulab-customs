@@ -320,11 +320,12 @@ export function createBaseMesh(config: LithophaneConfig): THREE.Group {
 
     uPoints.forEach((u) => {
       const angle = (u - 0.5) * arcRad;
+      const isArc = shape === 'arc' && arcAngle > 0;
 
       let startX = (u - 0.5) * width;
       let startZ = -0.6; // Back of frame/lithophane
 
-      if (shape === 'arc' && arcAngle > 0) {
+      if (isArc) {
         startX = Math.sin(angle) * radius;
         startZ = Math.cos(angle) * radius - radius - 0.6;
       }
@@ -338,6 +339,66 @@ export function createBaseMesh(config: LithophaneConfig): THREE.Group {
       const beamMesh = new THREE.Mesh(boxGeo, puckMat);
       beamMesh.position.copy(startPt);
       beamMesh.lookAt(targetPt);
+      beamMesh.updateMatrixWorld(true);
+
+      // Trim the frame-side end of the connector so it sits perfectly flush
+      // with the back of the frame. A plain rectangular (straight) end either
+      // sticks out past the curved surface or leaves a gap on one side, so
+      // every rear vertex is projected exactly onto the back surface and then
+      // nudged 0.1mm inward to guarantee a solid, gapless printable joint.
+      const beamDir = new THREE.Vector3().subVectors(targetPt, startPt).normalize();
+      const frameTopY = floorY + frameMargin;
+      const posAttr = boxGeo.attributes.position as THREE.BufferAttribute;
+      const vertex = new THREE.Vector3();
+
+      for (let i = 0; i < posAttr.count; i++) {
+        // Only reshape the connector end touching the frame (local z = 0)
+        if (Math.abs(posAttr.getZ(i)) > 1e-4) continue;
+
+        vertex.set(posAttr.getX(i), posAttr.getY(i), posAttr.getZ(i));
+        beamMesh.localToWorld(vertex);
+
+        // The frame back sits 0.6mm behind the lithophane back surface
+        const surfaceInset = frameMargin > 0 && vertex.y <= frameTopY ? 0.6 : 0;
+
+        if (isArc) {
+          // Curved back = vertical cylinder whose axis passes through (0, -radius).
+          // Ray (vertex + t * beamDir) to cylinder intersection on the XZ plane.
+          const surfaceR = radius - surfaceInset;
+          const a = beamDir.x * beamDir.x + beamDir.z * beamDir.z;
+          const b = 2 * (vertex.x * beamDir.x + (vertex.z + radius) * beamDir.z);
+          const c = vertex.x * vertex.x + (vertex.z + radius) * (vertex.z + radius) - surfaceR * surfaceR;
+          const discriminant = b * b - 4 * a * c;
+          if (a > 1e-9 && discriminant >= 0) {
+            const root = Math.sqrt(discriminant);
+            const t1 = (-b + root) / (2 * a);
+            const t2 = (-b - root) / (2 * a);
+            const t = Math.abs(t1) < Math.abs(t2) ? t1 : t2; // nearest surface hit
+            vertex.x += beamDir.x * t;
+            vertex.y += beamDir.y * t;
+            vertex.z += beamDir.z * t;
+          }
+          // Nudge slightly inward along the local radial normal
+          const radialLen = Math.hypot(vertex.x, vertex.z + radius) || 1;
+          vertex.x += (vertex.x / radialLen) * 0.1;
+          vertex.z += ((vertex.z + radius) / radialLen) * 0.1;
+        } else {
+          // Flat back plane
+          const targetZ = -surfaceInset;
+          if (Math.abs(beamDir.z) > 1e-9) {
+            const t = (targetZ - vertex.z) / beamDir.z;
+            vertex.x += beamDir.x * t;
+            vertex.y += beamDir.y * t;
+            vertex.z += beamDir.z * t;
+          }
+          vertex.z += 0.1;
+        }
+
+        beamMesh.worldToLocal(vertex);
+        posAttr.setXYZ(i, vertex.x, vertex.y, vertex.z);
+      }
+      posAttr.needsUpdate = true;
+      boxGeo.computeVertexNormals();
 
       group.add(beamMesh);
     });
