@@ -433,10 +433,10 @@ export function createBaseMesh(config: LithophaneConfig): THREE.Group {
             vertex.y += beamDir.y * t;
             vertex.z += beamDir.z * t;
           }
-          // Nudge slightly inward along the local radial normal
+          // Nudge 0.6mm inward into the frame body for strong 3D print fusion
           const radialLen = Math.hypot(vertex.x, vertex.z + radius) || 1;
-          vertex.x += (vertex.x / radialLen) * 0.1;
-          vertex.z += ((vertex.z + radius) / radialLen) * 0.1;
+          vertex.x += (vertex.x / radialLen) * 0.6;
+          vertex.z += ((vertex.z + radius) / radialLen) * 0.6;
         } else {
           // Flat back plane
           const targetZ = -surfaceInset;
@@ -446,7 +446,7 @@ export function createBaseMesh(config: LithophaneConfig): THREE.Group {
             vertex.y += beamDir.y * t;
             vertex.z += beamDir.z * t;
           }
-          vertex.z += 0.1;
+          vertex.z += 0.6;
         }
 
         beamMesh.worldToLocal(vertex);
