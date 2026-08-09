@@ -160,96 +160,130 @@ export function createFrameMesh(config: LithophaneConfig): THREE.Mesh | null {
     color: 0x18181b,
     roughness: 0.7,
     metalness: 0.1,
-    // The outer side of a curved frame can face away from the camera
-    // depending on the viewing angle; keep the solid side visible then.
     side: THREE.DoubleSide,
     polygonOffset: true,
     polygonOffsetFactor: -4,
     polygonOffsetUnits: -4
   });
 
-  const outerW = width + frameWidth * 2;
-  const outerH = height + frameWidth * 2;
   const arcRad = (arcAngle * Math.PI) / 180;
   const radius = (shape === 'arc' && arcRad > 0.01) ? width / arcRad : 1000;
 
-  const vFrame = frameWidth / outerH;
-  // Let the side bars overlap the lithophane edge slightly so its textured
-  // closing face cannot peek through at oblique viewing angles.
-  const sideBarU = (frameWidth + Math.min(1, frameWidth * 0.5)) / outerW;
-
   const frameDepth = config.frameThickness !== undefined ? config.frameThickness : 5;
   const frontZOffset = frameDepth - 0.6;
+  const minFrontZ = Math.min(frontZOffset - 0.5, Math.max(0.8, config.maxThickness + 0.2));
+  const bevelW = Math.min(frameWidth * 0.65, 3.2);
+
+  const halfW = width / 2;
+  const halfH = height / 2;
+
+  // 3 Concentric perimeter half-dimensions in 2D plane:
+  // Loop 0: Inner window edge (lithophane opening)
+  // Loop 1: Bevel top ridge
+  // Loop 2: Outer frame edge
+  const innerHW = halfW;
+  const innerHH = halfH;
+
+  const bevelHW = halfW + bevelW;
+  const bevelHH = halfH + bevelW;
+
+  const outerHW = halfW + frameWidth;
+  const outerHH = halfH + frameWidth;
+
+  const get3DVertex = (x: number, y: number, zOffset: number): [number, number, number] => {
+    if (shape === 'arc' && arcAngle > 0) {
+      const angle = (x / width) * arcRad;
+      const r = radius + zOffset;
+      const finalX = Math.sin(angle) * r;
+      const finalZ = Math.cos(angle) * r - radius;
+      return [finalX, y, finalZ];
+    }
+    return [x, y, zOffset];
+  };
+
+  const generateLoop = (hw: number, hh: number, zOffset: number, xSegs = 40, ySegs = 10) => {
+    const points: [number, number, number][] = [];
+
+    // Top edge: (-hw, hh) -> (hw, hh)
+    for (let i = 0; i < xSegs; i++) {
+      const x = -hw + (i / xSegs) * (2 * hw);
+      points.push(get3DVertex(x, hh, zOffset));
+    }
+
+    // Right edge: (hw, hh) -> (hw, -hh)
+    for (let i = 0; i < ySegs; i++) {
+      const y = hh - (i / ySegs) * (2 * hh);
+      points.push(get3DVertex(hw, y, zOffset));
+    }
+
+    // Bottom edge: (hw, -hh) -> (-hw, -hh)
+    for (let i = 0; i < xSegs; i++) {
+      const x = hw - (i / xSegs) * (2 * hw);
+      points.push(get3DVertex(x, -hh, zOffset));
+    }
+
+    // Left edge: (-hw, -hh) -> (-hw, hh)
+    for (let i = 0; i < ySegs; i++) {
+      const y = -hh + (i / ySegs) * (2 * hh);
+      points.push(get3DVertex(-hw, y, zOffset));
+    }
+
+    return points;
+  };
+
+  const loop0 = generateLoop(innerHW, innerHH, minFrontZ);      // Inner front
+  const loop1 = generateLoop(bevelHW, bevelHH, frontZOffset);  // Bevel ridge front
+  const loop2 = generateLoop(outerHW, outerHH, frontZOffset);  // Outer front
+  const loop3 = generateLoop(outerHW, outerHH, -0.6);          // Outer back
+  const loop4 = generateLoop(innerHW, innerHH, -0.6);          // Inner back
 
   const positions: number[] = [];
   const indices: number[] = [];
 
-  const getPos = (u: number, v: number, isFront: boolean) => {
-    const angle = (u - 0.5) * arcRad;
-    const r = isFront ? (radius + frontZOffset) : (radius - 0.6);
-    const x = (shape === 'arc' && arcAngle > 0) ? Math.sin(angle) * r : (u - 0.5) * outerW;
-    const z = (shape === 'arc' && arcAngle > 0) ? Math.cos(angle) * r - radius : (isFront ? frontZOffset : -0.6);
-    const y = (0.5 - v) * outerH;
-    return [x, y, z];
-  };
+  const loopIndices: number[][] = [];
+  const allLoops = [loop0, loop1, loop2, loop3, loop4];
 
-  const addBoxSection = (u1: number, u2: number, v1: number, v2: number, uSegs: number, vSegs: number) => {
-    for (let iv = 0; iv < vSegs; iv++) {
-      const vStart = v1 + (iv / vSegs) * (v2 - v1);
-      const vEnd = v1 + ((iv + 1) / vSegs) * (v2 - v1);
+  allLoops.forEach((loop) => {
+    const idxs: number[] = [];
+    loop.forEach((pt) => {
+      idxs.push(positions.length / 3);
+      positions.push(...pt);
+    });
+    loopIndices.push(idxs);
+  });
 
-      for (let iu = 0; iu < uSegs; iu++) {
-        const uStart = u1 + (iu / uSegs) * (u2 - u1);
-        const uEnd = u1 + ((iu + 1) / uSegs) * (u2 - u1);
+  const connectLoops = (innerLoopIdx: number, outerLoopIdx: number, flipNormal = false) => {
+    const lA = loopIndices[innerLoopIdx];
+    const lB = loopIndices[outerLoopIdx];
+    const N = lA.length;
 
-        const baseIdx = positions.length / 3;
+    for (let i = 0; i < N; i++) {
+      const nextI = (i + 1) % N;
+      const a1 = lA[i];
+      const a2 = lA[nextI];
+      const b1 = lB[i];
+      const b2 = lB[nextI];
 
-        // 8 vertices for box cell
-        positions.push(...getPos(uStart, vStart, true));  // 0: Front Top-Left
-        positions.push(...getPos(uEnd, vStart, true));    // 1: Front Top-Right
-        positions.push(...getPos(uStart, vEnd, true));    // 2: Front Bottom-Left
-        positions.push(...getPos(uEnd, vEnd, true));      // 3: Front Bottom-Right
-
-        positions.push(...getPos(uStart, vStart, false)); // 4: Back Top-Left
-        positions.push(...getPos(uEnd, vStart, false));   // 5: Back Top-Right
-        positions.push(...getPos(uStart, vEnd, false));   // 6: Back Bottom-Left
-        positions.push(...getPos(uEnd, vEnd, false));     // 7: Back Bottom-Right
-
-        // Front Face
-        indices.push(baseIdx + 0, baseIdx + 2, baseIdx + 1);
-        indices.push(baseIdx + 1, baseIdx + 2, baseIdx + 3);
-
-        // Back Face
-        indices.push(baseIdx + 4, baseIdx + 5, baseIdx + 6);
-        indices.push(baseIdx + 5, baseIdx + 7, baseIdx + 6);
-
-        // Top Face
-        indices.push(baseIdx + 0, baseIdx + 1, baseIdx + 4);
-        indices.push(baseIdx + 1, baseIdx + 5, baseIdx + 4);
-
-        // Bottom Face
-        indices.push(baseIdx + 2, baseIdx + 6, baseIdx + 3);
-        indices.push(baseIdx + 3, baseIdx + 6, baseIdx + 7);
-
-        // Left Face
-        indices.push(baseIdx + 0, baseIdx + 4, baseIdx + 2);
-        indices.push(baseIdx + 2, baseIdx + 4, baseIdx + 6);
-
-        // Right Face
-        indices.push(baseIdx + 1, baseIdx + 3, baseIdx + 5);
-        indices.push(baseIdx + 3, baseIdx + 7, baseIdx + 5);
+      if (!flipNormal) {
+        indices.push(a1, b1, a2);
+        indices.push(a2, b1, b2);
+      } else {
+        indices.push(a1, a2, b1);
+        indices.push(a2, b2, b1);
       }
     }
   };
 
-  // Top Frame Bar (40 smooth arc segments)
-  addBoxSection(0, 1, 0, vFrame, 40, 1);
-  // Bottom Frame Bar (40 smooth arc segments)
-  addBoxSection(0, 1, 1 - vFrame, 1, 40, 1);
-  // Left Side Bar
-  addBoxSection(0, sideBarU, vFrame, 1 - vFrame, 1, 10);
-  // Right Side Bar
-  addBoxSection(1 - sideBarU, 1, vFrame, 1 - vFrame, 1, 10);
+  // Ring 0: Inner Bevel Face (loop0 to loop1)
+  connectLoops(0, 1, false);
+  // Ring 1: Outer Flat Front Face (loop1 to loop2)
+  connectLoops(1, 2, false);
+  // Ring 2: Outer Side Wall (loop2 to loop3)
+  connectLoops(2, 3, true);
+  // Ring 3: Back Face (loop3 to loop4)
+  connectLoops(3, 4, false);
+  // Ring 4: Inner Side Wall (loop4 to loop0)
+  connectLoops(4, 0, false);
 
   const frameGeo = new THREE.BufferGeometry();
   frameGeo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
