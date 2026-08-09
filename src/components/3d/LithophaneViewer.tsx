@@ -5,20 +5,24 @@ import { LithophaneConfig } from '../../types';
 import { ProcessedImageData } from '../../core/imageProcessor';
 import { createBaseMesh, createFrameMesh, createLithophaneGeometry, createLithophaneMaterial } from '../../core/lithophaneBuilder';
 import { exportToSTL, downloadLithophaneSTL } from '../../core/stlExporter';
+import { useAuth } from '../../context/AuthContext';
 import { Lightbulb, RotateCcw, Download, Eye, Maximize2, Sparkles } from 'lucide-react';
 import { VIEWER_CONTROL_HINT, applyStandardOrbitControls } from './viewerControls';
 
 interface LithophaneViewerProps {
   config: LithophaneConfig;
   processedData: ProcessedImageData | null;
+  imgElement?: HTMLImageElement | null;
   onToggleLight?: () => void;
 }
 
 export const LithophaneViewer: React.FC<LithophaneViewerProps> = ({
   config,
   processedData,
+  imgElement,
   onToggleLight
 }) => {
+  const { isAuthenticated } = useAuth();
   const containerRef = useRef<HTMLDivElement>(null);
   const mountRef = useRef<HTMLDivElement>(null);
   const rootGroupRef = useRef<THREE.Group | null>(null);
@@ -133,10 +137,10 @@ export const LithophaneViewer: React.FC<LithophaneViewerProps> = ({
       });
 
       const geo = createLithophaneGeometry(processedData, config);
-      const mat = createLithophaneMaterial(config, photoTexture);
-      mat.wireframe = wireframe;
+      const mats = createLithophaneMaterial(config, photoTexture);
+      mats.forEach((m) => { m.wireframe = wireframe; });
 
-      const lithoMesh = new THREE.Mesh(geo, mat);
+      const lithoMesh = new THREE.Mesh(geo, mats);
       lithoMesh.castShadow = true;
       lithoMesh.receiveShadow = true;
       rootGroup.add(lithoMesh);
@@ -202,7 +206,7 @@ export const LithophaneViewer: React.FC<LithophaneViewerProps> = ({
 
   const handleDownloadSTL = () => {
     if (processedData) {
-      downloadLithophaneSTL(processedData, config);
+      downloadLithophaneSTL(processedData, config, undefined, imgElement);
     } else if (rootGroupRef.current) {
       exportToSTL(rootGroupRef.current, `Litofania_${config.shape}_${Date.now()}.stl`);
     }
@@ -271,15 +275,17 @@ export const LithophaneViewer: React.FC<LithophaneViewerProps> = ({
         </div>
       </div>
 
-      <div className="absolute bottom-3 left-3 pointer-events-auto z-10">
-        <button
-          onClick={handleDownloadSTL}
-          className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-3.5 py-1.5 sm:py-2 bg-slate-900/90 hover:bg-slate-800 text-cyan-400 border border-cyan-500/40 hover:border-cyan-400 rounded-xl text-[11px] sm:text-xs font-semibold shadow-xl transition-all duration-200 hover:scale-105 active:scale-95"
-        >
-          <Download className="w-3.5 h-3.5 text-cyan-400" />
-          <span>Descargar STL (.stl)</span>
-        </button>
-      </div>
+      {isAuthenticated && (
+        <div className="absolute bottom-3 left-3 pointer-events-auto z-10">
+          <button
+            onClick={handleDownloadSTL}
+            className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-3.5 py-1.5 sm:py-2 bg-slate-900/90 hover:bg-slate-800 text-cyan-400 border border-cyan-500/40 hover:border-cyan-400 rounded-xl text-[11px] sm:text-xs font-semibold shadow-xl transition-all duration-200 hover:scale-105 active:scale-95"
+          >
+            <Download className="w-3.5 h-3.5 text-cyan-400" />
+            <span>Descargar STL (.stl)</span>
+          </button>
+        </div>
+      )}
 
       <div className="absolute bottom-3 right-3 pointer-events-none hidden sm:block z-10">
         <div className="bg-slate-900/70 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-slate-800 text-[11px] text-slate-400">

@@ -1,15 +1,62 @@
 import * as THREE from 'three';
 import { LithophaneConfig } from '../types';
-import { ProcessedImageData } from './imageProcessor';
+import { ProcessedImageData, processImageForLithophane } from './imageProcessor';
 import { createBaseMesh, createFrameMesh, createLithophaneGeometry } from './lithophaneBuilder';
 
 /**
- * Downloads a clean printable 3D STL file excluding the removable battery LED puck light.
+ * Upscales luminance matrix via smooth bilinear sampling for ultra-high poly 3D printing STL export.
+ */
+function upscaleLuminanceMatrix(data: ProcessedImageData, targetResolution = 850): ProcessedImageData {
+  const origW = data.width;
+  const origH = data.height;
+  const targetW = targetResolution;
+  const targetH = Math.round(targetResolution / data.aspectRatio);
+
+  if (origW >= targetW && origH >= targetH) {
+    return data;
+  }
+
+  const newMatrix = new Float32Array(targetW * targetH);
+  const src = data.luminanceMatrix;
+
+  for (let ty = 0; ty < targetH; ty++) {
+    const srcY = (ty / Math.max(1, targetH - 1)) * (origH - 1);
+    const y0 = Math.floor(srcY);
+    const y1 = Math.min(origH - 1, y0 + 1);
+    const dy = srcY - y0;
+
+    for (let tx = 0; tx < targetW; tx++) {
+      const srcX = (tx / Math.max(1, targetW - 1)) * (origW - 1);
+      const x0 = Math.floor(srcX);
+      const x1 = Math.min(origW - 1, x0 + 1);
+      const dx = srcX - x0;
+
+      const v00 = src[y0 * origW + x0];
+      const v10 = src[y0 * origW + x1];
+      const v01 = src[y1 * origW + x0];
+      const v11 = src[y1 * origW + x1];
+
+      const val = (v00 * (1 - dx) + v10 * dx) * (1 - dy) + (v01 * (1 - dx) + v11 * dx) * dy;
+      newMatrix[ty * targetW + tx] = val;
+    }
+  }
+
+  return {
+    ...data,
+    width: targetW,
+    height: targetH,
+    luminanceMatrix: newMatrix
+  };
+}
+
+/**
+ * Downloads a clean printable 3D STL file at ultra high polygon resolution (850px resolution grid).
  */
 export function downloadLithophaneSTL(
   processedData: ProcessedImageData,
   config: LithophaneConfig,
-  filename?: string
+  filename?: string,
+  imgElement?: HTMLImageElement | null
 ): void {
   // Ensure printable 3D model excludes the removable battery puck lamp
   const stlConfig: LithophaneConfig = {
@@ -17,9 +64,22 @@ export function downloadLithophaneSTL(
     showLampPuck: false
   };
 
+  // Generate ultra high resolution mesh (850px grid = ~1M+ polygons for micro 3D print detail)
+  let highResData: ProcessedImageData = processedData;
+  if (imgElement) {
+    highResData = processImageForLithophane(imgElement, {
+      brightness: config.brightness,
+      contrast: config.contrast,
+      invert: config.invert,
+      gridResolution: 850
+    });
+  } else if (processedData) {
+    highResData = upscaleLuminanceMatrix(processedData, 850);
+  }
+
   const exportGroup = new THREE.Group();
 
-  const geo = createLithophaneGeometry(processedData, stlConfig);
+  const geo = createLithophaneGeometry(highResData, stlConfig);
   const mat = new THREE.MeshBasicMaterial();
   const lithoMesh = new THREE.Mesh(geo, mat);
   exportGroup.add(lithoMesh);
@@ -35,7 +95,7 @@ export function downloadLithophaneSTL(
 
   exportGroup.updateMatrixWorld(true);
 
-  const name = filename || `Litofania_Fabricacion_3D_${stlConfig.shape}_${Date.now()}.stl`;
+  const name = filename || `Litofania_Fabricacion_3D_UltraHD_${stlConfig.shape}_${Date.now()}.stl`;
   exportToSTL(exportGroup, name);
 }
 

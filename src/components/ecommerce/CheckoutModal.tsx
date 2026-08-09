@@ -22,7 +22,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   onOrderCompleted,
   onDownloadSTL
 }) => {
-  const { customerUser } = useAuth();
+  const { isAuthenticated, customerUser } = useAuth();
   const { currency, formatPrice, convertUsdToCop, formatPriceUsdOnly, pricingData } = useCurrency();
   const [step, setStep] = useState<'shipping' | 'payment' | 'confirmation'>('shipping');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -689,13 +689,15 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3 pt-2">
-              <button
-                onClick={onDownloadSTL}
-                className="flex-1 py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs transition-colors flex items-center justify-center gap-2"
-              >
-                <Download className="w-4 h-4" />
-                <span>Descargar Archivo 3D (.stl)</span>
-              </button>
+              {isAuthenticated && (
+                <button
+                  onClick={onDownloadSTL}
+                  className="flex-1 py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs transition-colors flex items-center justify-center gap-2"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Descargar Archivo 3D (.stl)</span>
+                </button>
+              )}
 
               <button
                 onClick={handleClose}

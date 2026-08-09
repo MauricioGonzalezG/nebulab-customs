@@ -94,6 +94,17 @@ export function createLithophaneGeometry(
 
       indices.push(a, c, b);
       indices.push(b, c, d);
+    }
+  }
+  const frontIndexCount = indices.length;
+
+  // Triangles for back surface
+  for (let y = 0; y < segY; y++) {
+    for (let x = 0; x < segX; x++) {
+      const a = y * gridW + x;
+      const b = y * gridW + (x + 1);
+      const c = (y + 1) * gridW + x;
+      const d = (y + 1) * gridW + (x + 1);
 
       const offset = gridW * gridH;
       indices.push(a + offset, b + offset, c + offset);
@@ -144,6 +155,12 @@ export function createLithophaneGeometry(
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
   geometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
   geometry.setIndex(indices);
+
+  // Group 0: Front relief face with photo texture map
+  geometry.addGroup(0, frontIndexCount, 0);
+  // Group 1: Back face & sides with clean solid PLA plastic (NO photo texture)
+  geometry.addGroup(frontIndexCount, indices.length - frontIndexCount, 1);
+
   geometry.computeVertexNormals();
 
   return geometry;
@@ -171,7 +188,7 @@ export function createFrameMesh(config: LithophaneConfig): THREE.Mesh | null {
 
   const frameDepth = config.frameThickness !== undefined ? config.frameThickness : 5;
   const frontZOffset = frameDepth - 0.6;
-  const minFrontZ = Math.min(frontZOffset - 0.5, Math.max(0.8, config.maxThickness + 0.2));
+  const minFrontZ = Math.min(frontZOffset - 0.5, Math.max(0.6, config.minThickness));
   const bevelW = Math.min(frameWidth * 0.65, 3.2);
 
   const halfW = width / 2;
@@ -574,7 +591,7 @@ export function createBaseMesh(config: LithophaneConfig): THREE.Group {
 export function createLithophaneMaterial(
   config: LithophaneConfig,
   texture?: THREE.Texture | null
-): THREE.MeshStandardMaterial {
+): THREE.MeshStandardMaterial[] {
   const { material, enableLight, lightWarmth, lightIntensity } = config;
 
   let baseColor = 0xffffff;
@@ -584,24 +601,40 @@ export function createLithophaneMaterial(
 
   const warmColor = new THREE.Color(0xffffff).lerp(new THREE.Color(0xffaa55), lightWarmth / 100);
 
-  const mat = new THREE.MeshStandardMaterial({
+  // Front Material (Relieve con textura de foto)
+  const frontMat = new THREE.MeshStandardMaterial({
     color: baseColor,
     map: texture || null,
     roughness: 0.55,
     metalness: 0.05,
-    transparent: false, // 100% Solid opaque object to prevent depth sorting artifacts
+    transparent: false,
     depthWrite: true,
     depthTest: true,
     emissive: enableLight ? warmColor : new THREE.Color(0x000000),
     emissiveMap: enableLight ? (texture || null) : null,
     emissiveIntensity: enableLight ? (lightIntensity / 100) * 1.2 : 0.0,
-    side: THREE.DoubleSide
+    side: THREE.FrontSide
+  });
+
+  // Back Material (Cara trasera de plástico PLA blanco limpio SIN textura de foto)
+  const backMat = new THREE.MeshStandardMaterial({
+    color: baseColor,
+    map: null,
+    roughness: 0.65,
+    metalness: 0.05,
+    transparent: false,
+    depthWrite: true,
+    depthTest: true,
+    emissive: enableLight ? warmColor : new THREE.Color(0x000000),
+    emissiveMap: null,
+    emissiveIntensity: enableLight ? (lightIntensity / 100) * 0.4 : 0.0,
+    side: THREE.FrontSide
   });
 
   if (texture) {
     texture.colorSpace = THREE.SRGBColorSpace;
-    mat.needsUpdate = true;
+    frontMat.needsUpdate = true;
   }
 
-  return mat;
+  return [frontMat, backMat];
 }

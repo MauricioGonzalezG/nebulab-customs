@@ -340,6 +340,7 @@ export const App: React.FC = () => {
               <LithophaneViewer
                 config={config}
                 processedData={processedData}
+                imgElement={currentImageElement}
                 onToggleLight={handleToggleLight}
               />
 
@@ -462,7 +463,7 @@ export const App: React.FC = () => {
         onOrderCompleted={handleOrderCompleted}
         onDownloadSTL={() => {
           if (processedData) {
-            downloadLithophaneSTL(processedData, config);
+            downloadLithophaneSTL(processedData, config, undefined, currentImageElement);
           }
         }}
       />
