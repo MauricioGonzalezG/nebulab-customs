@@ -157,7 +157,7 @@ export function createFrameMesh(config: LithophaneConfig): THREE.Mesh | null {
 
   const { width, height, maxThickness, frameWidth, shape, arcAngle } = config;
   const frameMat = new THREE.MeshStandardMaterial({
-    color: 0x18181b, // Sleek matte dark slate black
+    color: 0x18181b,
     roughness: 0.7,
     metalness: 0.1,
     // The outer side of a curved frame can face away from the camera
@@ -344,10 +344,11 @@ export function createBaseMesh(config: LithophaneConfig): THREE.Group {
 
     // 2. Cup Group (Shifted horizontally so its front base meets the rear end of connectors)
     const cupGroup = new THREE.Group();
-    const cupCenterY = floorY + rOut * Math.sin(tiltRad);
     const cupZ = puckDistanceZ - rOut * Math.cos(tiltRad);
 
-    cupGroup.position.set(0, cupCenterY, cupZ);
+    // Start at a neutral height. The final height is calculated after all cup
+    // pieces are added so bevels and the tilt cannot cross the print plane.
+    cupGroup.position.set(0, 0, cupZ);
     cupGroup.rotation.x = tiltRad;
 
     // C-Shaped Open Socket Wall (Hollow C-cup with open notch pointing STRAIGHT UPWARDS)
@@ -433,6 +434,11 @@ export function createBaseMesh(config: LithophaneConfig): THREE.Group {
       lensMesh.position.y = puckDepth - 3.5;
       cupGroup.add(lensMesh);
     }
+
+    // Keep the lowest point of the complete socket safely above the frame floor.
+    const cupBounds = new THREE.Box3().setFromObject(cupGroup);
+    const floorClearance = 0.2;
+    cupGroup.position.y = floorY - cupBounds.min.y + floorClearance;
 
     group.add(cupGroup);
 
