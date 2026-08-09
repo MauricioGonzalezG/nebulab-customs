@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useCurrency } from '../../context/CurrencyContext';
 import { tursoService } from '../../lib/turso';
 import { Order } from '../../types';
 import { X, Package, Clock, CheckCircle2, XCircle, Search, Truck, Box, Calendar, LogOut, Lock, KeyRound, User, AlertCircle } from 'lucide-react';
@@ -18,6 +19,7 @@ export const MyOrdersModal: React.FC<MyOrdersModalProps> = ({
   onOpenCustomerAuth,
 }) => {
   const { customerUser, logoutCustomer } = useAuth();
+  const { formatPrice, convertUsdToCop } = useCurrency();
   const [orderCodeInput, setOrderCodeInput] = useState('');
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -195,117 +197,131 @@ export const MyOrdersModal: React.FC<MyOrdersModalProps> = ({
               </button>
             </div>
           ) : (
-            orders.map((order) => (
-              <div key={order.id} className="p-5 rounded-2xl bg-slate-950/70 border border-slate-800 space-y-3">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
-                  <div>
-                    <span className="font-mono font-bold text-cyan-400 text-sm">{order.id}</span>
-                    <span className="text-xs text-slate-500 ml-3">
-                      <Calendar className="w-3 h-3 inline mr-1" />
-                      {new Date(order.createdAt).toLocaleDateString()}
-                    </span>
-                  </div>
+            orders.map((order) => {
+              const orderCurr = order.currency || 'COP';
+              const formatOrderPrice = (usdPrice: number) => formatPrice(convertUsdToCop(usdPrice), usdPrice, orderCurr);
 
-                  {/* Status badges */}
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {/* Payment status badge */}
-                    <div
-                      className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${
-                        order.paymentStatus === 'approved'
-                          ? 'bg-emerald-950/60 border-emerald-500/30 text-emerald-400'
-                          : order.paymentStatus === 'rejected'
-                          ? 'bg-rose-950/60 border-rose-500/30 text-rose-400'
-                          : order.paymentStatus === 'refunded'
-                          ? 'bg-purple-950/60 border-purple-500/30 text-purple-400'
-                          : 'bg-amber-950/60 border-amber-500/30 text-amber-300'
-                      }`}
-                    >
-                      {order.paymentStatus === 'approved'
-                        ? '🟢 Pago Aprobado'
-                        : order.paymentStatus === 'rejected'
-                        ? '🔴 Pago Rechazado'
-                        : order.paymentStatus === 'refunded'
-                        ? '🟣 Pago Reembolsado'
-                        : '🟡 Pendiente de Pago'}
-                    </div>
-
-                    {/* Order delivery status badge */}
-                    <div
-                      className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 w-fit ${
-                        order.status === 'confirmed'
-                          ? 'bg-cyan-950/60 border border-cyan-500/30 text-cyan-400'
-                          : order.status === 'processing'
-                          ? 'bg-amber-950/60 border border-amber-500/30 text-amber-300'
-                          : order.status === 'completed'
-                          ? 'bg-emerald-950/60 border border-emerald-500/30 text-emerald-400'
-                          : 'bg-rose-950/60 border border-rose-500/30 text-rose-400'
-                      }`}
-                    >
-                      {order.status === 'confirmed' && <Clock className="w-3.5 h-3.5" />}
-                      {order.status === 'processing' && <Truck className="w-3.5 h-3.5 animate-pulse" />}
-                      {order.status === 'completed' && <CheckCircle2 className="w-3.5 h-3.5" />}
-                      {order.status === 'cancelled' && <XCircle className="w-3.5 h-3.5" />}
-                      <span className="capitalize">
-                        {order.status === 'confirmed'
-                          ? 'Pedido Confirmado'
-                          : order.status === 'processing'
-                          ? 'En Fabricación 3D'
-                          : order.status === 'completed'
-                          ? 'Entregado'
-                          : 'Cancelado'}
+              return (
+                <div key={order.id} className="p-5 rounded-2xl bg-slate-950/70 border border-slate-800 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
+                    <div>
+                      <span className="font-mono font-bold text-cyan-400 text-sm">{order.id}</span>
+                      <span className="text-xs text-slate-500 ml-3">
+                        <Calendar className="w-3 h-3 inline mr-1" />
+                        {new Date(order.createdAt).toLocaleDateString()}
                       </span>
                     </div>
+
+                    {/* Status badges */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {/* Payment status badge */}
+                      <div
+                        className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${
+                          order.paymentStatus === 'approved'
+                            ? 'bg-emerald-950/60 border-emerald-500/30 text-emerald-400'
+                            : order.paymentStatus === 'rejected'
+                            ? 'bg-rose-950/60 border-rose-500/30 text-rose-400'
+                            : order.paymentStatus === 'refunded'
+                            ? 'bg-purple-950/60 border-purple-500/30 text-purple-400'
+                            : 'bg-amber-950/60 border-amber-500/30 text-amber-300'
+                        }`}
+                      >
+                        {order.paymentStatus === 'approved'
+                          ? '🟢 Pago Aprobado'
+                          : order.paymentStatus === 'rejected'
+                          ? '🔴 Pago Rechazado'
+                          : order.paymentStatus === 'refunded'
+                          ? '🟣 Pago Reembolsado'
+                          : '🟡 Pendiente de Pago'}
+                      </div>
+
+                      {/* Order delivery status badge */}
+                      <div
+                        className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 w-fit ${
+                          order.status === 'confirmed'
+                            ? 'bg-cyan-950/60 border border-cyan-500/30 text-cyan-400'
+                            : order.status === 'processing'
+                            ? 'bg-amber-950/60 border border-amber-500/30 text-amber-300'
+                            : order.status === 'completed'
+                            ? 'bg-emerald-950/60 border border-emerald-500/30 text-emerald-400'
+                            : 'bg-rose-950/60 border border-rose-500/30 text-rose-400'
+                        }`}
+                      >
+                        {order.status === 'confirmed' && <Clock className="w-3.5 h-3.5" />}
+                        {order.status === 'processing' && <Truck className="w-3.5 h-3.5 animate-pulse" />}
+                        {order.status === 'completed' && <CheckCircle2 className="w-3.5 h-3.5" />}
+                        {order.status === 'cancelled' && <XCircle className="w-3.5 h-3.5" />}
+                        <span className="capitalize">
+                          {order.status === 'confirmed'
+                            ? 'Pedido Confirmado'
+                            : order.status === 'processing'
+                            ? 'En Fabricación 3D'
+                            : order.status === 'completed'
+                            ? 'Entregado'
+                            : 'Cancelado'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Items */}
+                  <div className="space-y-2">
+                    {order.items.map((it, i) => (
+                      <div key={i} className="flex items-center justify-between text-xs text-slate-300">
+                        <div>
+                          {it.itemType === 'collar' && it.collarConfig ? (
+                            <>
+                              <span className="font-semibold text-slate-200">
+                                Collar para Mascota 3D
+                              </span>
+                              <span className="text-slate-500 block">
+                                Mascota: {it.collarConfig.petName || 'N/A'} • Talla: {it.collarConfig.size} • Placa: {it.collarConfig.plateStyle} • Correa: {it.collarConfig.strapColor}
+                              </span>
+                            </>
+                          ) : it.itemType === 'clicker' && it.clickerConfig ? (
+                            <>
+                              <span className="font-semibold text-slate-200">
+                                {it.clickerConfig.type === 'clicker' ? 'Clicker Teclado MX 3D' : 'Llavero 3D'}
+                              </span>
+                              <span className="text-slate-500 block">
+                                Tamaño: {it.clickerConfig.size}mm • Estilo: {it.clickerConfig.baseStyle} • Switch: {it.clickerConfig.switchType}
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="font-semibold text-slate-200">
+                                Litofanía {it.config?.shape === 'arc' ? 'Curva (Arco)' : it.config?.shape === 'flat' ? 'Plana' : 'Cilindro'}
+                              </span>
+                              <span className="text-slate-500 block">
+                                Dimensiones: {it.config?.width}x{it.config?.height}mm {it.config?.notes ? `• Obs: ${it.config.notes}` : ''}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                        <span className="font-bold text-slate-100">{formatOrderPrice(it.price)}</span>
+                      </div>
+
+                    ))}
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-800/60 flex items-center justify-between text-xs">
+                    <span className="text-slate-400">
+                      Dirección: {order.shippingDetails.address}, {order.shippingDetails.city}
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
+                        orderCurr === 'COP'
+                          ? 'bg-cyan-950 text-cyan-300 border border-cyan-800'
+                          : 'bg-emerald-950 text-emerald-300 border border-emerald-800'
+                      }`}>
+                        {orderCurr}
+                      </span>
+                      <span className="font-extrabold text-sm text-cyan-300">{formatOrderPrice(order.total)}</span>
+                    </div>
                   </div>
                 </div>
-
-                {/* Items */}
-                <div className="space-y-2">
-                  {order.items.map((it, i) => (
-                    <div key={i} className="flex items-center justify-between text-xs text-slate-300">
-                      <div>
-                        {it.itemType === 'collar' && it.collarConfig ? (
-                          <>
-                            <span className="font-semibold text-slate-200">
-                              Collar para Mascota 3D
-                            </span>
-                            <span className="text-slate-500 block">
-                              Mascota: {it.collarConfig.petName || 'N/A'} • Talla: {it.collarConfig.size} • Placa: {it.collarConfig.plateStyle} • Correa: {it.collarConfig.strapColor}
-                            </span>
-                          </>
-                        ) : it.itemType === 'clicker' && it.clickerConfig ? (
-                          <>
-                            <span className="font-semibold text-slate-200">
-                              {it.clickerConfig.type === 'clicker' ? 'Clicker Teclado MX 3D' : 'Llavero 3D'}
-                            </span>
-                            <span className="text-slate-500 block">
-                              Tamaño: {it.clickerConfig.size}mm • Estilo: {it.clickerConfig.baseStyle} • Switch: {it.clickerConfig.switchType}
-                            </span>
-                          </>
-                        ) : (
-                          <>
-                            <span className="font-semibold text-slate-200">
-                              Litofanía {it.config?.shape === 'arc' ? 'Curva (Arco)' : it.config?.shape === 'flat' ? 'Plana' : 'Cilindro'}
-                            </span>
-                            <span className="text-slate-500 block">
-                              Dimensiones: {it.config?.width}x{it.config?.height}mm • Material: {it.config?.material}
-                            </span>
-                          </>
-                        )}
-                      </div>
-                      <span className="font-bold text-slate-100">${it.price.toFixed(2)} USD</span>
-                    </div>
-
-                  ))}
-                </div>
-
-                <div className="pt-2 border-t border-slate-800/60 flex items-center justify-between text-xs">
-                  <span className="text-slate-400">
-                    Dirección: {order.shippingDetails.address}, {order.shippingDetails.city}
-                  </span>
-                  <span className="font-extrabold text-sm text-cyan-300">${order.total.toFixed(2)} USD</span>
-                </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
 

@@ -637,27 +637,54 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               </p>
             </div>
 
+            {/* Custom Payment Feedback Banner */}
+            {completedOrder.paymentMethod === 'whatsapp' ? (
+              <div className="p-4 rounded-2xl bg-emerald-950/40 border border-emerald-500/40 text-left text-xs space-y-1.5 shadow-lg">
+                <div className="font-bold text-emerald-300 flex items-center gap-2 text-sm">
+                  <MessageSquare className="w-4 h-4 text-emerald-400 shrink-0 animate-bounce" />
+                  <span>💬 Instrucciones Importantes para Finalizar tu Pedido:</span>
+                </div>
+                <p className="text-emerald-200/90 leading-relaxed text-[11px]">
+                  Es muy importante que <strong>permanezcas atento(a) a tu celular en WhatsApp</strong>. Nuestro equipo técnico se comunicará contigo en breve para verificar tu transferencia o pago directo, confirmar los datos de envío e iniciar la fabricación 3D.
+                </p>
+              </div>
+            ) : (
+              <div className="p-4 rounded-2xl bg-sky-950/40 border border-sky-500/40 text-left text-xs space-y-1.5 shadow-lg">
+                <div className="font-bold text-sky-300 flex items-center gap-2 text-sm">
+                  <Wallet className="w-4 h-4 text-sky-400 shrink-0" />
+                  <span>💳 Proceso de Confirmación de Pago Mercado Pago:</span>
+                </div>
+                <p className="text-sky-200/90 leading-relaxed text-[11px]">
+                  Tan pronto Mercado Pago <strong>confirme tu transacción</strong>, recibirás una notificación de aprobación por <strong>WhatsApp y correo electrónico</strong>, e iniciaremos de inmediato la impresión 3D y fabricación de tu producto.
+                </p>
+              </div>
+            )}
+
             <div className="p-4 rounded-2xl bg-slate-950/70 border border-slate-800 text-left text-xs space-y-2">
               <div className="flex justify-between border-b border-slate-800 pb-2 font-bold text-slate-200">
                 <span>Resumen de Orden:</span>
                 <span>{completedOrder.items.length} productos</span>
               </div>
-              {completedOrder.items.map((it, idx) => (
-                <div key={idx} className="flex justify-between text-slate-400 text-[11px]">
-                  <span>
-                    • {it.itemType === 'collar' && it.collarConfig
-                        ? `Collar Mascota 3D — ${it.collarConfig.petName || 'Personalizado'} (Talla ${it.collarConfig.size})`
-                        : it.itemType === 'clicker' && it.clickerConfig
-                        ? `${it.clickerConfig.type === 'clicker' ? 'Clicker MX 3D' : 'Llavero 3D'} (${it.clickerConfig.size}mm)`
-                        : `Litofanía ${it.config.shape === 'arc' ? 'Curvada' : it.config.shape === 'flat' ? 'Plana' : 'Cilíndrica'} (${it.config.width}x${it.config.height}mm)`}
-                  </span>
-                  <span>${it.price.toFixed(2)} USD</span>
-                </div>
-              ))}
+              {completedOrder.items.map((it, idx) => {
+                const orderCurr = completedOrder.currency || currency;
+                const formattedItemPrice = formatPrice(convertUsdToCop(it.price), it.price, orderCurr);
+                return (
+                  <div key={idx} className="flex justify-between text-slate-400 text-[11px]">
+                    <span>
+                      • {it.itemType === 'collar' && it.collarConfig
+                          ? `Collar Mascota 3D — ${it.collarConfig.petName || 'Personalizado'} (Talla ${it.collarConfig.size})`
+                          : it.itemType === 'clicker' && it.clickerConfig
+                          ? `${it.clickerConfig.type === 'clicker' ? 'Clicker MX 3D' : 'Llavero 3D'} (${it.clickerConfig.size}mm)`
+                          : `Litofanía ${it.config.shape === 'arc' ? 'Curvada' : it.config.shape === 'flat' ? 'Plana' : 'Cilíndrica'} (${it.config.width}x${it.config.height}mm)`}
+                    </span>
+                    <span className="font-semibold text-slate-200">{formattedItemPrice}</span>
+                  </div>
+                );
+              })}
 
               <div className="flex justify-between pt-2 border-t border-slate-800 font-extrabold text-cyan-300">
-                <span>Total Final:</span>
-                <span>${completedOrder.total.toFixed(2)} USD</span>
+                <span>Total Final ({completedOrder.currency || currency}):</span>
+                <span>{formatPrice(convertUsdToCop(completedOrder.total), completedOrder.total, completedOrder.currency || currency)}</span>
               </div>
             </div>
 
