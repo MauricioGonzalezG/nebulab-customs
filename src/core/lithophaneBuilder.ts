@@ -155,7 +155,7 @@ export function createLithophaneGeometry(
 export function createFrameMesh(config: LithophaneConfig): THREE.Mesh | null {
   if (config.frameWidth <= 0) return null;
 
-  const { width, height, maxThickness, frameWidth, shape, arcAngle } = config;
+  const { width, height, frameWidth, shape, arcAngle } = config;
   const frameMat = new THREE.MeshStandardMaterial({
     color: 0x18181b,
     roughness: 0.7,
@@ -178,14 +178,17 @@ export function createFrameMesh(config: LithophaneConfig): THREE.Mesh | null {
   // closing face cannot peek through at oblique viewing angles.
   const sideBarU = (frameWidth + Math.min(1, frameWidth * 0.5)) / outerW;
 
+  const frameDepth = config.frameThickness !== undefined ? config.frameThickness : 5;
+  const frontZOffset = frameDepth - 0.6;
+
   const positions: number[] = [];
   const indices: number[] = [];
 
   const getPos = (u: number, v: number, isFront: boolean) => {
     const angle = (u - 0.5) * arcRad;
-    const r = isFront ? (radius + maxThickness + 0.6) : (radius - 0.6);
+    const r = isFront ? (radius + frontZOffset) : (radius - 0.6);
     const x = (shape === 'arc' && arcAngle > 0) ? Math.sin(angle) * r : (u - 0.5) * outerW;
-    const z = (shape === 'arc' && arcAngle > 0) ? Math.cos(angle) * r - radius : (isFront ? maxThickness + 0.6 : -0.6);
+    const z = (shape === 'arc' && arcAngle > 0) ? Math.cos(angle) * r - radius : (isFront ? frontZOffset : -0.6);
     const y = (0.5 - v) * outerH;
     return [x, y, z];
   };
@@ -306,7 +309,7 @@ export function createBaseMesh(config: LithophaneConfig): THREE.Group {
 
     // 1. Support Beams (sitting flush on floor Y = floorY, extending to the back)
     const beamH = 5;
-    const beamW = 3; // Conectores a la mitad de ancho (3mm en lugar de 6mm)
+    const beamW = config.strutWidth !== undefined ? config.strutWidth : 5;
     const beamLength = config.strutLength !== undefined ? config.strutLength : 60;
     const puckDistanceZ = -beamLength;
 

@@ -71,7 +71,8 @@ export const App: React.FC = () => {
     minThickness: 0.8,
     maxThickness: 1.7,
     arcAngle: 60,
-    frameWidth: 3,
+    frameWidth: 4.5,
+    frameThickness: 5,
     baseType: 'night-light',
     material: 'white-pla',
     puckDiameter: 70,
@@ -80,6 +81,7 @@ export const App: React.FC = () => {
     puckArcCoverage: 180,
     strutCount: 4,
     strutLength: 60,
+    strutWidth: 5,
     showLampPuck: true,
     enableLight: true,
     lightWarmth: 40,
@@ -221,12 +223,12 @@ export const App: React.FC = () => {
       view === 'collar'
         ? '/collares'
         : view === 'clicker'
-        ? '/clickers'
-        : view === 'studio'
-        ? '/litofanias'
-        : view === 'admin'
-        ? '/admin'
-        : '/';
+          ? '/clickers'
+          : view === 'studio'
+            ? '/litofanias'
+            : view === 'admin'
+              ? '/admin'
+              : '/';
 
     if (window.location.pathname !== targetPath) {
       window.history.pushState(null, '', targetPath);
@@ -253,7 +255,7 @@ export const App: React.FC = () => {
 
   return (
     <div className="brand-shell min-h-screen bg-slate-950 text-slate-100 font-inter flex flex-col selection:bg-cyan-500 selection:text-slate-950">
-      
+
       {/* Navbar Header */}
       <Header
         cartCount={cartCount}
@@ -298,7 +300,7 @@ export const App: React.FC = () => {
 
 
         <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-10 space-y-6">
-          
+
           {/* Back to Home Bar */}
           <div className="flex items-center justify-between border-b border-slate-800/80 pb-4">
             <button
@@ -363,16 +365,15 @@ export const App: React.FC = () => {
 
             {/* Right Column: Customizer Controls & E-Commerce Box */}
             <div className="lg:col-span-5 space-y-6">
-              
+
               {/* Tab Navigation */}
               <div className="flex bg-slate-900/90 p-1.5 rounded-2xl border border-slate-800">
                 <button
                   onClick={() => setActiveTab('image')}
-                  className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                    activeTab === 'image'
-                      ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md'
-                      : 'text-slate-400 hover:text-slate-200'
-                  }`}
+                  className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${activeTab === 'image'
+                    ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md'
+                    : 'text-slate-400 hover:text-slate-200'
+                    }`}
                 >
                   <ImageIcon className="w-3.5 h-3.5" />
                   <span>1. Imagen</span>
@@ -380,11 +381,10 @@ export const App: React.FC = () => {
 
                 <button
                   onClick={() => setActiveTab('shape')}
-                  className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                    activeTab === 'shape'
-                      ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md'
-                      : 'text-slate-400 hover:text-slate-200'
-                  }`}
+                  className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${activeTab === 'shape'
+                    ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md'
+                    : 'text-slate-400 hover:text-slate-200'
+                    }`}
                 >
                   <Layers className="w-3.5 h-3.5" />
                   <span>2. Forma</span>
@@ -392,11 +392,10 @@ export const App: React.FC = () => {
 
                 <button
                   onClick={() => setActiveTab('base')}
-                  className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                    activeTab === 'base'
-                      ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md'
-                      : 'text-slate-400 hover:text-slate-200'
-                  }`}
+                  className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${activeTab === 'base'
+                    ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md'
+                    : 'text-slate-400 hover:text-slate-200'
+                    }`}
                 >
                   <Lightbulb className="w-3.5 h-3.5" />
                   <span>3. Base & Luz</span>

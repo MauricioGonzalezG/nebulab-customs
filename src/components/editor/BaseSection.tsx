@@ -214,21 +214,39 @@ export const BaseSection: React.FC<BaseSectionProps> = ({ config, onChange }) =>
             </div>
           </div>
 
-          {/* Strut Length Slider */}
-          <div className="space-y-1.5 pt-2 border-t border-slate-800">
-            <div className="flex justify-between text-xs">
-              <span className="text-slate-300 font-semibold">Largo de los Conectores (Brazos)</span>
-              <span className="text-cyan-400 font-mono font-bold">{config.strutLength || 60} mm</span>
+          {/* Strut Length & Width Sliders */}
+          <div className="space-y-3 pt-2 border-t border-slate-800">
+            <div className="space-y-1.5">
+              <div className="flex justify-between text-xs">
+                <span className="text-slate-300 font-semibold">Largo de los Conectores (Brazos)</span>
+                <span className="text-cyan-400 font-mono font-bold">{config.strutLength || 60} mm</span>
+              </div>
+              <input
+                type="range"
+                min="40"
+                max="120"
+                step="5"
+                value={config.strutLength || 60}
+                onChange={(e) => onChange({ strutLength: Number(e.target.value) })}
+                className="w-full accent-cyan-500 bg-slate-800 h-2 rounded-lg cursor-pointer"
+              />
             </div>
-            <input
-              type="range"
-              min="40"
-              max="120"
-              step="5"
-              value={config.strutLength || 60}
-              onChange={(e) => onChange({ strutLength: Number(e.target.value) })}
-              className="w-full accent-cyan-500 bg-slate-800 h-2 rounded-lg cursor-pointer"
-            />
+
+            <div className="space-y-1.5">
+              <div className="flex justify-between text-xs">
+                <span className="text-slate-300 font-semibold">Ancho / Grosor de los Conectores</span>
+                <span className="text-cyan-400 font-mono font-bold">{config.strutWidth ?? 5} mm</span>
+              </div>
+              <input
+                type="range"
+                min="2"
+                max="10"
+                step="0.5"
+                value={config.strutWidth ?? 5}
+                onChange={(e) => onChange({ strutWidth: Number(e.target.value) })}
+                className="w-full accent-cyan-500 bg-slate-800 h-2 rounded-lg cursor-pointer"
+              />
+            </div>
           </div>
 
           {/* Show / Hide Puck Lamp Toggle */}

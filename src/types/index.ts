@@ -18,19 +18,21 @@ export interface LithophaneConfig {
   minThickness: number; // mm (e.g., 0.8mm)
   maxThickness: number; // mm (e.g., 3.2mm)
   arcAngle: number;     // degrees for arc/curved (e.g., 60 deg)
-  frameWidth: number;   // mm (e.g., 3mm border frame)
+  frameWidth: number;   // mm (e.g., 4.5mm border frame width)
+  frameThickness?: number; // mm (e.g., 5mm frame Z-depth)
 
   // Base & Mounting
   baseType: BaseType;
   material: MaterialType;
 
   // Puck Socket & Struts Parametrization
-  puckDiameter: number;   // mm (e.g., 60mm)
+  puckDiameter: number;   // mm (e.g., 70mm)
   puckDepth: number;      // mm (e.g., 25mm)
-  puckAngle: number;      // degrees (e.g., 45deg)
-  puckArcCoverage: number;// degrees for open C-cup (e.g., 240deg)
+  puckAngle: number;      // degrees (e.g., 55deg)
+  puckArcCoverage: number;// degrees for open C-cup (e.g., 180deg)
   strutCount: number;     // 3 or 4 support beams
   strutLength?: number;   // mm (e.g., 60mm default, modifiable)
+  strutWidth?: number;    // mm (e.g., 5mm default, modifiable)
   showLampPuck: boolean;  // Inserted / Removed toggle for battery LED puck lamp
 
   // Lighting Simulation

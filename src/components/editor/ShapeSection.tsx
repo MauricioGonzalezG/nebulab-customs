@@ -210,23 +210,43 @@ export const ShapeSection: React.FC<ShapeSectionProps> = ({ config, onChange }) 
           </div>
         </div>
 
-        {/* Frame Width */}
-        <div className="space-y-1.5 pt-2 border-t border-slate-800">
-          <div className="flex justify-between text-xs">
-            <span className="text-slate-400 flex items-center gap-1.5">
-              <Shield className="w-3.5 h-3.5 text-slate-400" /> Ancho del Marco Protector
-            </span>
-            <span className="text-slate-300 font-mono font-bold">{config.frameWidth} mm</span>
+        {/* Frame Width & Thickness Controls */}
+        <div className="space-y-4 pt-2 border-t border-slate-800">
+          <div className="space-y-1.5">
+            <div className="flex justify-between text-xs">
+              <span className="text-slate-400 flex items-center gap-1.5">
+                <Shield className="w-3.5 h-3.5 text-slate-400" /> Ancho del Borde del Marco
+              </span>
+              <span className="text-slate-300 font-mono font-bold">{config.frameWidth} mm</span>
+            </div>
+            <input
+              type="range"
+              min="0"
+              max="8"
+              step="0.5"
+              value={config.frameWidth}
+              onChange={(e) => onChange({ frameWidth: Number(e.target.value) })}
+              className="w-full accent-slate-400 bg-slate-800 h-2 rounded-lg cursor-pointer"
+            />
           </div>
-          <input
-            type="range"
-            min="0"
-            max="8"
-            step="1"
-            value={config.frameWidth}
-            onChange={(e) => onChange({ frameWidth: Number(e.target.value) })}
-            className="w-full accent-slate-400 bg-slate-800 h-2 rounded-lg cursor-pointer"
-          />
+
+          <div className="space-y-1.5">
+            <div className="flex justify-between text-xs">
+              <span className="text-slate-400 flex items-center gap-1.5">
+                <Shield className="w-3.5 h-3.5 text-cyan-400" /> Grosor / Profundidad Z del Marco
+              </span>
+              <span className="text-cyan-400 font-mono font-bold">{config.frameThickness ?? 5} mm</span>
+            </div>
+            <input
+              type="range"
+              min="2"
+              max="12"
+              step="0.5"
+              value={config.frameThickness ?? 5}
+              onChange={(e) => onChange({ frameThickness: Number(e.target.value) })}
+              className="w-full accent-cyan-500 bg-slate-800 h-2 rounded-lg cursor-pointer"
+            />
+          </div>
         </div>
       </div>
     </div>
