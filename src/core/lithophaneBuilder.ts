@@ -187,7 +187,7 @@ export function createFrameMesh(config: LithophaneConfig): THREE.Mesh | null {
   const radius = (shape === 'arc' && arcRad > 0.01) ? width / arcRad : 1000;
 
   const frameDepth = config.frameThickness !== undefined ? config.frameThickness : 5;
-  const frontZOffset = frameDepth - 0.6;
+  const frontZOffset = frameDepth;
   const minFrontZ = Math.min(frontZOffset - 0.5, Math.max(0.6, config.minThickness));
   const bevelW = Math.min(frameWidth * 0.65, 3.2);
 
@@ -251,8 +251,8 @@ export function createFrameMesh(config: LithophaneConfig): THREE.Mesh | null {
   const loop0 = generateLoop(innerHW, innerHH, minFrontZ);      // Inner front
   const loop1 = generateLoop(bevelHW, bevelHH, frontZOffset);  // Bevel ridge front
   const loop2 = generateLoop(outerHW, outerHH, frontZOffset);  // Outer front
-  const loop3 = generateLoop(outerHW, outerHH, -0.6);          // Outer back
-  const loop4 = generateLoop(innerHW, innerHH, -0.6);          // Inner back
+  const loop3 = generateLoop(outerHW, outerHH, 0.0);          // Outer back (al ras z=0)
+  const loop4 = generateLoop(innerHW, innerHH, 0.0);          // Inner back (al ras z=0)
 
   const positions: number[] = [];
   const indices: number[] = [];
@@ -378,11 +378,11 @@ export function createBaseMesh(config: LithophaneConfig): THREE.Group {
       const isArc = shape === 'arc' && arcAngle > 0;
 
       let startX = (u - 0.5) * width;
-      let startZ = -0.6; // Back of frame/lithophane
+      let startZ = 0; // Back of frame/lithophane
 
       if (isArc) {
         startX = Math.sin(angle) * radius;
-        startZ = Math.cos(angle) * radius - radius - 0.6;
+        startZ = Math.cos(angle) * radius - radius;
       }
 
       const startPt = new THREE.Vector3(startX, floorY + beamH / 2, startZ);
