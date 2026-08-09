@@ -33,8 +33,11 @@ import {
   Sparkles,
   Sliders,
   Users,
+  User,
   Key,
   Image as ImageIcon,
+  CreditCard,
+  Wallet,
 } from 'lucide-react';
 
 interface AdminDashboardProps {
@@ -58,6 +61,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [selectedOrderItem, setSelectedOrderItem] = useState<{ order: Order; item: CartItem } | null>(null);
+  const [selectedPaymentOrder, setSelectedPaymentOrder] = useState<Order | null>(null);
 
   // 3D Preview state for selected order item
   const [previewProcessedData, setPreviewProcessedData] = useState<ProcessedImageData | null>(null);
@@ -518,9 +522,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
                           </div>
                         </td>
 
-                        {/* Total */}
-                        <td className="px-6 py-4 font-bold text-slate-100">
-                          ${order.total.toFixed(2)} USD
+                        {/* Total con discriminación de Moneda */}
+                        <td className="px-6 py-4">
+                          <div className="font-bold text-slate-100 flex items-center gap-1.5">
+                            <span>
+                              {order.currency === 'COP'
+                                ? `$ ${Math.round(order.total * 4000).toLocaleString('es-CO')} COP`
+                                : `$ ${order.total.toFixed(2)} USD`}
+                            </span>
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
+                              order.currency === 'COP'
+                                ? 'bg-emerald-950/80 text-emerald-400 border border-emerald-800/60'
+                                : 'bg-cyan-950/80 text-cyan-400 border border-cyan-800/60'
+                            }`}>
+                              {order.currency || 'USD'}
+                            </span>
+                          </div>
                         </td>
 
                         {/* Payment Status Selector */}
@@ -569,7 +586,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
 
                         {/* Actions */}
                         <td className="px-6 py-4 text-right">
-                          <div className="flex items-center justify-end gap-2">
+                          <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                            <button
+                              onClick={() => setSelectedPaymentOrder(order)}
+                              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-cyan-500/30 transition-colors flex items-center gap-1 text-xs font-semibold"
+                              title="Ver Información Completa de Pago"
+                            >
+                              <CreditCard className="w-4 h-4 text-cyan-400" />
+                              <span className="hidden xl:inline">Info Pago</span>
+                            </button>
+
                             {order.items.length > 0 && (
                               <>
                                 <button
@@ -826,9 +852,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
                       <span className="text-slate-500 block">Soporte Base</span>
                       <span className="font-bold text-slate-200">{selectedOrderItem.item.config?.baseType || 'none'}</span>
                     </div>
-                    <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
-                      <span className="text-slate-500 block">Material Filament</span>
-                      <span className="font-bold text-slate-200">{selectedOrderItem.item.config?.material || 'white-pla'}</span>
+                    <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 col-span-2">
+                      <span className="text-slate-500 block">Observaciones del Cliente</span>
+                      <span className="font-bold text-slate-200">{selectedOrderItem.item.config?.notes || 'Sin observaciones adicionales'}</span>
                     </div>
                   </div>
                 )}
@@ -900,6 +926,180 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
 
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* Payment Information Modal */}
+      {selectedPaymentOrder && (
+        <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="relative w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden text-slate-100 my-6 max-h-[92vh] flex flex-col">
+            
+            {/* Modal Header */}
+            <div className="p-5 border-b border-slate-800 bg-slate-950/60 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                  <CreditCard className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base text-white flex items-center gap-2">
+                    <span>Información de Pago del Pedido</span>
+                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+                      selectedPaymentOrder.currency === 'COP'
+                        ? 'bg-emerald-950 text-emerald-300 border border-emerald-800'
+                        : 'bg-cyan-950 text-cyan-300 border border-cyan-800'
+                    }`}>
+                      Moneda: {selectedPaymentOrder.currency || 'USD'}
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-400 font-mono">Orden ID: {selectedPaymentOrder.id}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedPaymentOrder(null)}
+                className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 overflow-y-auto space-y-6">
+              
+              {/* Payment Method & Status summary */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800 space-y-1">
+                  <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider block">Método de Pago</span>
+                  <div className="font-bold text-sm text-cyan-300 flex items-center gap-2">
+                    <Wallet className="w-4 h-4 text-cyan-400" />
+                    <span>
+                      {selectedPaymentOrder.paymentMethod === 'mercadopago'
+                        ? 'Mercado Pago (Checkout Pro)'
+                        : selectedPaymentOrder.paymentMethod === 'whatsapp'
+                        ? 'Coordinado vía WhatsApp Directo'
+                        : selectedPaymentOrder.paymentMethod === 'wompi'
+                        ? 'Wompi Colombia'
+                        : selectedPaymentOrder.paymentMethod === 'paypal'
+                        ? 'PayPal International'
+                        : 'Tarjeta / Transferencia'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800 space-y-1">
+                  <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider block">Estado del Pago</span>
+                  <select
+                    value={selectedPaymentOrder.paymentStatus || 'pending'}
+                    onChange={(e) => {
+                      const newStatus = e.target.value as Order['paymentStatus'];
+                      handlePaymentStatusChange(selectedPaymentOrder.id, newStatus);
+                      setSelectedPaymentOrder({ ...selectedPaymentOrder, paymentStatus: newStatus });
+                    }}
+                    className={`w-full px-3 py-2 rounded-xl text-xs font-bold focus:outline-none border cursor-pointer ${
+                      selectedPaymentOrder.paymentStatus === 'approved'
+                        ? 'bg-emerald-950/80 border-emerald-500/40 text-emerald-400'
+                        : selectedPaymentOrder.paymentStatus === 'rejected'
+                        ? 'bg-rose-950/80 border-rose-500/40 text-rose-400'
+                        : selectedPaymentOrder.paymentStatus === 'refunded'
+                        ? 'bg-purple-950/80 border-purple-500/40 text-purple-400'
+                        : 'bg-amber-950/80 border-amber-500/40 text-amber-300'
+                    }`}
+                  >
+                    <option value="pending" className="bg-slate-900 text-slate-200">🟡 Pendiente de Pago</option>
+                    <option value="approved" className="bg-slate-900 text-slate-200">🟢 Pago Aprobado / Confirmado</option>
+                    <option value="rejected" className="bg-slate-900 text-slate-200">🔴 Pago Rechazado</option>
+                    <option value="refunded" className="bg-slate-900 text-slate-200">🟣 Pago Reembolsado</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Financial Breakdown in Selected Currency */}
+              <div className="p-5 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-3">
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                  <span>Desglose de la Transacción ({selectedPaymentOrder.currency || 'USD'})</span>
+                  <span className="font-mono text-[11px] text-cyan-400">TRM Ref: 1 USD = $ 4.000 COP</span>
+                </h4>
+
+                <div className="space-y-2 text-xs divide-y divide-slate-800/80">
+                  <div className="flex justify-between text-slate-300 pt-1">
+                    <span>Subtotal Productos:</span>
+                    <span className="font-mono">
+                      {selectedPaymentOrder.currency === 'COP'
+                        ? `$ ${Math.round(selectedPaymentOrder.subtotal * 4000).toLocaleString('es-CO')} COP`
+                        : `$ ${selectedPaymentOrder.subtotal.toFixed(2)} USD`}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-slate-300 pt-2">
+                    <span>Costo de Envío:</span>
+                    <span className="font-mono">
+                      {selectedPaymentOrder.shippingFee === 0
+                        ? 'Gratis'
+                        : selectedPaymentOrder.currency === 'COP'
+                        ? `$ ${Math.round(selectedPaymentOrder.shippingFee * 4000).toLocaleString('es-CO')} COP`
+                        : `$ ${selectedPaymentOrder.shippingFee.toFixed(2)} USD`}
+                    </span>
+                  </div>
+                  <div className="flex justify-between pt-2 text-sm font-extrabold text-white">
+                    <span>Monto Total a Pagar:</span>
+                    <span className="font-mono text-cyan-300">
+                      {selectedPaymentOrder.currency === 'COP'
+                        ? `$ ${Math.round(selectedPaymentOrder.total * 4000).toLocaleString('es-CO')} COP`
+                        : `$ ${selectedPaymentOrder.total.toFixed(2)} USD`}
+                    </span>
+                  </div>
+                  {selectedPaymentOrder.currency === 'COP' && (
+                    <div className="flex justify-between pt-1 text-[11px] text-slate-400 font-mono">
+                      <span>Equivalente de Ref. USD:</span>
+                      <span>$ {selectedPaymentOrder.total.toFixed(2)} USD</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Customer Shipping & Contact Details */}
+              <div className="p-5 rounded-2xl bg-cyan-950/20 border border-cyan-800/40 text-xs space-y-2 text-slate-200">
+                <div className="font-bold text-cyan-300 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <User className="w-4 h-4 text-cyan-400" /> Cliente y Datos de Contacto:
+                  </span>
+                  <a
+                    href={`https://wa.me/${selectedPaymentOrder.shippingDetails.phone.replace(/[^0-9]/g, '')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition-colors flex items-center gap-1.5 shadow-md"
+                  >
+                    <Phone className="w-3.5 h-3.5" />
+                    <span>Contactar por WhatsApp</span>
+                  </a>
+                </div>
+                <p><strong>Nombre completo:</strong> {selectedPaymentOrder.shippingDetails.fullName}</p>
+                <p><strong>Correo electrónico:</strong> {selectedPaymentOrder.shippingDetails.email}</p>
+                <p><strong>Teléfono móvil:</strong> {selectedPaymentOrder.shippingDetails.phone}</p>
+                <p><strong>Dirección de despacho:</strong> {selectedPaymentOrder.shippingDetails.address}, {selectedPaymentOrder.shippingDetails.city} ({selectedPaymentOrder.shippingDetails.country})</p>
+              </div>
+
+              {/* Transaction Details / Gateway notes */}
+              {selectedPaymentOrder.paymentDetails && (
+                <div className="p-4 rounded-2xl bg-slate-950/50 border border-slate-800 text-xs space-y-1 font-mono">
+                  <span className="text-slate-400 font-bold uppercase tracking-wider text-[10px] block">Detalles Técnicos / Pasarela</span>
+                  {Object.entries(selectedPaymentOrder.paymentDetails).map(([key, val]) => (
+                    <p key={key} className="text-slate-300">
+                      <span className="text-slate-500">{key}:</span> {String(val)}
+                    </p>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 border-t border-slate-800 bg-slate-950/60 flex justify-end">
+              <button
+                onClick={() => setSelectedPaymentOrder(null)}
+                className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs transition-colors"
+              >
+                Cerrar
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { CollarConfig, CartItem } from '../../types';
 import {
   processCollarImage,
@@ -39,6 +39,16 @@ export const CollarStudio: React.FC<CollarStudioProps> = ({
   const [config, setConfig] = useState<CollarConfig>(createDefaultCollarConfig);
   const [processedData, setProcessedData] = useState<ProcessedCollarData | null>(null);
   const [currentImgElement, setCurrentImgElement] = useState<HTMLImageElement | null>(null);
+
+  const viewerRef = useRef<HTMLDivElement>(null);
+
+  const scrollToViewerOnMobile = () => {
+    if (window.innerWidth < 1024 && viewerRef.current) {
+      setTimeout(() => {
+        viewerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 150);
+    }
+  };
 
 
   // Load initial sample image
@@ -81,6 +91,7 @@ export const CollarStudio: React.FC<CollarStudioProps> = ({
     reader.onload = (event) => {
       const result = event.target?.result as string;
       setConfig((prev) => ({ ...prev, imageUrl: result, sampleId: undefined }));
+      scrollToViewerOnMobile();
     };
     reader.readAsDataURL(file);
   };
@@ -91,6 +102,7 @@ export const CollarStudio: React.FC<CollarStudioProps> = ({
       imageUrl: sample.url,
       sampleId: sample.id,
     }));
+    scrollToViewerOnMobile();
   };
 
   const createCartItem = (): CartItem => {
@@ -363,7 +375,7 @@ export const CollarStudio: React.FC<CollarStudioProps> = ({
         </div>
 
         {/* CENTER VIEWPORT (3D Interactive Model Canvas) */}
-        <div className="lg:col-span-6 bg-slate-950 flex flex-col items-center justify-center relative min-h-[450px]">
+        <div ref={viewerRef} className="lg:col-span-6 bg-slate-950 flex flex-col items-center justify-center relative min-h-[450px]">
           
           {/* Floating Controls Overlay */}
           <div className="absolute top-4 left-4 z-10 flex items-center gap-2">

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { ClickerConfig, CartItem, LithophaneConfig } from '../../types';
 import {
   processClickerImage,
@@ -41,6 +41,16 @@ export const ClickerStudio: React.FC<ClickerStudioProps> = ({
   const [processedData, setProcessedData] = useState<ProcessedClickerData | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [activeAccordion, setActiveAccordion] = useState<string>('colors');
+
+  const viewerRef = useRef<HTMLDivElement>(null);
+
+  const scrollToViewerOnMobile = () => {
+    if (window.innerWidth < 1024 && viewerRef.current) {
+      setTimeout(() => {
+        viewerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 150);
+    }
+  };
 
 
   // Load and process image when config.imageUrl changes
@@ -89,6 +99,7 @@ export const ClickerStudio: React.FC<ClickerStudioProps> = ({
           imageUrl: event.target!.result as string,
           sampleId: undefined,
         }));
+        scrollToViewerOnMobile();
       }
     };
     reader.readAsDataURL(file);
@@ -595,7 +606,7 @@ export const ClickerStudio: React.FC<ClickerStudioProps> = ({
         </div>
 
         {/* MIDDLE 3D VIEWPORT */}
-        <div className="lg:col-span-6 bg-slate-950 relative flex flex-col items-center justify-center p-4">
+        <div ref={viewerRef} className="lg:col-span-6 bg-slate-950 relative flex flex-col items-center justify-center p-4">
           
           {/* Top Controls Overlay inside Viewport */}
           <div className="absolute top-6 z-10 flex items-center gap-2 bg-slate-900/80 backdrop-blur-md p-1.5 rounded-2xl border border-slate-800 shadow-xl">

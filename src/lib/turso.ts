@@ -245,16 +245,22 @@ export const tursoService = {
           payment_method TEXT NOT NULL,
           status TEXT NOT NULL,
           payment_status TEXT NOT NULL DEFAULT 'pending',
+          currency TEXT DEFAULT 'COP',
+          payment_details_json TEXT,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
       `);
 
-      // Migration for existing tables without payment_status column
+      // Migration for existing tables without payment_status, currency or payment_details_json columns
       try {
         await tursoClient.execute(`ALTER TABLE orders ADD COLUMN payment_status TEXT DEFAULT 'pending';`);
-      } catch (e) {
-        // Column already exists
-      }
+      } catch (e) {}
+      try {
+        await tursoClient.execute(`ALTER TABLE orders ADD COLUMN currency TEXT DEFAULT 'COP';`);
+      } catch (e) {}
+      try {
+        await tursoClient.execute(`ALTER TABLE orders ADD COLUMN payment_details_json TEXT;`);
+      } catch (e) {}
 
       // Create order_images table for storing original photos without bloating the main orders list
       await tursoClient.execute(`
@@ -492,10 +498,12 @@ export const tursoService = {
         subtotal: Number(row.subtotal),
         shippingFee: Number(row.shipping_fee),
         total: Number(row.total),
+        currency: (row.currency ? String(row.currency) : 'COP') as Order['currency'],
         shippingDetails: JSON.parse(String(row.shipping_details_json || '{}')),
         paymentMethod: String(row.payment_method) as Order['paymentMethod'],
         status: String(row.status) as Order['status'],
         paymentStatus: (row.payment_status ? String(row.payment_status) : 'pending') as Order['paymentStatus'],
+        paymentDetails: row.payment_details_json ? JSON.parse(String(row.payment_details_json)) : undefined,
         createdAt: String(row.created_at),
       }));
     } catch (err) {
@@ -665,17 +673,19 @@ export const tursoService = {
     try {
       await tursoClient.execute({
         sql: `
-          INSERT INTO orders (id, items_json, subtotal, shipping_fee, total, shipping_details_json, payment_method, status, payment_status, created_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO orders (id, items_json, subtotal, shipping_fee, total, currency, shipping_details_json, payment_method, status, payment_status, payment_details_json, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           ON CONFLICT(id) DO UPDATE SET
             items_json = excluded.items_json,
             subtotal = excluded.subtotal,
             shipping_fee = excluded.shipping_fee,
             total = excluded.total,
+            currency = excluded.currency,
             shipping_details_json = excluded.shipping_details_json,
             payment_method = excluded.payment_method,
             status = excluded.status,
-            payment_status = excluded.payment_status;
+            payment_status = excluded.payment_status,
+            payment_details_json = excluded.payment_details_json;
         `,
         args: [
           sanitizedOrder.id,
@@ -683,10 +693,12 @@ export const tursoService = {
           sanitizedOrder.subtotal,
           sanitizedOrder.shippingFee,
           sanitizedOrder.total,
+          sanitizedOrder.currency || 'COP',
           JSON.stringify(sanitizedOrder.shippingDetails),
           sanitizedOrder.paymentMethod,
           sanitizedOrder.status,
           sanitizedOrder.paymentStatus || 'pending',
+          sanitizedOrder.paymentDetails ? JSON.stringify(sanitizedOrder.paymentDetails) : null,
           sanitizedOrder.createdAt || new Date().toISOString(),
         ],
       });

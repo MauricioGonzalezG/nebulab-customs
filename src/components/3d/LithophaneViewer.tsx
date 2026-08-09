@@ -211,77 +211,77 @@ export const LithophaneViewer: React.FC<LithophaneViewerProps> = ({
   return (
     <div
       ref={containerRef}
-      className="relative w-full h-[520px] md:h-full min-h-[450px] bg-slate-950 rounded-2xl overflow-hidden shadow-2xl border border-slate-800/80 cursor-grab active:cursor-grabbing select-none"
+      className="relative w-full h-[360px] sm:h-[450px] lg:h-[520px] bg-slate-950 rounded-2xl overflow-hidden shadow-2xl border border-slate-800/80 cursor-grab active:cursor-grabbing select-none"
     >
       {/* WebGL mount — kept separate so React overlays are not wiped */}
       <div ref={mountRef} className="absolute inset-0 w-full h-full" />
 
       {/* Floating Toolbar */}
-      <div className="absolute top-4 left-4 right-4 flex items-center justify-between pointer-events-none z-10">
-        <div className="bg-slate-900/85 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-slate-700/60 text-xs font-medium text-slate-200 flex items-center gap-2 pointer-events-auto shadow-lg">
+      <div className="absolute top-3 left-3 right-3 flex items-center justify-between flex-wrap gap-2 pointer-events-none z-10">
+        <div className="bg-slate-900/85 backdrop-blur-md px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full border border-slate-700/60 text-[10px] sm:text-xs font-medium text-slate-200 flex items-center gap-1.5 sm:gap-2 pointer-events-auto shadow-lg">
           <Sparkles className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
           <span>Vista 3D Interactiva</span>
         </div>
 
-        <div className="flex items-center gap-2 pointer-events-auto">
+        <div className="flex items-center gap-1.5 sm:gap-2 pointer-events-auto flex-wrap">
           <button
             onClick={onToggleLight}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all duration-300 shadow-md ${
+            className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full text-[11px] sm:text-xs font-semibold transition-all duration-300 shadow-md ${
               config.enableLight
                 ? 'bg-amber-400 text-slate-950 shadow-amber-400/20 shadow-lg scale-105'
                 : 'bg-slate-800/90 hover:bg-slate-700 text-slate-300 border border-slate-700'
             }`}
             title="Simular luz trasera LED (ON/OFF)"
           >
-            <Lightbulb className={`w-4 h-4 ${config.enableLight ? 'fill-slate-950 animate-bounce' : ''}`} />
-            <span>{config.enableLight ? 'Luz ENCENDIDA' : 'Encender Luz'}</span>
+            <Lightbulb className={`w-3.5 h-3.5 ${config.enableLight ? 'fill-slate-950 animate-bounce' : ''}`} />
+            <span>{config.enableLight ? 'Luz ON' : 'Encender Luz'}</span>
           </button>
 
           <button
             onClick={() => setWireframe(!wireframe)}
-            className={`p-2 rounded-full border text-xs transition-all ${
+            className={`p-1.5 sm:p-2 rounded-full border text-xs transition-all ${
               wireframe
                 ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500'
                 : 'bg-slate-800/90 text-slate-300 border-slate-700 hover:bg-slate-700'
             }`}
             title="Malla wireframe 3D"
           >
-            <Eye className="w-4 h-4" />
+            <Eye className="w-3.5 h-3.5" />
           </button>
 
           <button
             onClick={() => setIsRotating(!isRotating)}
-            className={`p-2 rounded-full border text-xs transition-all ${
+            className={`p-1.5 sm:p-2 rounded-full border text-xs transition-all ${
               isRotating
                 ? 'bg-slate-700 text-cyan-400 border-cyan-500/50'
                 : 'bg-slate-800/90 text-slate-400 border-slate-700'
             }`}
             title="Giro automático"
           >
-            <RotateCcw className="w-4 h-4" />
+            <RotateCcw className="w-3.5 h-3.5" />
           </button>
 
           <button
             onClick={resetView}
-            className="p-2 rounded-full bg-slate-800/90 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-all"
+            className="p-1.5 sm:p-2 rounded-full bg-slate-800/90 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-all"
             title="Restablecer cámara"
           >
-            <Maximize2 className="w-4 h-4" />
+            <Maximize2 className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
 
-      <div className="absolute bottom-4 left-4 pointer-events-auto z-10">
+      <div className="absolute bottom-3 left-3 pointer-events-auto z-10">
         <button
           onClick={handleDownloadSTL}
-          className="flex items-center gap-2 px-3.5 py-2 bg-slate-900/90 hover:bg-slate-800 text-cyan-400 border border-cyan-500/40 hover:border-cyan-400 rounded-xl text-xs font-semibold shadow-xl transition-all duration-200 hover:scale-105 active:scale-95"
+          className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-3.5 py-1.5 sm:py-2 bg-slate-900/90 hover:bg-slate-800 text-cyan-400 border border-cyan-500/40 hover:border-cyan-400 rounded-xl text-[11px] sm:text-xs font-semibold shadow-xl transition-all duration-200 hover:scale-105 active:scale-95"
         >
-          <Download className="w-4 h-4 text-cyan-400" />
-          <span>Descargar STL de Impresión</span>
+          <Download className="w-3.5 h-3.5 text-cyan-400" />
+          <span>Descargar STL (.stl)</span>
         </button>
       </div>
 
-      <div className="absolute bottom-4 right-4 pointer-events-none hidden sm:block z-10">
+      <div className="absolute bottom-3 right-3 pointer-events-none hidden sm:block z-10">
         <div className="bg-slate-900/70 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-slate-800 text-[11px] text-slate-400">
           {VIEWER_CONTROL_HINT}
         </div>

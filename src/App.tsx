@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { CartItem, LithophaneConfig, Order } from './types';
 import { createPlaceholderImage, processImageForLithophane, ProcessedImageData } from './core/imageProcessor';
 import { downloadLithophaneSTL } from './core/stlExporter';
@@ -45,6 +45,16 @@ export const App: React.FC = () => {
   const [isAdminViewOpen, setIsAdminViewOpen] = useState(() => window.location.pathname.toLowerCase().includes('/admin'));
   const [isCustomerAuthOpen, setIsCustomerAuthOpen] = useState(false);
   const [isMyOrdersOpen, setIsMyOrdersOpen] = useState(false);
+
+  const viewerRef = useRef<HTMLDivElement>(null);
+
+  const scrollToViewerOnMobile = () => {
+    if (window.innerWidth < 1024 && viewerRef.current) {
+      setTimeout(() => {
+        viewerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 150);
+    }
+  };
 
 
   // Default Lithophane configuration
@@ -307,7 +317,7 @@ export const App: React.FC = () => {
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             {/* Left Column: 3D Viewport & Interactive Preview */}
-            <div className="lg:col-span-7 space-y-6 lg:sticky lg:top-24">
+            <div ref={viewerRef} className="lg:col-span-7 space-y-6 lg:sticky lg:top-24">
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-xl font-bold font-outfit text-white flex items-center gap-2">
@@ -398,7 +408,10 @@ export const App: React.FC = () => {
                 <ImageSection
                   config={config}
                   onChange={updateConfig}
-                  onImageLoaded={(img) => setCurrentImageElement(img)}
+                  onImageLoaded={(img) => {
+                    setCurrentImageElement(img);
+                    scrollToViewerOnMobile();
+                  }}
                 />
               )}
 

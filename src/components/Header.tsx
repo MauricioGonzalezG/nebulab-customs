@@ -122,13 +122,13 @@ export const Header: React.FC<HeaderProps> = ({
 
 
         {/* Right CTA / Customer, Admin & Cart Buttons */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-1.5 sm:gap-2.5">
           
-          {/* Customer Account / Orders Button */}
+          {/* Customer Account / Orders Button (Desktop/Tablet) */}
           {customerName ? (
             <button
               onClick={onOpenMyOrders}
-              className="flex items-center gap-2 px-3 py-2 rounded-xl bg-cyan-950/60 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-900/60 text-xs font-semibold transition-all"
+              className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-xl bg-cyan-950/60 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-900/60 text-xs font-semibold transition-all"
               title="Ver mis pedidos"
             >
               <Package className="w-4 h-4 text-cyan-400" />
@@ -137,7 +137,7 @@ export const Header: React.FC<HeaderProps> = ({
           ) : (
             <button
               onClick={onOpenCustomerAuth}
-              className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 text-xs font-semibold transition-all"
+              className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 text-xs font-semibold transition-all"
               title="Iniciar sesión / Registro"
             >
               <User className="w-4 h-4 text-slate-400" />
@@ -145,18 +145,17 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
           )}
 
-          {/* Admin Dashboard Button (Only visible when already authenticated as admin) */}
+          {/* Admin Dashboard Button (Desktop/Tablet) */}
           {isAdminAuthenticated && (
             <button
               onClick={onOpenAdmin}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-cyan-950/60 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-900/60 text-xs font-semibold transition-all"
+              className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-cyan-950/60 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-900/60 text-xs font-semibold transition-all"
               title="Panel de Administración"
             >
               <LayoutDashboard className="w-4 h-4 text-cyan-400" />
               <span className="hidden xl:inline">Panel Admin</span>
             </button>
           )}
-
 
           <CurrencySelector />
 
@@ -181,10 +180,10 @@ export const Header: React.FC<HeaderProps> = ({
 
           <button
             onClick={onOpenCart}
-            className="relative flex items-center gap-2 px-3 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-violet-600 hover:from-cyan-400 hover:to-violet-500 text-white font-semibold text-xs shadow-lg shadow-cyan-500/20 transition-all duration-200 hover:scale-[1.02] active:scale-95"
+            className="relative flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-violet-600 hover:from-cyan-400 hover:to-violet-500 text-white font-semibold text-xs shadow-lg shadow-cyan-500/20 transition-all duration-200 hover:scale-[1.02] active:scale-95 shrink-0"
           >
             <ShoppingBag className="w-4 h-4" />
-              <span className="hidden md:inline">Carrito</span>
+            <span className="hidden md:inline">Carrito</span>
             
             {cartCount > 0 && (
               <div className="flex items-center gap-1.5">
@@ -200,7 +199,7 @@ export const Header: React.FC<HeaderProps> = ({
 
           <button
             onClick={() => setIsMobileMenuOpen((open) => !open)}
-            className="lg:hidden p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition-colors"
+            className="lg:hidden p-2 sm:p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition-colors shrink-0"
             aria-label={isMobileMenuOpen ? 'Cerrar menú' : 'Abrir menú'}
             aria-expanded={isMobileMenuOpen}
           >
@@ -217,19 +216,36 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
           {onNavigateStudio && (
             <button onClick={() => { onNavigateStudio(); closeMobileMenu(); }} className="brand-mobile-item">
-              <Box className="w-4 h-4" /> Litofanías 3D
+              <Box className="w-4 h-4 text-cyan-400" /> Litofanías 3D
             </button>
           )}
           {onNavigateClicker && (
             <button onClick={() => { onNavigateClicker(); closeMobileMenu(); }} className="brand-mobile-item">
-              <Key className="w-4 h-4" /> Clickers y llaveros
+              <Key className="w-4 h-4 text-violet-400" /> Clickers y llaveros
             </button>
           )}
           {onNavigateCollar && (
             <button onClick={() => { onNavigateCollar(); closeMobileMenu(); }} className="brand-mobile-item">
-              <Heart className="w-4 h-4" /> Collares para mascotas
+              <Heart className="w-4 h-4 text-rose-400" /> Collares para mascotas
             </button>
           )}
+
+          {customerName ? (
+            <button onClick={() => { onOpenMyOrders(); closeMobileMenu(); }} className="brand-mobile-item">
+              <Package className="w-4 h-4 text-cyan-400" /> Mis pedidos ({customerName})
+            </button>
+          ) : (
+            <button onClick={() => { onOpenCustomerAuth(); closeMobileMenu(); }} className="brand-mobile-item">
+              <User className="w-4 h-4 text-slate-400" /> Iniciar sesión / Registro
+            </button>
+          )}
+
+          {isAdminAuthenticated && (
+            <button onClick={() => { onOpenAdmin(); closeMobileMenu(); }} className="brand-mobile-item text-cyan-300">
+              <LayoutDashboard className="w-4 h-4 text-cyan-400" /> Panel Admin
+            </button>
+          )}
+
           <a href={getWhatsAppUrl()} target="_blank" rel="noreferrer" className="brand-mobile-item brand-mobile-quote">
             <MessageCircle className="w-4 h-4" /> Cotizar por WhatsApp
           </a>

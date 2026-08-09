@@ -23,7 +23,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   onDownloadSTL
 }) => {
   const { customerUser } = useAuth();
-  const { formatPriceUsdOnly, pricingData } = useCurrency();
+  const { currency, formatPrice, convertUsdToCop, formatPriceUsdOnly, pricingData } = useCurrency();
   const [step, setStep] = useState<'shipping' | 'payment' | 'confirmation'>('shipping');
   const [isProcessing, setIsProcessing] = useState(false);
   const [completedOrder, setCompletedOrder] = useState<Order | null>(null);
@@ -113,22 +113,26 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   };
 
   const generateWhatsAppUrl = (order: Order) => {
+    const activeCurr = order.currency || currency;
+    const formatItemPrice = (usd: number) => formatPrice(convertUsdToCop(usd), usd, activeCurr);
+
     const itemDetails = order.items
       .map((it) => {
+        const formattedPrice = formatItemPrice(it.price);
         if (it.itemType === 'collar' && it.collarConfig) {
-          return `• Collar para Mascota 3D (Mascota: ${it.collarConfig.petName || 'N/A'}, Tel: ${it.collarConfig.phoneText || 'N/A'})\n  - Talla: ${it.collarConfig.size}\n  - Color Correa: ${it.collarConfig.strapColor}\n  - Estilo Placa: ${it.collarConfig.plateStyle}\n  - Precio: $${it.price.toFixed(2)} USD`;
+          return `• Collar para Mascota 3D (Mascota: ${it.collarConfig.petName || 'N/A'}, Tel: ${it.collarConfig.phoneText || 'N/A'})\n  - Talla: ${it.collarConfig.size}\n  - Color Correa: ${it.collarConfig.strapColor}\n  - Estilo Placa: ${it.collarConfig.plateStyle}\n  - Precio: ${formattedPrice}`;
         }
         if (it.itemType === 'clicker' && it.clickerConfig) {
           const typeName = it.clickerConfig.type === 'clicker' ? 'Clicker Teclado MX 3D' : 'Llavero 3D';
-          return `• ${typeName} (${it.clickerConfig.size}mm)\n  - Estilo Base: ${it.clickerConfig.baseStyle}\n  - Switch: ${it.clickerConfig.switchType}\n  - Precio: $${it.price.toFixed(2)} USD`;
+          return `• ${typeName} (${it.clickerConfig.size}mm)\n  - Estilo Base: ${it.clickerConfig.baseStyle}\n  - Switch: ${it.clickerConfig.switchType}\n  - Precio: ${formattedPrice}`;
         }
-        return `• Litofanía ${it.config.shape === 'arc' ? 'Curvada (Arco)' : it.config.shape === 'flat' ? 'Plana' : 'Cilíndrica'} (${it.config.width}x${it.config.height}mm)\n  - Soporte: ${it.config.baseType === 'night-light' ? 'Luz de Noche LED (Socket)' : it.config.baseType === 'led-wooden-base' ? 'Base Madera LED RGB' : 'Soporte Escritorio'}\n  - Material: ${it.config.material === 'white-pla' ? 'Blanco Ártico PLA' : 'Marfil Cálido'}\n  - Precio: $${it.price.toFixed(2)} USD`;
+        const notesText = it.config.notes ? `\n  - Observaciones: ${it.config.notes}` : '';
+        return `• Litofanía ${it.config.shape === 'arc' ? 'Curvada (Arco)' : it.config.shape === 'flat' ? 'Plana' : 'Cilíndrica'} (${it.config.width}x${it.config.height}mm)\n  - Soporte: ${it.config.baseType === 'night-light' ? 'Luz de Noche LED (Socket)' : it.config.baseType === 'flat-stand' ? 'Soporte Escritorio' : 'Sin Base'}${notesText}\n  - Precio: ${formattedPrice}`;
       })
       .join('\n\n');
 
-
-    const msg = `¡Hola! Quisiera realizar el pedido de mis productos personalizados ${BRAND.name}:\n\n🆔 *Orden ID:* ${order.id}\n👤 *Cliente:* ${order.shippingDetails.fullName}\n📱 *Teléfono:* ${order.shippingDetails.phone}\n📍 *Dirección:* ${order.shippingDetails.address}, ${order.shippingDetails.city} (${order.shippingDetails.country})\n\n📦 *Detalles del Producto:*\n${itemDetails}\n\n💰 *Total a Pagar:* $${order.total.toFixed(2)} USD\n\n¿Me ayudan a coordinar el pago y la entrega?`;
-
+    const formattedTotal = formatItemPrice(order.total);
+    const msg = `¡Hola! Quisiera realizar el pedido de mis productos personalizados ${BRAND.name}:\n\n🆔 *Orden ID:* ${order.id}\n👤 *Cliente:* ${order.shippingDetails.fullName}\n📱 *Teléfono:* ${order.shippingDetails.phone}\n📍 *Dirección:* ${order.shippingDetails.address}, ${order.shippingDetails.city} (${order.shippingDetails.country})\n\n📦 *Detalles del Producto:*\n${itemDetails}\n\n💰 *Total a Pagar:* ${formattedTotal}\n\n¿Me ayudan a coordinar el pago y la entrega?`;
 
     return getWhatsAppUrl(msg);
   };
@@ -144,6 +148,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       subtotal,
       shippingFee,
       total,
+      currency: currency,
       shippingDetails: shipping,
       paymentMethod: selectedPaymentMethod,
       status: 'confirmed',
@@ -190,8 +195,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
-      <div className="relative w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden text-slate-100 my-8">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
+      <div className="relative w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden text-slate-100 my-4 sm:my-8 max-h-[92vh] flex flex-col">
+
         
         {/* Header */}
         <div className="p-6 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">

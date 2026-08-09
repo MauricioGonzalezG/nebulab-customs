@@ -37,6 +37,9 @@ export interface LithophaneConfig {
   enableLight: boolean;
   lightWarmth: number;  // 0 (cool white) to 100 (warm yellow)
   lightIntensity: number; // 0 to 100
+
+  // Observaciones del usuario
+  notes?: string;
 }
 
 export type ClickerType = 'clicker' | 'keychain';
@@ -132,9 +135,19 @@ export interface Order {
   subtotal: number;
   shippingFee: number;
   total: number;
+  currency?: 'COP' | 'USD';
   shippingDetails: ShippingDetails;
   paymentMethod: 'whatsapp' | 'card' | 'paypal' | 'mercadopago' | 'wompi';
   status: 'confirmed' | 'processing' | 'completed' | 'cancelled';
   paymentStatus?: 'pending' | 'approved' | 'rejected' | 'refunded';
+  paymentDetails?: {
+    transactionId?: string;
+    paymentGateway?: string;
+    paidAt?: string;
+    rawResponse?: string;
+    notes?: string;
+    [key: string]: any;
+  };
   createdAt: string;
 }
+

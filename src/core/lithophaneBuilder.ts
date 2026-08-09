@@ -295,8 +295,9 @@ export function createBaseMesh(config: LithophaneConfig): THREE.Group {
     const arcRad = (arcAngle * Math.PI) / 180;
     const radius = (shape === 'arc' && arcRad > 0.01) ? width / arcRad : 1000;
 
-    const rOut = puckDiameter / 2;
-    const rIn = rOut - 3.5;
+    const rIn = puckDiameter / 2;
+    const wallThickness = 2.5; // Pared delgada de 2.5mm (máximo 3mm)
+    const rOut = rIn + wallThickness;
     const tiltRad = (puckAngle * Math.PI) / 180;
 
     // Floor Level: Lowest Y of the lithophane frame (sitting flush on print bed)
@@ -305,7 +306,7 @@ export function createBaseMesh(config: LithophaneConfig): THREE.Group {
 
     // 1. Support Beams (sitting flush on floor Y = floorY, extending to the back)
     const beamH = 5;
-    const beamW = 6;
+    const beamW = 3; // Conectores a la mitad de ancho (3mm en lugar de 6mm)
     const beamLength = config.strutLength !== undefined ? config.strutLength : 60;
     const puckDistanceZ = -beamLength;
 
@@ -470,8 +471,8 @@ export function createBaseMesh(config: LithophaneConfig): THREE.Group {
     }
     for (let i = segs; i >= 0; i--) {
       const a = startAngle + (i / segs) * (endAngle - startAngle);
-      const x = Math.cos(a) * (rOut - 1.8);
-      const y = Math.sin(a) * (rOut - 1.8);
+      const x = Math.cos(a) * (rIn - 0.8);
+      const y = Math.sin(a) * (rIn - 0.8);
       lipShape.lineTo(x, y);
     }
     lipShape.closePath();

@@ -17,12 +17,13 @@
   --brand-line: rgba(255, 255, 255, 0.12);
 }
 
-body {
+html, body {
   margin: 0;
   padding: 0;
   background-color: var(--brand-bg);
   color: var(--brand-text);
   overflow-x: hidden;
+  scroll-behavior: smooth;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }

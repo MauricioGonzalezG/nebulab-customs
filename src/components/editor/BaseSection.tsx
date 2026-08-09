@@ -1,6 +1,6 @@
 import React from 'react';
-import { BaseType, LithophaneConfig, MaterialType } from '../../types';
-import { Lightbulb, Box, Palette, Zap, Sparkles, AlertTriangle } from 'lucide-react';
+import { BaseType, LithophaneConfig } from '../../types';
+import { Lightbulb, Box, MessageSquare, Zap, Sparkles, AlertTriangle } from 'lucide-react';
 import { useCurrency } from '../../context/CurrencyContext';
 
 interface BaseSectionProps {
@@ -18,11 +18,6 @@ export const BaseSection: React.FC<BaseSectionProps> = ({ config, onChange }) =>
       desc: 'Soporte con vaso para lámpara LED a baterías de fácil montaje (Lámpara incluida)'
     },
     {
-      id: 'led-wooden-base',
-      name: 'Base de Madera LED RGB',
-      desc: 'Base elegante de madera natural con iluminación LED USB recargable'
-    },
-    {
       id: 'flat-stand',
       name: 'Soporte de Escritorio',
       desc: 'Patas de plástico para exhibir en mesas o repisas'
@@ -31,33 +26,6 @@ export const BaseSection: React.FC<BaseSectionProps> = ({ config, onChange }) =>
       id: 'none',
       name: 'Sin Base (Solo Litofanía)',
       desc: 'Solo el panel 3D para colgar o instalar por tu cuenta'
-    }
-  ];
-
-  const materials: { id: MaterialType; name: string; color: string; desc: string }[] = [
-    {
-      id: 'white-pla',
-      name: 'Blanco Ártico PLA',
-      color: '#ffffff',
-      desc: 'Recomendado. Mayor nitidez y paso de luz uniforme.'
-    },
-    {
-      id: 'warm-ivory',
-      name: 'Marfil Cálido',
-      color: '#fff8e7',
-      desc: 'Tono marfil suave con estética retro vintage.'
-    },
-    {
-      id: 'marble',
-      name: 'Efecto Mármol',
-      color: '#e2e8f0',
-      desc: 'Acabado texturizado con microveteado elegante.'
-    },
-    {
-      id: 'glow-blue',
-      name: 'Celeste Lumínico',
-      color: '#bae6fd',
-      desc: 'Pigmento fluorescente reactivo a la luz.'
     }
   ];
 
@@ -89,7 +57,18 @@ export const BaseSection: React.FC<BaseSectionProps> = ({ config, onChange }) =>
             return (
               <button
                 key={b.id}
-                onClick={() => onChange({ baseType: b.id })}
+                onClick={() => {
+                  if (b.id === 'flat-stand') {
+                    onChange({
+                      baseType: 'flat-stand',
+                      enableLight: false,
+                      shape: 'flat',
+                      arcAngle: 0,
+                    });
+                  } else {
+                    onChange({ baseType: b.id });
+                  }
+                }}
                 className={`flex flex-col text-left p-4 rounded-xl border transition-all ${
                   isSelected
                     ? 'bg-cyan-500/10 border-cyan-500 text-white shadow-lg shadow-cyan-500/10'
@@ -279,38 +258,19 @@ export const BaseSection: React.FC<BaseSectionProps> = ({ config, onChange }) =>
         </div>
       )}
 
-      {/* Material Selection */}
-      <div className="space-y-3">
+      {/* User Observations / Special Notes Section */}
+      <div className="space-y-2">
         <label className="text-sm font-semibold text-slate-200 flex items-center gap-2">
-          <Palette className="w-4 h-4 text-violet-400" />
-          <span>Material de Impresión 3D</span>
+          <MessageSquare className="w-4 h-4 text-violet-400" />
+          <span>Observaciones o Notas Adicionales (Opcional)</span>
         </label>
-
-        <div className="grid grid-cols-2 gap-3">
-          {materials.map((m) => {
-            const isSelected = config.material === m.id;
-            return (
-              <button
-                key={m.id}
-                onClick={() => onChange({ material: m.id })}
-                className={`flex items-start gap-3 p-3 rounded-xl border text-left transition-all ${
-                  isSelected
-                    ? 'bg-violet-500/10 border-violet-500 text-white'
-                    : 'bg-slate-900/60 border-slate-800 hover:border-slate-700 text-slate-400'
-                }`}
-              >
-                <span
-                  className="w-5 h-5 rounded-full border border-slate-600 shrink-0 mt-0.5 shadow-sm"
-                  style={{ backgroundColor: m.color }}
-                />
-                <div>
-                  <div className="text-xs font-bold text-slate-200">{m.name}</div>
-                  <p className="text-[10px] text-slate-400 mt-0.5">{m.desc}</p>
-                </div>
-              </button>
-            );
-          })}
-        </div>
+        <textarea
+          rows={3}
+          placeholder="Escribe aquí cualquier indicación especial para tu pedido (ej. detalles de personalización, empaque, sugerencias, etc.)..."
+          value={config.notes || ''}
+          onChange={(e) => onChange({ notes: e.target.value })}
+          className="w-full px-3.5 py-2.5 bg-slate-900/90 border border-slate-800 rounded-xl text-xs text-slate-100 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none transition-colors resize-none shadow-inner"
+        />
       </div>
 
       {/* Light Simulation Controls */}
