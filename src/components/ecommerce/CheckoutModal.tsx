@@ -195,12 +195,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
-      <div className="relative w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden text-slate-100 my-4 sm:my-8 max-h-[92vh] flex flex-col">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 overscroll-contain">
+      <div className="relative w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden text-slate-100 my-auto max-h-[92vh] flex flex-col focus:outline-none">
 
-        
         {/* Header */}
-        <div className="p-6 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
+        <div className="p-4 sm:p-6 border-b border-slate-800 flex items-center justify-between bg-slate-950/60 shrink-0">
           <div className="flex items-center gap-3">
             {step === 'payment' && (
               <button
@@ -211,7 +210,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               </button>
             )}
             <div>
-              <h3 className="text-lg font-bold font-outfit">
+              <h3 className="text-base sm:text-lg font-bold font-outfit">
                 {step === 'shipping' && 'Datos de Envío y Contacto'}
                 {step === 'payment' && 'Pasarela de Pago Segura'}
                 {step === 'confirmation' && '¡Pedido Confirmado con Éxito!'}
@@ -234,7 +233,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
         {/* Step 1: Shipping Form */}
         {step === 'shipping' && (
-          <form onSubmit={handleShippingSubmit} className="p-6 space-y-5">
+          <form onSubmit={handleShippingSubmit} className="p-4 sm:p-6 space-y-4 sm:space-y-5 overflow-y-auto flex-1 min-h-0 touch-pan-y text-slate-100">
             
             {/* If Customer is Logged In */}
             {customerUser ? (
@@ -502,11 +501,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               </div>
             )}
 
-            {/* Actions */}
-            <div className="pt-4 flex justify-end">
+            {/* Actions (Sticky Footer) */}
+            <div className="sticky bottom-0 z-10 -mx-4 -mb-4 sm:-mx-6 sm:-mb-6 p-4 sm:p-5 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 flex justify-end shadow-2xl">
               <button
                 type="submit"
-                className="px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-violet-600 hover:from-cyan-400 hover:to-violet-500 text-white font-bold text-xs shadow-lg shadow-cyan-500/25 transition-all"
+                className="w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-violet-600 hover:from-cyan-400 hover:to-violet-500 text-white font-bold text-xs shadow-lg shadow-cyan-500/25 transition-all active:scale-95"
               >
                 Continuar al Pago
               </button>
@@ -517,7 +516,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
         {/* Step 2: Payment Gateways */}
         {step === 'payment' && (
-          <form onSubmit={handlePay} className="p-6 space-y-6">
+          <form onSubmit={handlePay} className="p-4 sm:p-6 space-y-5 sm:space-y-6 overflow-y-auto flex-1 min-h-0 touch-pan-y text-slate-100">
             <div className="p-4 rounded-2xl bg-cyan-950/20 border border-cyan-800/40 text-xs text-cyan-200 space-y-1">
               <div className="font-bold flex items-center gap-1.5 text-cyan-300">
                 <Truck className="w-4 h-4 text-cyan-400" />
@@ -592,39 +591,41 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               </div>
             </div>
 
-            {/* Pay Button */}
-            <button
-              type="submit"
-              disabled={isProcessing}
-              className={`w-full py-4 px-6 rounded-2xl font-extrabold text-sm shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 ${
-                selectedPaymentMethod === 'mercadopago'
-                  ? 'bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white shadow-sky-500/25'
-                  : 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white shadow-emerald-500/25'
-              }`}
-            >
-              {isProcessing ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span>Procesando pago...</span>
-                </>
-              ) : selectedPaymentMethod === 'mercadopago' ? (
-                <>
-                  <Wallet className="w-5 h-5" />
-                  <span>Pagar con Mercado Pago ({formatPriceUsdOnly(total)})</span>
-                </>
-              ) : (
-                <>
-                  <CheckCircle2 className="w-5 h-5" />
-                  <span>Confirmar e Iniciar WhatsApp ({formatPriceUsdOnly(total)})</span>
-                </>
-              )}
-            </button>
+            {/* Pay Button (Sticky Footer) */}
+            <div className="sticky bottom-0 z-10 -mx-4 -mb-4 sm:-mx-6 sm:-mb-6 p-4 sm:p-5 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 shadow-2xl">
+              <button
+                type="submit"
+                disabled={isProcessing}
+                className={`w-full py-3.5 sm:py-4 px-6 rounded-2xl font-extrabold text-xs sm:text-sm shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 active:scale-95 ${
+                  selectedPaymentMethod === 'mercadopago'
+                    ? 'bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white shadow-sky-500/25'
+                    : 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white shadow-emerald-500/25'
+                }`}
+              >
+                {isProcessing ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>Procesando pago...</span>
+                  </>
+                ) : selectedPaymentMethod === 'mercadopago' ? (
+                  <>
+                    <Wallet className="w-5 h-5" />
+                    <span>Pagar con Mercado Pago ({formatPriceUsdOnly(total)})</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-5 h-5" />
+                    <span>Confirmar e Iniciar WhatsApp ({formatPriceUsdOnly(total)})</span>
+                  </>
+                )}
+              </button>
+            </div>
           </form>
         )}
 
         {/* Step 3: Confirmation */}
         {step === 'confirmation' && completedOrder && (
-          <div className="p-8 text-center space-y-6">
+          <div className="p-6 sm:p-8 text-center space-y-5 sm:space-y-6 overflow-y-auto flex-1 min-h-0 touch-pan-y text-slate-100">
             <div className="w-16 h-16 rounded-3xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center mx-auto shadow-xl">
               <CheckCircle2 className="w-8 h-8" />
             </div>
