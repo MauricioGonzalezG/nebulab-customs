@@ -1,24 +1,27 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { CollarConfig, CartItem } from '../../types';
+import { CollarConfig, CartItem, CollarPlateStyle, CollarStrapColor } from '../../types';
 import {
   processCollarImage,
   ProcessedCollarData,
   COLLAR_SAMPLE_IMAGES,
   createDefaultCollarConfig,
 } from '../../core/collarProcessor';
+import { downloadCollar3MF } from '../../core/collar3mfExporter';
+import { downloadCollarSTL } from '../../core/collarStlExporter';
 import { CollarViewer } from '../3d/CollarViewer';
+import { useAuth } from '../../context/AuthContext';
 import {
   Upload,
   ShoppingBag,
   ArrowLeft,
-  Sparkles,
   Tag,
   Phone,
   User,
+  Download,
+  Check,
 } from 'lucide-react';
 import { getPricingDataSync } from '../../lib/priceConfig';
 import { useCurrency } from '../../context/CurrencyContext';
-import { VIEWER_CONTROL_HINT } from '../3d/viewerControls';
 
 interface CollarStudioProps {
   onBackToHome: () => void;
@@ -26,12 +29,51 @@ interface CollarStudioProps {
   onBuyNow: (item: CartItem) => void;
 }
 
+const TEXT_COLORS = [
+  { hex: '#FFFFFF', label: 'Blanco' },
+  { hex: '#000000', label: 'Negro' },
+  { hex: '#D4AF37', label: 'Dorado' },
+  { hex: '#EF4444', label: 'Rojo' },
+  { hex: '#38BDF8', label: 'Cyan' },
+  { hex: '#A3E635', label: 'Verde Lima' },
+];
+
+const STRAP_COLORS_LIST: Array<{ id: CollarStrapColor; label: string; bg: string }> = [
+  { id: 'olive', label: 'Verde Militar', bg: '#4d5d36' },
+  { id: 'crimson', label: 'Rojo Carmesí', bg: '#991b1b' },
+  { id: 'black', label: 'Negro Obsidiana', bg: '#1e293b' },
+  { id: 'navy', label: 'Azul Marino', bg: '#1e3a8a' },
+  { id: 'pink', label: 'Rosa Pastel', bg: '#be185d' },
+  { id: 'brown', label: 'Cuero Café', bg: '#78350f' },
+  { id: 'yellow', label: 'Amarillo', bg: '#eab308' },
+];
+
+const PLATE_STYLES_LIST: Array<{ id: CollarPlateStyle; label: string }> = [
+  { id: 'rounded', label: 'Curva Redondeada' },
+  { id: 'rectangle', label: 'Rectangular' },
+  { id: 'bone', label: 'Forma Hueso' },
+  { id: 'shield', label: 'Escudo' },
+  { id: 'heart', label: 'Corazón' },
+  { id: 'circle', label: 'Medalla' },
+  { id: 'silhouette', label: 'Silueta' },
+];
+
+const PLATE_COLORS_LIST = [
+  { hex: '#D4AF37', label: 'Dorado' },
+  { hex: '#1E293B', label: 'Negro Carbón' },
+  { hex: '#FFFFFF', label: 'Blanco Nieve' },
+  { hex: '#991B1B', label: 'Rojo Carmesí' },
+  { hex: '#1E3A8A', label: 'Azul Real' },
+  { hex: '#94A3B8', label: 'Gris Plata' },
+];
+
 export const CollarStudio: React.FC<CollarStudioProps> = ({
   onBackToHome,
   onAddToCart,
   onBuyNow,
 }) => {
   const { formatPrice } = useCurrency();
+  const { isAuthenticated } = useAuth();
   const pData = getPricingDataSync();
   const collarPriceCop = pData.collar.basePriceCop;
   const collarPriceUsd = pData.collar.basePriceUsd;
@@ -49,7 +91,6 @@ export const CollarStudio: React.FC<CollarStudioProps> = ({
       }, 150);
     }
   };
-
 
   // Load initial sample image
   useEffect(() => {
@@ -71,16 +112,18 @@ export const CollarStudio: React.FC<CollarStudioProps> = ({
     } catch (err) {
       console.error('Error processing collar image:', err);
     }
-
   }, [
     currentImgElement,
     config.removeBackground,
+    config.imageRotation,
+    config.flipHorizontal,
     config.plateStyle,
     config.plateColor,
+    config.borderColor,
+    config.textColor,
     config.strapColor,
     config.petName,
     config.phoneText,
-    config.textColor,
   ]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -122,7 +165,7 @@ export const CollarStudio: React.FC<CollarStudioProps> = ({
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-inter selection:bg-cyan-500 selection:text-slate-950">
       
-      {/* Top Header Bar */}
+      {/* TOP HEADER BAR */}
       <header className="bg-slate-900/90 border-b border-slate-800 px-4 lg:px-8 py-3 flex items-center justify-between sticky top-0 z-30 backdrop-blur-md">
         <div className="flex items-center gap-3">
           <button
@@ -143,41 +186,63 @@ export const CollarStudio: React.FC<CollarStudioProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           {/* View Mode Switcher */}
-          <div className="hidden sm:flex bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs font-bold">
+          <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs font-bold">
             <button
               onClick={() => setConfig((prev) => ({ ...prev, viewMode: 'assembled' }))}
               className={`px-3 py-1.5 rounded-lg transition-all ${
-                config.viewMode === 'assembled' ? 'bg-cyan-500 text-white shadow-md' : 'text-slate-400'
+                config.viewMode === 'assembled' ? 'bg-cyan-500 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'
               }`}
             >
               Ensamblado
             </button>
             <button
-              onClick={() => setConfig((prev) => ({ ...prev, viewMode: 'exploded' }))}
+              onClick={() => setConfig((prev) => ({ ...prev, viewMode: 'plate' }))}
               className={`px-3 py-1.5 rounded-lg transition-all ${
-                config.viewMode === 'exploded' ? 'bg-cyan-500 text-white shadow-md' : 'text-slate-400'
+                config.viewMode === 'plate' ? 'bg-cyan-500 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'
               }`}
             >
               Despiezado
             </button>
           </div>
 
+          {isAuthenticated && (
+            <>
+              <button
+                onClick={() => downloadCollar3MF(processedData, config)}
+                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold shadow-md transition-all"
+                title="Descargar archivo multi-color para Bambu Studio / OrcaSlicer"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>.3MF</span>
+              </button>
+
+              <button
+                onClick={() => downloadCollarSTL(processedData, config)}
+                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-all"
+                title="Descargar archivo STL"
+              >
+                <Download className="w-3.5 h-3.5 text-slate-400" />
+                <span>STL</span>
+              </button>
+            </>
+          )}
+
           <button
             onClick={() => onAddToCart(createCartItem())}
             className="px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-violet-600 hover:from-cyan-400 hover:to-violet-500 text-white text-xs font-bold shadow-md shadow-cyan-500/20 transition-all flex items-center gap-1.5"
           >
             <ShoppingBag className="w-4 h-4" />
-            <span>Agregar ($14.90)</span>
+            <span>Agregar ({formatPrice(collarPriceCop, collarPriceUsd)})</span>
           </button>
         </div>
       </header>
 
-      {/* Main Studio Grid */}
+      {/* MAIN STUDIO GRID */}
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-0 overflow-hidden">
         
-        {/* LEFT CONTROL PANEL (Plate & Collar Settings) */}
+        {/* LEFT CONTROL PANEL (Clean Direct Controls) */}
         <div className="lg:col-span-3 bg-slate-900/60 border-r border-slate-800 p-5 space-y-6 overflow-y-auto max-h-[calc(100vh-60px)]">
           
           {/* Pet Name & Phone Input Box */}
@@ -187,7 +252,7 @@ export const CollarStudio: React.FC<CollarStudioProps> = ({
               <span>Datos Grabados en la Placa</span>
             </label>
 
-            <div className="space-y-2 text-xs">
+            <div className="space-y-3 text-xs">
               <div>
                 <label className="text-slate-400 block mb-1 font-semibold flex items-center gap-1">
                   <User className="w-3.5 h-3.5 text-cyan-400" />
@@ -198,7 +263,7 @@ export const CollarStudio: React.FC<CollarStudioProps> = ({
                   value={config.petName}
                   onChange={(e) => setConfig((prev) => ({ ...prev, petName: e.target.value }))}
                   placeholder="Ej. Kolla, Rocky, Thor"
-                  className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-slate-100 font-bold focus:outline-none focus:border-cyan-500"
+                  className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-slate-100 font-bold focus:outline-none focus:border-cyan-500 uppercase tracking-wider"
                 />
               </div>
 
@@ -220,71 +285,63 @@ export const CollarStudio: React.FC<CollarStudioProps> = ({
               <div>
                 <label className="text-slate-400 block mb-1.5 font-semibold text-xs">Color de Letra</label>
                 <div className="grid grid-cols-6 gap-1.5">
-                  {[
-                    { hex: '#FFFFFF', label: 'Blanco' },
-                    { hex: '#000000', label: 'Negro' },
-                    { hex: '#D4AF37', label: 'Dorado' },
-                    { hex: '#EF4444', label: 'Rojo' },
-                    { hex: '#38BDF8', label: 'Cyan' },
-                    { hex: '#A3E635', label: 'Verde Lima' },
-                  ].map((tc) => (
+                  {TEXT_COLORS.map((tc) => (
                     <button
                       key={tc.hex}
                       onClick={() => setConfig((prev) => ({ ...prev, textColor: tc.hex }))}
                       title={tc.label}
                       style={{ backgroundColor: tc.hex }}
-                      className={`h-7 rounded-lg border-2 transition-all ${
+                      className={`h-7 rounded-lg border-2 transition-all flex items-center justify-center ${
                         config.textColor === tc.hex ? 'border-cyan-400 scale-110 shadow-lg' : 'border-transparent opacity-80 hover:opacity-100'
                       }`}
-                    />
+                    >
+                      {config.textColor === tc.hex && (
+                        <Check className={`w-3.5 h-3.5 ${tc.hex === '#FFFFFF' || tc.hex === '#D4AF37' ? 'text-slate-950' : 'text-white'}`} />
+                      )}
+                    </button>
                   ))}
                 </div>
               </div>
             </div>
           </div>
+
           {/* Collar Strap Color Selector */}
           <div className="space-y-2">
             <label className="text-xs font-bold text-slate-300 uppercase tracking-wider block">Color de Correa de Tela</label>
             <div className="grid grid-cols-5 gap-2">
-              {[
-                { id: 'olive', label: 'Verde Militar', bg: 'bg-[#4d5d36]' },
-                { id: 'crimson', label: 'Rojo Carmesí', bg: 'bg-[#991b1b]' },
-                { id: 'black', label: 'Negro Azabache', bg: 'bg-[#1e293b]' },
-                { id: 'navy', label: 'Azul Marino', bg: 'bg-[#1e3a8a]' },
-                { id: 'pink', label: 'Rosa Hot', bg: 'bg-[#be185d]' },
-              ].map((strap) => (
+              {STRAP_COLORS_LIST.map((sc) => (
                 <button
-                  key={strap.id}
-                  onClick={() => setConfig((prev) => ({ ...prev, strapColor: strap.id as any }))}
-                  title={strap.label}
-                  className={`h-9 rounded-xl border-2 transition-all flex items-center justify-center ${strap.bg} ${
-                    config.strapColor === strap.id ? 'border-cyan-400 scale-110 shadow-lg shadow-cyan-500/20' : 'border-transparent opacity-80 hover:opacity-100'
+                  key={sc.id}
+                  onClick={() => setConfig((prev) => ({ ...prev, strapColor: sc.id }))}
+                  title={sc.label}
+                  style={{ backgroundColor: sc.bg }}
+                  className={`h-8 rounded-xl border-2 transition-all flex items-center justify-center ${
+                    config.strapColor === sc.id
+                      ? 'border-cyan-400 scale-105 shadow-md shadow-cyan-500/30 ring-2 ring-cyan-500/20'
+                      : 'border-transparent opacity-80 hover:opacity-100'
                   }`}
-                />
+                >
+                  {config.strapColor === sc.id && <Check className="w-4 h-4 text-white drop-shadow" />}
+                </button>
               ))}
             </div>
           </div>
 
-          {/* Plate Shape Style */}
+          {/* Plate Shape Selector */}
           <div className="space-y-2">
             <label className="text-xs font-bold text-slate-300 uppercase tracking-wider block">Forma de la Placa 3D</label>
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                { id: 'rounded', label: 'Curva Redondeada' },
-                { id: 'rectangle', label: 'Rectangular' },
-                { id: 'bone', label: 'Forma Hueso' },
-                { id: 'shield', label: 'Escudo' },
-              ].map((style) => (
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              {PLATE_STYLES_LIST.map((ps) => (
                 <button
-                  key={style.id}
-                  onClick={() => setConfig((prev) => ({ ...prev, plateStyle: style.id as any }))}
-                  className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all ${
-                    config.plateStyle === style.id
-                      ? 'bg-cyan-950/80 border-cyan-500 text-cyan-300'
-                      : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:text-slate-200'
+                  key={ps.id}
+                  onClick={() => setConfig((prev) => ({ ...prev, plateStyle: ps.id }))}
+                  className={`py-2 px-3 rounded-xl border font-bold text-center transition-all ${
+                    config.plateStyle === ps.id
+                      ? 'bg-cyan-500/20 border-cyan-400 text-cyan-300 shadow-md'
+                      : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
                   }`}
                 >
-                  {style.label}
+                  {ps.label}
                 </button>
               ))}
             </div>
@@ -293,124 +350,92 @@ export const CollarStudio: React.FC<CollarStudioProps> = ({
           {/* Plate Color Selector */}
           <div className="space-y-2">
             <label className="text-xs font-bold text-slate-300 uppercase tracking-wider block">Color de la Placa 3D</label>
-            <div className="grid grid-cols-5 gap-2">
-              {[
-                { hex: '#D4AF37', label: 'Dorado / Bronce' },
-                { hex: '#1E293B', label: 'Negro Azabache' },
-                { hex: '#F8FAFC', label: 'Blanco Eco-PLA' },
-                { hex: '#EF4444', label: 'Rojo Carmesí' },
-                { hex: '#94A3B8', label: 'Plata Metal' },
-              ].map((pColor) => (
+            <div className="grid grid-cols-6 gap-2">
+              {PLATE_COLORS_LIST.map((pc) => (
                 <button
-                  key={pColor.hex}
-                  onClick={() => setConfig((prev) => ({ ...prev, plateColor: pColor.hex }))}
-                  title={pColor.label}
-                  style={{ backgroundColor: pColor.hex }}
-                  className={`h-9 rounded-xl border-2 transition-all ${
-                    config.plateColor === pColor.hex ? 'border-cyan-400 scale-110 shadow-lg shadow-cyan-500/20' : 'border-transparent opacity-80 hover:opacity-100'
+                  key={pc.hex}
+                  onClick={() => setConfig((prev) => ({ ...prev, plateColor: pc.hex }))}
+                  title={pc.label}
+                  style={{ backgroundColor: pc.hex }}
+                  className={`h-8 rounded-xl border-2 transition-all flex items-center justify-center ${
+                    config.plateColor === pc.hex
+                      ? 'border-cyan-400 scale-105 shadow-md shadow-cyan-500/30'
+                      : 'border-transparent opacity-80 hover:opacity-100'
                   }`}
-                />
+                >
+                  {config.plateColor === pc.hex && (
+                    <Check className={`w-3.5 h-3.5 ${pc.hex === '#FFFFFF' || pc.hex === '#94A3B8' ? 'text-slate-950' : 'text-white'}`} />
+                  )}
+                </button>
               ))}
             </div>
           </div>
 
-          {/* Pet Size Selector */}
+          {/* Collar Size Selector */}
           <div className="space-y-2">
             <label className="text-xs font-bold text-slate-300 uppercase tracking-wider block">Talla del Collar</label>
-            <div className="grid grid-cols-4 gap-1.5">
-              {[
-                { id: 'S', label: 'S (Pequeño)' },
-                { id: 'M', label: 'M (Mediano)' },
-                { id: 'L', label: 'L (Grande)' },
-                { id: 'XL', label: 'XL (Extra)' },
-              ].map((sz) => (
+            <div className="grid grid-cols-4 gap-2 text-xs">
+              {(['S', 'M', 'L', 'XL'] as const).map((sz) => (
                 <button
-                  key={sz.id}
-                  onClick={() => setConfig((prev) => ({ ...prev, size: sz.id as any }))}
-                  className={`py-2 rounded-xl text-xs font-bold border transition-all ${
-                    config.size === sz.id
-                      ? 'bg-cyan-950/80 border-cyan-500 text-cyan-300'
+                  key={sz}
+                  onClick={() => setConfig((prev) => ({ ...prev, size: sz }))}
+                  className={`py-2 rounded-xl font-bold border transition-all ${
+                    config.size === sz
+                      ? 'bg-cyan-500 text-white border-cyan-400 shadow-md'
                       : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:text-slate-200'
                   }`}
                 >
-                  {sz.id}
+                  {sz}
                 </button>
               ))}
-            </div>
-          </div>
-
-          {/* Image Rotation & Flip */}
-          <div className="space-y-3 bg-slate-950/60 p-4 rounded-2xl border border-slate-800">
-            <div className="flex justify-between items-center text-xs">
-              <span className="font-bold text-slate-300">Rotación de Imagen</span>
-              <span className="font-mono text-cyan-400 font-bold">{config.imageRotation ?? 0}°</span>
-            </div>
-            <div className="grid grid-cols-4 gap-1.5">
-              {[0, 90, 180, 270].map((deg) => (
-                <button
-                  key={deg}
-                  onClick={() => setConfig((prev) => ({ ...prev, imageRotation: deg }))}
-                  className={`py-1.5 rounded-xl text-xs font-bold border transition-all ${
-                    (config.imageRotation ?? 0) === deg
-                      ? 'bg-cyan-950/80 border-cyan-500 text-cyan-300'
-                      : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  {deg}°
-                </button>
-              ))}
-            </div>
-
-            <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-300">Reflejar Horizontal (Espejo)</span>
-              <input
-                type="checkbox"
-                checked={config.flipHorizontal}
-                onChange={(e) => setConfig((prev) => ({ ...prev, flipHorizontal: e.target.checked }))}
-                className="w-4 h-4 accent-cyan-500 rounded cursor-pointer"
-              />
             </div>
           </div>
 
         </div>
 
-        {/* CENTER VIEWPORT (3D Interactive Model Canvas) */}
-        <div ref={viewerRef} className="lg:col-span-6 bg-slate-950 flex flex-col items-center justify-center relative min-h-[450px]">
+        {/* MIDDLE 3D VIEWPORT */}
+        <div ref={viewerRef} className="lg:col-span-6 bg-slate-950 relative flex flex-col items-center justify-center p-4">
           
-          {/* Floating Controls Overlay */}
-          <div className="absolute top-4 left-4 z-10 flex items-center gap-2">
-            <div className="px-3 py-1.5 rounded-xl bg-slate-900/80 backdrop-blur-md border border-slate-800 text-xs font-bold text-cyan-300 flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-cyan-400" />
-              <span>Visor 3D Interactivo de Collar</span>
-            </div>
+          <div className="absolute top-5 left-5 z-10 bg-slate-900/80 backdrop-blur-md px-3 py-1.5 rounded-xl border border-slate-800 text-xs text-slate-300 font-bold flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span>Visor 3D Interactivo de Collar</span>
           </div>
 
-          <div className="w-full h-full min-h-[420px] flex items-center justify-center">
+          {/* 3D Canvas */}
+          <div className="w-full h-full min-h-[440px] rounded-3xl overflow-hidden border border-slate-900 relative">
             <CollarViewer config={config} processedData={processedData} />
           </div>
 
-          <div className="absolute bottom-4 text-center text-[11px] text-slate-400 bg-slate-900/80 backdrop-blur-md px-4 py-1.5 rounded-full border border-slate-800/80">
-            {VIEWER_CONTROL_HINT}
+          <div className="absolute bottom-5 text-xs text-slate-400 bg-slate-900/80 backdrop-blur-sm px-4 py-1.5 rounded-full border border-slate-800 pointer-events-none">
+            Girar: Clic izquierdo | Zoom: Rueda | Mover: Clic derecho
           </div>
         </div>
 
-        {/* RIGHT PANEL (Image Origin & Preset Gallery) */}
+        {/* RIGHT SIDEBAR (Image Origin, Sample Gallery & Price) */}
         <div className="lg:col-span-3 bg-slate-900/60 border-l border-slate-800 p-5 space-y-6 overflow-y-auto max-h-[calc(100vh-60px)]">
           
-          {/* File Upload Box */}
-          <div className="space-y-2">
+          {/* Image Upload Box */}
+          <div className="space-y-3">
             <label className="text-xs font-bold text-slate-300 uppercase tracking-wider block">Origen de Imagen</label>
-            <p className="text-[11px] text-slate-400">Sube tu propio logo o selecciona una plantilla</p>
+            <p className="text-xs text-slate-400">Sube tu propio logo o selecciona una plantilla</p>
 
-            <label className="border-2 border-dashed border-cyan-500/40 hover:border-cyan-400 bg-cyan-950/20 hover:bg-cyan-950/40 rounded-2xl p-5 flex flex-col items-center justify-center cursor-pointer transition-all duration-200 group text-center">
-              <Upload className="w-8 h-8 text-cyan-400 group-hover:scale-110 transition-transform mb-2" />
-              <span className="text-xs font-bold text-slate-200">Subir Imagen Personalizada</span>
-              <span className="text-[10px] text-slate-400 mt-1">PNG con fondo transparente funciona ideal</span>
-              <input type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
-            </label>
+            <div className="relative border-2 border-dashed border-slate-700 hover:border-cyan-500 rounded-2xl p-4 text-center transition-colors bg-slate-950/40">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleFileUpload}
+                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+              />
+              <div className="space-y-2 pointer-events-none">
+                <Upload className="w-6 h-6 text-slate-400 mx-auto" />
+                <p className="text-xs font-bold text-slate-200">Subir Imagen Personalizada</p>
+                <p className="text-[11px] text-slate-400">PNG con fondo transparente funciona ideal</p>
+              </div>
+            </div>
 
-            <div className="flex items-center justify-between pt-1">
-              <span className="text-xs text-slate-300 font-semibold">Remover Fondo Automáticamente</span>
+            {/* Remove Background Option */}
+            <div className="flex items-center justify-between p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+              <span className="text-xs font-bold text-slate-300">Remover Fondo Automáticamente</span>
               <input
                 type="checkbox"
                 checked={config.removeBackground}
@@ -420,7 +445,7 @@ export const CollarStudio: React.FC<CollarStudioProps> = ({
             </div>
           </div>
 
-          {/* Sample Gallery */}
+          {/* Sample Templates Gallery */}
           <div className="space-y-2">
             <label className="text-xs font-bold text-slate-300 uppercase tracking-wider block">Galería de Muestra</label>
             <div className="grid grid-cols-2 gap-2">
@@ -428,47 +453,45 @@ export const CollarStudio: React.FC<CollarStudioProps> = ({
                 <button
                   key={sample.id}
                   onClick={() => handleSelectSample(sample)}
-                  className={`p-3 rounded-2xl border text-center transition-all flex flex-col items-center gap-1.5 ${
+                  className={`p-2.5 rounded-xl border flex flex-col items-center gap-1.5 transition-all ${
                     config.sampleId === sample.id
-                      ? 'bg-cyan-950/80 border-cyan-500 text-cyan-300 shadow-md'
-                      : 'bg-slate-950/40 border-slate-800 text-slate-400 hover:text-slate-200'
+                      ? 'bg-cyan-950/60 border-cyan-400 ring-1 ring-cyan-400'
+                      : 'bg-slate-950/60 border-slate-800 hover:border-slate-700'
                   }`}
                 >
-                  <img src={sample.url} alt={sample.name} className="w-10 h-10 object-contain" />
-                  <span className="text-[11px] font-bold truncate w-full">{sample.name}</span>
+                  <img src={sample.url} alt={sample.name} className="w-8 h-8 object-contain" />
+                  <span className="text-[11px] font-semibold text-slate-300 truncate w-full text-center">{sample.name}</span>
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Checkout & Pricing Action Box */}
-          <div className="bg-slate-950 p-5 rounded-2xl border border-slate-800 space-y-4 shadow-xl">
+          {/* Price & Buy Section */}
+          <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <span className="text-[11px] text-slate-400 font-bold uppercase block">Precio Unitario 3D</span>
-                <span className="text-xl sm:text-2xl font-extrabold text-white font-outfit">{formatPrice(collarPriceCop, collarPriceUsd)}</span>
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Precio Unitario 3D</span>
+                <span className="text-2xl font-extrabold text-white font-outfit">{formatPrice(collarPriceCop, collarPriceUsd)}</span>
               </div>
-              <span className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full">
+              <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold uppercase">
                 Impreso & Ensamblado
               </span>
             </div>
 
-            <div className="space-y-2 pt-2">
-              <button
-                onClick={() => onAddToCart(createCartItem())}
-                className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-violet-600 hover:from-cyan-400 hover:to-violet-500 text-white font-bold text-xs shadow-lg shadow-cyan-500/25 transition-all flex items-center justify-center gap-2"
-              >
-                <ShoppingBag className="w-4 h-4" />
-                <span>Agregar al Carrito</span>
-              </button>
+            <button
+              onClick={() => onAddToCart(createCartItem())}
+              className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-violet-600 hover:from-cyan-400 hover:to-violet-500 text-white font-bold text-xs shadow-lg shadow-cyan-500/20 transition-all flex items-center justify-center gap-2"
+            >
+              <ShoppingBag className="w-4 h-4" />
+              <span>Agregar al Carrito</span>
+            </button>
 
-              <button
-                onClick={() => onBuyNow(createCartItem())}
-                className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold text-xs shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2"
-              >
-                <span>Comprar Ahora por WhatsApp</span>
-              </button>
-            </div>
+            <button
+              onClick={() => onBuyNow(createCartItem())}
+              className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold text-xs shadow-lg shadow-emerald-500/20 transition-all"
+            >
+              Comprar Ahora por WhatsApp
+            </button>
           </div>
 
         </div>

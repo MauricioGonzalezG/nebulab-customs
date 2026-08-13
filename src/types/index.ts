@@ -90,8 +90,14 @@ export interface ClickerConfig {
   soundEnabled: boolean; // sonido de click mecánico al interactuar
 }
 
-export type CollarPlateStyle = 'rounded' | 'rectangle' | 'bone' | 'shield';
-export type CollarStrapColor = 'olive' | 'crimson' | 'black' | 'navy' | 'pink';
+export type CollarPlateStyle = 'bone' | 'silhouette' | 'rounded' | 'circle' | 'shield' | 'heart' | 'hexagon' | 'pill' | 'rectangle';
+export type CollarMountType = 'slide' | 'dangling';
+export type CollarFontFamily = 'outfit' | 'cinzel' | 'inter' | 'bungee';
+export type CollarReliefStyle = 'inlaid' | 'embossed' | 'debossed';
+export type CollarIcon = 'paw' | 'bone' | 'heart' | 'crown' | 'star' | 'cross' | 'none';
+export type CollarStrapColor = 'olive' | 'crimson' | 'black' | 'navy' | 'pink' | 'brown' | 'yellow';
+export type CollarLightingMode = 'studio' | 'neon' | 'daylight' | 'warm';
+export type CollarViewMode = 'assembled' | 'plate' | 'exploded' | 'printbed';
 
 export interface CollarConfig {
   imageUrl: string | null;
@@ -100,15 +106,24 @@ export interface CollarConfig {
   petName: string;
   phoneText: string;
   plateStyle: CollarPlateStyle;
-  plateColor: string; // e.g. '#D4AF37' (Gold/Bronze), '#1E293B' (Black), '#FFFFFF' (White)
-  textColor: string;  // e.g. '#FFFFFF', '#000000', '#D4AF37'
+  mountType: CollarMountType; // 'slide' (pasante) | 'dangling' (colgante)
+  fontFamily: CollarFontFamily;
+  reliefStyle: CollarReliefStyle;
+  icon: CollarIcon;
+  plateColor: string; // Color principal de la placa (ej: '#1E293B', '#D4AF37')
+  borderColor: string; // Color del borde decorativo
+  textColor: string;  // Color del texto grabado / en relieve
   strapColor: CollarStrapColor;
   size: 'S' | 'M' | 'L' | 'XL';
-  plateWidth: number; // mm (e.g. 45mm)
-  plateHeight: number; // mm (e.g. 35mm)
+  plateWidth: number; // mm (35 to 65)
+  plateHeight: number; // mm (25 to 50)
+  plateThickness: number; // mm (2.5 to 6)
+  plateBevel: number; // mm (0.5 to 2)
+  ringDiameter: number; // mm (3 to 6) para medalla colgante
   imageRotation: number;
   flipHorizontal: boolean;
-  viewMode: 'assembled' | 'exploded';
+  lightingMode: CollarLightingMode;
+  viewMode: CollarViewMode;
 }
 
 export interface CartItem {
