@@ -1,74 +1,200 @@
-import { ClickerConfig } from '../types';
+import * as THREE from 'three';
+import { ClickerConfig, ClickerBaseStyle } from '../types';
 import { ProcessedClickerData } from './clickerProcessor';
 
+function buildBaseShapeForStl(
+  style: ClickerBaseStyle,
+  scale: number,
+  pts: Array<{ x: number; y: number }>,
+  bevelRadius: number = 2.0
+): THREE.Shape {
+  const shape = new THREE.Shape();
+
+  switch (style) {
+    case 'circle':
+      shape.absarc(0, 0, scale, 0, Math.PI * 2, false);
+      break;
+
+    case 'square':
+      shape.moveTo(-scale, -scale);
+      shape.lineTo(scale, -scale);
+      shape.lineTo(scale, scale);
+      shape.lineTo(-scale, scale);
+      shape.closePath();
+      break;
+
+    case 'rounded-square': {
+      const r = Math.min(bevelRadius * 2, scale * 0.4);
+      const s = scale - r;
+      shape.moveTo(-s, -scale);
+      shape.lineTo(s, -scale);
+      shape.absarc(s, -s, r, -Math.PI / 2, 0, false);
+      shape.lineTo(scale, s);
+      shape.absarc(s, s, r, 0, Math.PI / 2, false);
+      shape.lineTo(-s, scale);
+      shape.absarc(-s, s, r, Math.PI / 2, Math.PI, false);
+      shape.lineTo(-scale, -s);
+      shape.absarc(-s, -s, r, Math.PI, Math.PI * 1.5, false);
+      shape.closePath();
+      break;
+    }
+
+    case 'hexagon': {
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2 + Math.PI / 6;
+        const x = Math.cos(a) * scale;
+        const y = Math.sin(a) * scale;
+        if (i === 0) shape.moveTo(x, y);
+        else shape.lineTo(x, y);
+      }
+      shape.closePath();
+      break;
+    }
+
+    case 'pill': {
+      const h = scale * 0.65;
+      const w = scale;
+      shape.moveTo(-w + h, -h);
+      shape.lineTo(w - h, -h);
+      shape.absarc(w - h, 0, h, -Math.PI / 2, Math.PI / 2, false);
+      shape.lineTo(-w + h, h);
+      shape.absarc(-w + h, 0, h, Math.PI / 2, Math.PI * 1.5, false);
+      shape.closePath();
+      break;
+    }
+
+    case 'heart': {
+      const s = scale * 0.038;
+      shape.moveTo(0, -15 * s);
+      shape.bezierCurveTo(25 * s, -35 * s, 35 * s, -10 * s, 35 * s, 10 * s);
+      shape.bezierCurveTo(35 * s, 25 * s, 20 * s, 35 * s, 0, 45 * s);
+      shape.bezierCurveTo(-20 * s, 35 * s, -35 * s, 25 * s, -35 * s, 10 * s);
+      shape.bezierCurveTo(-35 * s, -10 * s, -25 * s, -35 * s, 0, -15 * s);
+      shape.closePath();
+      break;
+    }
+
+    case 'shield': {
+      const s = scale;
+      shape.moveTo(-s * 0.9, -s * 0.9);
+      shape.lineTo(s * 0.9, -s * 0.9);
+      shape.lineTo(s * 0.9, s * 0.1);
+      shape.bezierCurveTo(s * 0.9, s * 0.7, 0, s * 1.1, 0, s * 1.1);
+      shape.bezierCurveTo(0, s * 1.1, -s * 0.9, s * 0.7, -s * 0.9, s * 0.1);
+      shape.closePath();
+      break;
+    }
+
+    case 'outline':
+    default: {
+      if (pts.length > 2) {
+        shape.moveTo(pts[0].x * scale, pts[0].y * scale);
+        for (let i = 1; i < pts.length; i++) {
+          shape.lineTo(pts[i].x * scale, pts[i].y * scale);
+        }
+        shape.closePath();
+      } else {
+        shape.absarc(0, 0, scale, 0, Math.PI * 2, false);
+      }
+      break;
+    }
+  }
+
+  return shape;
+}
+
+/**
+ * Exports high-precision manifold STL file
+ */
 export const downloadClickerSTL = (
   processedData: ProcessedClickerData | null,
   config: ClickerConfig
 ) => {
-  const header = `solid NebulabStudio_Clicker_${config.type}_${config.size}mm\n`;
-  let body = '';
-
   const scale = config.size / 2;
+  const pts = processedData?.contourPoints || [];
   const topH = config.topHeight;
   const baseH = config.baseHeight;
-  const wallScale = 0.84;
 
-  const pts = processedData?.contourPoints || [];
-  const numPts = pts.length > 0 ? pts.length : 32;
-
-  // 1. Hollow Top Cap Outer & Inner Wall Shells
-  for (let i = 0; i < numPts; i++) {
-    const nextIdx = (i + 1) % numPts;
-    
-    let p1 = pts[i] || { x: Math.cos((i / numPts) * Math.PI * 2), y: Math.sin((i / numPts) * Math.PI * 2) };
-    let p2 = pts[nextIdx] || { x: Math.cos((nextIdx / numPts) * Math.PI * 2), y: Math.sin((nextIdx / numPts) * Math.PI * 2) };
-
-    const xo1 = p1.x * scale;
-    const yo1 = p1.y * scale;
-    const xo2 = p2.x * scale;
-    const yo2 = p2.y * scale;
-
-    const xi1 = p1.x * scale * wallScale;
-    const yi1 = p1.y * scale * wallScale;
-    const xi2 = p2.x * scale * wallScale;
-    const yi2 = p2.y * scale * wallScale;
-
-    // Outer wall faces
-    body += `facet normal 1 0 0\n  outer loop\n    vertex ${xo1} ${yo1} 0\n    vertex ${xo2} ${yo2} 0\n    vertex ${xo1} ${yo1} ${topH}\n  endloop\nendfacet\n`;
-    body += `facet normal 1 0 0\n  outer loop\n    vertex ${xo2} ${yo2} 0\n    vertex ${xo2} ${yo2} ${topH}\n    vertex ${xo1} ${yo1} ${topH}\n  endloop\nendfacet\n`;
-
-    // Inner cavity wall faces
-    body += `facet normal -1 0 0\n  outer loop\n    vertex ${xi1} ${yi1} 0\n    vertex ${xi1} ${yi1} ${topH - 1.5}\n    vertex ${xi2} ${yi2} 0\n  endloop\nendfacet\n`;
-    body += `facet normal -1 0 0\n  outer loop\n    vertex ${xi2} ${yi2} 0\n    vertex ${xi1} ${yi1} ${topH - 1.5}\n    vertex ${xi2} ${yi2} ${topH - 1.5}\n  endloop\nendfacet\n`;
-
-    // Top Roof Surface Ring
-    body += `facet normal 0 0 1\n  outer loop\n    vertex ${xo1} ${yo1} ${topH}\n    vertex ${xo2} ${yo2} ${topH}\n    vertex ${xi1} ${yi1} ${topH}\n  endloop\nendfacet\n`;
-    body += `facet normal 0 0 1\n  outer loop\n    vertex ${xo2} ${yo2} ${topH}\n    vertex ${xi2} ${yi2} ${topH}\n    vertex ${xi1} ${yi1} ${topH}\n  endloop\nendfacet\n`;
+  // 1. Cap Shape
+  const capShape = new THREE.Shape();
+  if (pts.length > 2) {
+    capShape.moveTo(pts[0].x * scale, pts[0].y * scale);
+    for (let i = 1; i < pts.length; i++) {
+      capShape.lineTo(pts[i].x * scale, pts[i].y * scale);
+    }
+    capShape.closePath();
+  } else {
+    capShape.absarc(0, 0, scale, 0, Math.PI * 2, false);
   }
 
-  // 2. Base Housing Outer Faces
-  for (let i = 0; i < numPts; i++) {
-    const nextIdx = (i + 1) % numPts;
-    let p1 = pts[i] || { x: Math.cos((i / numPts) * Math.PI * 2), y: Math.sin((i / numPts) * Math.PI * 2) };
-    let p2 = pts[nextIdx] || { x: Math.cos((nextIdx / numPts) * Math.PI * 2), y: Math.sin((nextIdx / numPts) * Math.PI * 2) };
+  const capBevel = 0.8;
+  const capGeo = new THREE.ExtrudeGeometry(capShape, {
+    depth: Math.max(2, topH - capBevel),
+    bevelEnabled: true,
+    bevelSegments: 2,
+    bevelSize: capBevel,
+    bevelThickness: capBevel,
+  });
+  capGeo.center();
 
-    const x1 = p1.x * (scale + 2.5);
-    const y1 = p1.y * (scale + 2.5);
-    const x2 = p2.x * (scale + 2.5);
-    const y2 = p2.y * (scale + 2.5);
+  // 2. Base Housing Shape
+  const baseMargin = config.baseMargin ?? 2.5;
+  const baseScale = scale + baseMargin;
+  const baseShape = buildBaseShapeForStl(config.baseStyle, baseScale, pts, config.baseBevel);
 
-    body += `facet normal 0 0 -1\n  outer loop\n    vertex 0 0 ${-baseH}\n    vertex ${x2} ${y2} ${-baseH}\n    vertex ${x1} ${y1} ${-baseH}\n  endloop\nendfacet\n`;
-    body += `facet normal 1 0 0\n  outer loop\n    vertex ${x1} ${y1} ${-baseH}\n    vertex ${x2} ${y2} ${-baseH}\n    vertex ${x1} ${y1} 0\n  endloop\nendfacet\n`;
+  if (config.type === 'clicker') {
+    const switchHole = new THREE.Path();
+    const halfSw = 7.1;
+    switchHole.moveTo(-halfSw, -halfSw);
+    switchHole.lineTo(halfSw, -halfSw);
+    switchHole.lineTo(halfSw, halfSw);
+    switchHole.lineTo(-halfSw, halfSw);
+    switchHole.closePath();
+    baseShape.holes.push(switchHole);
   }
 
-  const footer = `endsolid NebulabStudio_Clicker_${config.type}_${config.size}mm\n`;
-  const stlString = header + body + footer;
+  const baseBevel = Math.min(1.0, config.baseBevel || 1.0);
+  const baseGeo = new THREE.ExtrudeGeometry(baseShape, {
+    depth: Math.max(4, baseH - baseBevel),
+    bevelEnabled: true,
+    bevelSegments: 2,
+    bevelSize: baseBevel,
+    bevelThickness: baseBevel,
+  });
+  baseGeo.center();
+  baseGeo.translate(baseScale * 1.5 + 5, 0, 0); // Position side-by-side ready for print bed
+
+  // Combine geometries for STL export
+  const geometries = [capGeo, baseGeo];
+
+  let stlString = `solid NebulabStudio_Clicker_${config.type}_${config.size}mm\n`;
+
+  for (const geo of geometries) {
+    const nonIndexed = geo.toNonIndexed();
+    const pos = nonIndexed.attributes.position;
+    nonIndexed.computeVertexNormals();
+    const norm = nonIndexed.attributes.normal;
+
+    for (let i = 0; i < pos.count; i += 3) {
+      const nx = norm ? norm.getX(i).toFixed(4) : '0';
+      const ny = norm ? norm.getY(i).toFixed(4) : '0';
+      const nz = norm ? norm.getZ(i).toFixed(4) : '1';
+
+      stlString += `facet normal ${nx} ${ny} ${nz}\n  outer loop\n`;
+      stlString += `    vertex ${pos.getX(i).toFixed(4)} ${pos.getY(i).toFixed(4)} ${pos.getZ(i).toFixed(4)}\n`;
+      stlString += `    vertex ${pos.getX(i + 1).toFixed(4)} ${pos.getY(i + 1).toFixed(4)} ${pos.getZ(i + 1).toFixed(4)}\n`;
+      stlString += `    vertex ${pos.getX(i + 2).toFixed(4)} ${pos.getY(i + 2).toFixed(4)} ${pos.getZ(i + 2).toFixed(4)}\n`;
+      stlString += `  endloop\nendfacet\n`;
+    }
+  }
+
+  stlString += `endsolid NebulabStudio_Clicker_${config.type}_${config.size}mm\n`;
 
   const blob = new Blob([stlString], { type: 'text/plain' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = `NebulabStudio_${config.type}_${config.size}mm_${Date.now()}.stl`;
+  link.download = `NebulabStudio_${config.type}_${config.size}mm_ReadyToPrint.stl`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);

@@ -45,7 +45,10 @@ export interface LithophaneConfig {
 }
 
 export type ClickerType = 'clicker' | 'keychain';
-export type ClickerBaseStyle = 'outline' | 'circle' | 'square' | 'hexagon' | 'shield' | 'heart';
+export type ClickerBaseStyle = 'outline' | 'circle' | 'square' | 'rounded-square' | 'hexagon' | 'pill' | 'heart' | 'shield';
+export type ClickerReliefStyle = 'inlaid' | 'embossed' | 'debossed' | 'flat';
+export type ClickerLightingMode = 'studio' | 'neon' | 'daylight' | 'warm';
+export type ClickerSwitchType = 'red' | 'blue' | 'brown' | 'black' | 'yellow';
 
 export interface ClickerConfig {
   imageUrl: string | null;
@@ -54,9 +57,13 @@ export interface ClickerConfig {
   type: ClickerType;
   baseStyle: ClickerBaseStyle;
   strokeMode: 'multi' | 'single'; // 'multi' = hasta 4 colores, 'single' = trazo único silueta
+  reliefStyle: ClickerReliefStyle; // 'inlaid' | 'embossed' | 'debossed' | 'flat'
+  reliefDepth: number; // mm (0.4 to 2.0)
   size: number; // mm (25 to 60)
-  topHeight: number; // mm
-  baseHeight: number; // mm
+  topHeight: number; // mm (5 to 14)
+  baseHeight: number; // mm (8 to 20)
+  baseBevel: number; // mm (0 to 3)
+  baseMargin: number; // mm (1 to 5)
   colorsCount: number; // 2, 3, 4
   smoothing: number; // 0 to 50%
   baseColor: string;
@@ -64,26 +71,24 @@ export interface ClickerConfig {
   accentColor: string;
   detailColor: string;
   showSwitch: boolean;
-  switchType: 'red' | 'blue' | 'brown';
+  switchType: ClickerSwitchType;
   switchCount: 1 | 2 | 3;
-  switchTolerance: number; // offset mm
-  viewMode: 'assembled' | 'exploded';
+  switchTolerance: number; // offset mm (-0.2 to +0.3)
+  viewMode: 'assembled' | 'exploded' | 'printbed';
   renderStyle: 'color' | 'extrude';
+  lightingMode: ClickerLightingMode;
   ringPosition: 'top' | 'top-left' | 'top-right' | 'left' | 'right' | 'bottom';
   ringAngle: number; // 0 to 360 degrees
   ringOffsetX: number; // mm (-25 to +25)
   ringOffsetY: number; // mm (-25 to +25)
   ringHeight: number;  // mm (-10 to +15)
+  ringHoleDiameter: number; // mm (3 to 6)
+  ringThickness: number; // mm (1.5 to 3.5)
   includeRing: boolean; // toggle arandela de llavero en el clicker
   imageRotation: number; // 0, 90, 180, 270 degrees
   flipHorizontal: boolean; // espejo horizontal
+  soundEnabled: boolean; // sonido de click mecánico al interactuar
 }
-
-
-
-
-
-
 
 export type CollarPlateStyle = 'rounded' | 'rectangle' | 'bone' | 'shield';
 export type CollarStrapColor = 'olive' | 'crimson' | 'black' | 'navy' | 'pink';

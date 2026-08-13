@@ -5,16 +5,17 @@ export interface ProcessedClickerData {
   originalCanvas: HTMLCanvasElement;
   previewDataUrl: string;
   contourPoints: Array<{ x: number; y: number }>;
+  dominantColors: string[];
   colorLayers: Array<{
     color: string;
     points: Array<{ x: number; y: number }>;
   }>;
   width: number;
   height: number;
+  aspectRatio: number;
 }
 
-
-// Default presets for sample images
+// Default sample images with clean vector-like designs
 export const CLICKER_SAMPLE_IMAGES = [
   {
     id: 'dog',
@@ -48,11 +49,238 @@ export const CLICKER_SAMPLE_IMAGES = [
   }
 ];
 
-const hexToRgb = (hex: string) => {
+export const hexToRgb = (hex: string) => {
   const cleanHex = hex.replace('#', '');
   const num = parseInt(cleanHex.length === 3 ? cleanHex.split('').map(c => c + c).join('') : cleanHex, 16);
   return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
 };
+
+export const rgbToHex = (r: number, g: number, b: number): string => {
+  const toHex = (n: number) => {
+    const hex = Math.max(0, Math.min(255, Math.round(n))).toString(16);
+    return hex.length === 1 ? '0' + hex : hex;
+  };
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+};
+
+/**
+ * Extracts dominant distinct colors from an ImageData object
+ */
+export const extractDominantColors = (imgData: ImageData, maxColors: number = 4): string[] => {
+  const data = imgData.data;
+  const colorBuckets = new Map<string, { count: number; r: number; g: number; b: number }>();
+
+  // Quantize into 32-level steps (5 bits per channel)
+  const step = 32;
+  for (let i = 0; i < data.length; i += 16) {
+    const a = data[i + 3];
+    if (a < 60) continue; // Skip transparent
+
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+
+    const qr = Math.floor(r / step) * step + step / 2;
+    const qg = Math.floor(g / step) * step + step / 2;
+    const qb = Math.floor(b / step) * step + step / 2;
+    const key = `${qr},${qg},${qb}`;
+
+    const existing = colorBuckets.get(key);
+    if (existing) {
+      existing.count++;
+      existing.r += r;
+      existing.g += g;
+      existing.b += b;
+    } else {
+      colorBuckets.set(key, { count: 1, r, g, b });
+    }
+  }
+
+  // Sort by popularity
+  const sorted = Array.from(colorBuckets.values()).sort((a, b) => b.count - a.count);
+
+  const dominantHexes: string[] = [];
+  for (const bucket of sorted) {
+    const r = Math.round(bucket.r / bucket.count);
+    const g = Math.round(bucket.g / bucket.count);
+    const b = Math.round(bucket.b / bucket.count);
+    const hex = rgbToHex(r, g, b);
+
+    // Ensure distinctness (Delta E threshold)
+    const isTooClose = dominantHexes.some(existingHex => {
+      const exRgb = hexToRgb(existingHex);
+      const dist = Math.sqrt((r - exRgb.r) ** 2 + (g - exRgb.g) ** 2 + (b - exRgb.b) ** 2);
+      return dist < 45;
+    });
+
+    if (!isTooClose) {
+      dominantHexes.push(hex);
+      if (dominantHexes.length >= maxColors) break;
+    }
+  }
+
+  // Fallbacks if image is monochromatic or too few colors
+  const fallbacks = ['#eab308', '#0f172a', '#ffffff', '#ef4444'];
+  while (dominantHexes.length < maxColors) {
+    for (const fb of fallbacks) {
+      if (!dominantHexes.includes(fb)) {
+        dominantHexes.push(fb);
+        if (dominantHexes.length >= maxColors) break;
+      }
+    }
+  }
+
+  return dominantHexes.slice(0, maxColors);
+};
+
+/**
+ * 2D Moore-Neighbor Boundary Tracing algorithm to extract the true silhouette contour of non-transparent pixels
+ */
+function traceOuterContour(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  alphaThreshold: number = 40
+): Array<{ x: number; y: number }> {
+  // Helper: check if pixel is solid
+  const isSolid = (x: number, y: number): boolean => {
+    if (x < 0 || x >= width || y < 0 || y >= height) return false;
+    return data[(y * width + x) * 4 + 3] >= alphaThreshold;
+  };
+
+  // 1. Find starting pixel (top-most, left-most solid pixel)
+  let startX = -1;
+  let startY = -1;
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      if (isSolid(x, y)) {
+        startX = x;
+        startY = y;
+        break;
+      }
+    }
+    if (startX !== -1) break;
+  }
+
+  if (startX === -1) {
+    // If empty, generate standard circle
+    const fallback: Array<{ x: number; y: number }> = [];
+    const n = 64;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2;
+      fallback.push({ x: Math.cos(a), y: Math.sin(a) });
+    }
+    return fallback;
+  }
+
+  // 8-neighbor directional offsets (clockwise starting from West)
+  const dx = [-1, -1, 0, 1, 1, 1, 0, -1];
+  const dy = [0, -1, -1, -1, 0, 1, 1, 1];
+
+  const contour: Array<{ x: number; y: number }> = [];
+  let currX = startX;
+  let currY = startY;
+  let dir = 0; // Starting search direction
+
+  const maxSteps = width * height * 2;
+  let steps = 0;
+
+  contour.push({ x: currX, y: currY });
+
+  while (steps < maxSteps) {
+    steps++;
+    let foundNext = false;
+
+    // Search 8 neighbors clockwise
+    for (let i = 0; i < 8; i++) {
+      const checkDir = (dir + i) % 8;
+      const nx = currX + dx[checkDir];
+      const ny = currY + dy[checkDir];
+
+      if (isSolid(nx, ny)) {
+        currX = nx;
+        currY = ny;
+        // Backtrack direction: where we came from minus 2 positions counter-clockwise
+        dir = (checkDir + 6) % 8;
+        foundNext = true;
+        break;
+      }
+    }
+
+    if (!foundNext) break;
+
+    // Check if looped back to start
+    if (currX === startX && currY === startY && contour.length > 3) {
+      break;
+    }
+
+    contour.push({ x: currX, y: currY });
+  }
+
+  if (contour.length < 4) {
+    const fallback: Array<{ x: number; y: number }> = [];
+    for (let i = 0; i < 64; i++) {
+      const a = (i / 64) * Math.PI * 2;
+      fallback.push({ x: Math.cos(a), y: Math.sin(a) });
+    }
+    return fallback;
+  }
+
+  // Find bounding box to center and normalize
+  let minX = Infinity, maxX = -Infinity;
+  let minY = Infinity, maxY = -Infinity;
+
+  for (const pt of contour) {
+    if (pt.x < minX) minX = pt.x;
+    if (pt.x > maxX) maxX = pt.x;
+    if (pt.y < minY) minY = pt.y;
+    if (pt.y > maxY) maxY = pt.y;
+  }
+
+  const cx = (minX + maxX) / 2;
+  const cy = (minY + maxY) / 2;
+  const maxDim = Math.max(maxX - minX, maxY - minY, 1) / 2;
+
+  // Subsample and smooth contour
+  const targetSamples = 120;
+  const stride = Math.max(1, Math.floor(contour.length / targetSamples));
+  const subsampled: Array<{ x: number; y: number }> = [];
+
+  for (let i = 0; i < contour.length; i += stride) {
+    const p = contour[i];
+    subsampled.push({
+      x: (p.x - cx) / maxDim,
+      y: (p.y - cy) / maxDim,
+    });
+  }
+
+  // Chaikin smoothing algorithm (2 passes)
+  let smoothed = subsampled;
+  for (let pass = 0; pass < 2; pass++) {
+    const nextSmooth: Array<{ x: number; y: number }> = [];
+    const len = smoothed.length;
+    for (let i = 0; i < len; i++) {
+      const p0 = smoothed[i];
+      const p1 = smoothed[(i + 1) % len];
+
+      const q = { x: 0.75 * p0.x + 0.25 * p1.x, y: 0.75 * p0.y + 0.25 * p1.y };
+      const r = { x: 0.25 * p0.x + 0.75 * p1.x, y: 0.25 * p0.y + 0.75 * p1.y };
+
+      nextSmooth.push(q);
+      nextSmooth.push(r);
+    }
+    smoothed = nextSmooth;
+  }
+
+  // Cap point count to ~120 for optimal performance in Three.js and 3MF
+  if (smoothed.length > 120) {
+    const finalStep = Math.ceil(smoothed.length / 120);
+    smoothed = smoothed.filter((_, idx) => idx % finalStep === 0);
+  }
+
+  return smoothed;
+}
 
 export const processClickerImage = (
   image: HTMLImageElement,
@@ -61,7 +289,7 @@ export const processClickerImage = (
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
   
-  const res = 256;
+  const res = 512; // Higher resolution for crisp contour and texture mapping
   canvas.width = res;
   canvas.height = res;
 
@@ -69,34 +297,83 @@ export const processClickerImage = (
     throw new Error('Canvas 2D context not available');
   }
 
-  // Draw image scaled to canvas
+  // Compute aspect ratio fit
+  const imgW = image.naturalWidth || image.width || 100;
+  const imgH = image.naturalHeight || image.height || 100;
+  const aspectRatio = imgW / imgH;
+
+  let drawW = res;
+  let drawH = res;
+  let drawX = 0;
+  let drawY = 0;
+
+  if (aspectRatio > 1) {
+    drawH = res / aspectRatio;
+    drawY = (res - drawH) / 2;
+  } else if (aspectRatio < 1) {
+    drawW = res * aspectRatio;
+    drawX = (res - drawW) / 2;
+  }
+
+  // Draw image scaled to canvas with rotation and flip applied
   ctx.clearRect(0, 0, res, res);
-  ctx.drawImage(image, 0, 0, res, res);
+  ctx.save();
+  ctx.translate(res / 2, res / 2);
+  if (config.flipHorizontal) {
+    ctx.scale(-1, 1);
+  }
+  if (config.imageRotation) {
+    ctx.rotate((config.imageRotation * Math.PI) / 180);
+  }
+  ctx.drawImage(image, -drawW / 2, -drawH / 2, drawW, drawH);
+  ctx.restore();
 
   const imgData = ctx.getImageData(0, 0, res, res);
   const data = imgData.data;
 
-  // 1. Background removal if requested
+  // 1. Intelligent Background Removal
   if (config.removeBackground) {
-    const bgR = data[0];
-    const bgG = data[1];
-    const bgB = data[2];
-    const bgA = data[3];
+    // Sample corner pixels to detect solid background color
+    const corners = [
+      0, // Top-left
+      (res - 1) * 4, // Top-right
+      ((res - 1) * res) * 4, // Bottom-left
+      ((res - 1) * res + (res - 1)) * 4, // Bottom-right
+    ];
 
-    for (let i = 0; i < data.length; i += 4) {
-      const r = data[i];
-      const g = data[i + 1];
-      const b = data[i + 2];
-      const a = data[i + 3];
+    let bgR = 0, bgG = 0, bgB = 0, count = 0;
+    for (const c of corners) {
+      if (data[c + 3] > 100) {
+        bgR += data[c];
+        bgG += data[c + 1];
+        bgB += data[c + 2];
+        count++;
+      }
+    }
 
-      const colorDist = Math.sqrt((r - bgR) ** 2 + (g - bgG) ** 2 + (b - bgB) ** 2);
-      if (a < 20 || (bgA > 200 && colorDist < 45)) {
-        data[i + 3] = 0; // Set transparent
+    if (count > 0) {
+      bgR = Math.round(bgR / count);
+      bgG = Math.round(bgG / count);
+      bgB = Math.round(bgB / count);
+
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        const a = data[i + 3];
+
+        const colorDist = Math.sqrt((r - bgR) ** 2 + (g - bgG) ** 2 + (b - bgB) ** 2);
+        if (a < 25 || colorDist < 42) {
+          data[i + 3] = 0; // Set transparent
+        }
       }
     }
   }
 
-  // Save original canvas with full colors and background removal
+  // Extract Dominant Colors for auto-palette
+  const dominantColors = extractDominantColors(imgData, 4);
+
+  // Save original canvas with full crisp colors and background removal
   const originalCanvas = document.createElement('canvas');
   originalCanvas.width = res;
   originalCanvas.height = res;
@@ -105,8 +382,7 @@ export const processClickerImage = (
     origCtx.putImageData(imgData, 0, 0);
   }
 
-  // 2. 4-Color Palette Reduction or Single Outline Stroke Mode
-
+  // 2. Palette Reduction according to strokeMode
   if (config.strokeMode === 'single') {
     const strokeRgb = hexToRgb(config.outlineColor);
     for (let i = 0; i < data.length; i += 4) {
@@ -152,40 +428,15 @@ export const processClickerImage = (
 
   ctx.putImageData(imgData, 0, 0);
 
-  // 3. Extract outer contour points (silhouetting)
-  const contourPoints: Array<{ x: number; y: number }> = [];
-  const cx = res / 2;
-  const cy = res / 2;
-  const radius = res * 0.42;
-  const numSamples = 64;
+  // 3. Extract True Boundary Contour using Moore-Neighbor algorithm
+  const contourPoints = traceOuterContour(imgData.data, res, res, 40);
 
-  for (let i = 0; i < numSamples; i++) {
-    const angle = (i / numSamples) * Math.PI * 2;
-    let dist = radius;
-
-    for (let d = radius; d >= 5; d -= 2) {
-      const px = Math.round(cx + Math.cos(angle) * d);
-      const py = Math.round(cy + Math.sin(angle) * d);
-
-      if (px >= 0 && px < res && py >= 0 && py < res) {
-        const idx = (py * res + px) * 4;
-        const alpha = data[idx + 3];
-        if (alpha > 40) {
-          dist = d + 4;
-          break;
-        }
-      }
-    }
-
-    const nx = (cx + Math.cos(angle) * dist - cx) / cx;
-    const ny = (cy + Math.sin(angle) * dist - cy) / cy;
-    contourPoints.push({ x: nx, y: ny });
-  }
-
+  // Segmented multi-color layers based on smoothed contour and offsets
   const colorLayers = [
     { color: config.baseColor, points: contourPoints },
     { color: config.outlineColor, points: contourPoints.map((p) => ({ x: p.x * 0.94, y: p.y * 0.94 })) },
-    { color: config.detailColor, points: contourPoints.map((p) => ({ x: p.x * 0.7, y: p.y * 0.7 })) },
+    { color: config.accentColor, points: contourPoints.map((p) => ({ x: p.x * 0.80, y: p.y * 0.80 })) },
+    { color: config.detailColor, points: contourPoints.map((p) => ({ x: p.x * 0.64, y: p.y * 0.64 })) },
   ];
 
   return {
@@ -193,11 +444,12 @@ export const processClickerImage = (
     originalCanvas,
     previewDataUrl: originalCanvas.toDataURL('image/png'),
     contourPoints,
+    dominantColors,
     colorLayers,
     width: res,
     height: res,
+    aspectRatio,
   };
-
 };
 
 export const createDefaultClickerConfig = (): ClickerConfig => ({
@@ -207,9 +459,13 @@ export const createDefaultClickerConfig = (): ClickerConfig => ({
   type: 'clicker',
   baseStyle: 'outline',
   strokeMode: 'multi',
+  reliefStyle: 'inlaid',
+  reliefDepth: 0.8,
   size: 35,
   topHeight: 8,
   baseHeight: 12,
+  baseBevel: 1.2,
+  baseMargin: 2.5,
   colorsCount: 4,
   smoothing: 15,
   baseColor: '#eab308',
@@ -222,18 +478,16 @@ export const createDefaultClickerConfig = (): ClickerConfig => ({
   switchTolerance: 0,
   viewMode: 'assembled',
   renderStyle: 'color',
+  lightingMode: 'studio',
   ringPosition: 'top',
   ringAngle: 90,
   ringOffsetX: 0,
   ringOffsetY: 0,
   ringHeight: 0,
+  ringHoleDiameter: 4.5,
+  ringThickness: 2.2,
   includeRing: false,
-  imageRotation: 180,
+  imageRotation: 0,
   flipHorizontal: false,
+  soundEnabled: true,
 });
-
-
-
-
-
-
