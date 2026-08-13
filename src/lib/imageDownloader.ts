@@ -26,7 +26,7 @@ export const downloadOrderImage = (dataUrlOrUrl: string, filename: string): void
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+      setTimeout(() => window.URL.revokeObjectURL(url), 60000);
     })
     .catch((err) => {
       console.error('Error downloading image via fetch blob:', err);

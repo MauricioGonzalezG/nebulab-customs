@@ -60,7 +60,7 @@ export const downloadCollarSTL = (
 
   stlString += `endsolid NebulabStudio_PlacaCollar_${config.petName || 'Mascota'}\n`;
 
-  const blob = new Blob([stlString], { type: 'text/plain' });
+  const blob = new Blob([stlString], { type: 'model/stl' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
@@ -68,5 +68,5 @@ export const downloadCollarSTL = (
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
 };

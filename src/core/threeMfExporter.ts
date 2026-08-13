@@ -73,7 +73,10 @@ ${buildXml}</model>`;
   zip.file('3D/3dmodel.model', modelXml);
 
   // Generate ZIP blob and trigger download
-  const content = await zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.ms-package.3dmanufacturing-3dmodel+xml' });
+  const content = await zip.generateAsync({
+    type: 'blob',
+    mimeType: 'application/vnd.ms-package.3dmanufacturing-3dmodel+xml',
+  });
   const url = URL.createObjectURL(content);
   const link = document.createElement('a');
   link.href = url;
@@ -81,7 +84,7 @@ ${buildXml}</model>`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
 function escapeXml(unsafe: string): string {

@@ -206,9 +206,12 @@ export function exportToSTL(object: THREE.Object3D, filename: string = 'lithopha
 
   // Create Blob and download link
   const blob = new Blob([buffer], { type: 'application/octet-stream' });
+  const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
-  link.href = URL.createObjectURL(blob);
+  link.href = url;
   link.download = filename;
+  document.body.appendChild(link);
   link.click();
-  URL.revokeObjectURL(link.href);
+  document.body.removeChild(link);
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
