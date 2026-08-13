@@ -304,15 +304,11 @@ export const processClickerImage = (
 
   let drawW = res;
   let drawH = res;
-  let drawX = 0;
-  let drawY = 0;
 
   if (aspectRatio > 1) {
     drawH = res / aspectRatio;
-    drawY = (res - drawH) / 2;
   } else if (aspectRatio < 1) {
     drawW = res * aspectRatio;
-    drawX = (res - drawW) / 2;
   }
 
   // Draw image scaled to canvas with rotation and flip applied
