@@ -46,16 +46,16 @@ const DEFAULT_XML = `<?xml version="1.0" encoding="UTF-8"?>
   </currencies>
 
   <shipping>
-    <standardFee cop="20000" usd="4.90" />
+    <standardFee cop="15000" usd="3.75" />
     <freeShippingThreshold cop="200000" usd="50.00" />
   </shipping>
 
   <products>
     <lithophane>
-      <basePrice cop="60000" usd="14.90" />
+      <basePrice cop="25000" usd="6.25" />
       <sizeExtraMultiplier cop="22000" usd="5.50" />
       <bases>
-        <base id="night-light" cop="34000" usd="8.50" />
+        <base id="night-light" cop="15000" usd="3.75" />
         <base id="led-wooden-base" cop="56000" usd="14.00" />
         <base id="flat-stand" cop="16000" usd="4.00" />
       </bases>
@@ -132,14 +132,14 @@ export function parsePricingXml(xmlText: string): PricingData {
     defaultCurrency,
     currencies: currencyMap,
     shipping: {
-      standardFeeCop: parseFloat(stdFeeEl?.getAttribute('cop') || '20000'),
-      standardFeeUsd: parseFloat(stdFeeEl?.getAttribute('usd') || '4.90'),
+      standardFeeCop: parseFloat(stdFeeEl?.getAttribute('cop') || '15000'),
+      standardFeeUsd: parseFloat(stdFeeEl?.getAttribute('usd') || '3.75'),
       freeThresholdCop: parseFloat(freeThEl?.getAttribute('cop') || '200000'),
       freeThresholdUsd: parseFloat(freeThEl?.getAttribute('usd') || '50.00'),
     },
     lithophane: {
-      basePriceCop: parseFloat(lithoBaseEl?.getAttribute('cop') || '60000'),
-      basePriceUsd: parseFloat(lithoBaseEl?.getAttribute('usd') || '14.90'),
+      basePriceCop: parseFloat(lithoBaseEl?.getAttribute('cop') || '25000'),
+      basePriceUsd: parseFloat(lithoBaseEl?.getAttribute('usd') || '6.25'),
       sizeExtraMultiplierCop: parseFloat(lithoMultEl?.getAttribute('cop') || '22000'),
       sizeExtraMultiplierUsd: parseFloat(lithoMultEl?.getAttribute('usd') || '5.50'),
       bases: basesRecord,

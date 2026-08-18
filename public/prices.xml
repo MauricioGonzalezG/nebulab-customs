@@ -6,16 +6,16 @@
   </currencies>
 
   <shipping>
-    <standardFee cop="20000" usd="4.90" />
+    <standardFee cop="15000" usd="3.75" />
     <freeShippingThreshold cop="200000" usd="50.00" />
   </shipping>
 
   <products>
     <lithophane>
-      <basePrice cop="60000" usd="14.90" />
+      <basePrice cop="25000" usd="6.25" />
       <sizeExtraMultiplier cop="22000" usd="5.50" />
       <bases>
-        <base id="night-light" cop="34000" usd="8.50" />
+        <base id="night-light" cop="15000" usd="3.75" />
         <base id="led-wooden-base" cop="56000" usd="14.00" />
         <base id="flat-stand" cop="16000" usd="4.00" />
       </bases>

@@ -29,9 +29,11 @@ export function calculatePrice(config: LithophaneConfig, giftBox: boolean = fals
   const basePriceCop = litho.basePriceCop;
   const basePriceUsd = litho.basePriceUsd;
 
-  const area = (config.width * config.height) / 10000;
-  const sizeExtraCop = Math.max(0, (area - 1.0) * litho.sizeExtraMultiplierCop);
-  const sizeExtraUsd = Math.max(0, (area - 1.0) * litho.sizeExtraMultiplierUsd);
+  const baseArea = 120 * 100; // Base size up to 120x100 mm (12000 mm²)
+  const currentArea = config.width * config.height;
+  const extraArea = Math.max(0, (currentArea - baseArea) / 10000);
+  const sizeExtraCop = extraArea * litho.sizeExtraMultiplierCop;
+  const sizeExtraUsd = extraArea * litho.sizeExtraMultiplierUsd;
 
   let baseExtraCop = 0;
   let baseExtraUsd = 0;
@@ -101,7 +103,7 @@ export const PricingSummary: React.FC<PricingSummaryProps> = ({
       {/* Breakdown List */}
       <div className="space-y-2 text-xs text-slate-300">
         <div className="flex justify-between">
-          <span className="text-slate-400">Litofanía 3D Base (hasta 10x10cm)</span>
+          <span className="text-slate-400">Litofanía 3D Base (hasta 120x100 mm)</span>
           <span>{formatPrice(priceDetails.basePriceCop, priceDetails.basePrice)}</span>
         </div>
 
