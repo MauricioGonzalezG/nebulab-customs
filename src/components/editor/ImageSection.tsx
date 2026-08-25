@@ -1,6 +1,10 @@
 import React, { useState, useRef } from 'react';
 import { LithophaneConfig } from '../../types';
 import { Upload, Image as ImageIcon, Sliders, RefreshCw, Sun, Contrast, ArrowLeftRight, Sparkles, X } from 'lucide-react';
+import { NumberSliderControl } from './NumberSliderControl';
+import { ImageEditorModal } from './ImageEditorModal';
+
+import { calculateLithophaneDimensions } from '../../core/imageProcessor';
 
 interface ImageSectionProps {
   config: LithophaneConfig;
@@ -32,6 +36,9 @@ export const ImageSection: React.FC<ImageSectionProps> = ({
   onImageLoaded
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isEditorModalOpen, setIsEditorModalOpen] = useState(false);
+  const [editorSourceUrl, setEditorSourceUrl] = useState<string>('');
+
   const [showUploadHint, setShowUploadHint] = useState(() => {
     try {
       return window.localStorage.getItem('nebulab_lithophane_upload_hint_seen') !== 'true';
@@ -56,15 +63,13 @@ export const ImageSection: React.FC<ImageSectionProps> = ({
       const reader = new FileReader();
       reader.onload = (event) => {
         const url = event.target?.result as string;
-        const img = new Image();
-        img.crossOrigin = 'Anonymous';
-        img.onload = () => {
-          onChange({ imageUrl: url, sampleId: undefined });
-          onImageLoaded(img);
-        };
-        img.src = url;
+        // Open interactive preparation editor with the uploaded photo
+        setEditorSourceUrl(url);
+        setIsEditorModalOpen(true);
       };
       reader.readAsDataURL(file);
+      // Reset input value so same file can be re-selected if desired
+      e.target.value = '';
     }
   };
 
@@ -73,10 +78,25 @@ export const ImageSection: React.FC<ImageSectionProps> = ({
     const img = new Image();
     img.crossOrigin = 'Anonymous';
     img.onload = () => {
-      onChange({ imageUrl: sampleUrl, sampleId });
+      const { width, height } = calculateLithophaneDimensions(
+        img.naturalWidth || img.width,
+        img.naturalHeight || img.height,
+        100
+      );
+      onChange({ imageUrl: sampleUrl, sampleId, width, height });
       onImageLoaded(img);
     };
     img.src = sampleUrl;
+  };
+
+  const handleEditorApply = (processedDataUrl: string, imgElement: HTMLImageElement) => {
+    const { width, height } = calculateLithophaneDimensions(
+      imgElement.naturalWidth || imgElement.width,
+      imgElement.naturalHeight || imgElement.height,
+      100
+    );
+    onChange({ imageUrl: processedDataUrl, sampleId: undefined, width, height });
+    onImageLoaded(imgElement);
   };
 
   return (
@@ -87,7 +107,7 @@ export const ImageSection: React.FC<ImageSectionProps> = ({
           <Upload className="w-4 h-4 text-cyan-400" />
           <span>Fotografía para la Litofanía</span>
         </label>
-        
+
         <div
           onClick={() => fileInputRef.current?.click()}
           className="relative border-2 border-dashed border-slate-700 hover:border-cyan-500/80 bg-slate-900/60 hover:bg-slate-900 rounded-2xl p-6 text-center cursor-pointer transition-all duration-200 group shadow-inner"
@@ -133,7 +153,7 @@ export const ImageSection: React.FC<ImageSectionProps> = ({
                 Haz clic para subir tu foto o arrástrala aquí
               </p>
               <p className="text-xs text-slate-500 mt-1">
-                Formatos recomendados: JPG, PNG o WEBP (Recomendado alto contraste)
+                Formatos recomendados: JPG, PNG o WEBP (Paso previo de recorte incluido)
               </p>
             </div>
           </div>
@@ -150,11 +170,10 @@ export const ImageSection: React.FC<ImageSectionProps> = ({
             <button
               key={sample.id}
               onClick={() => handleLoadSample(sample.id, sample.url)}
-              className={`group relative h-16 rounded-xl overflow-hidden border transition-all text-left ${
-                config.sampleId === sample.id
-                  ? 'border-violet-400 ring-1 ring-violet-400/50'
-                  : 'border-slate-800 hover:border-cyan-500'
-              }`}
+              className={`group relative h-16 rounded-xl overflow-hidden border transition-all text-left ${config.sampleId === sample.id
+                ? 'border-violet-400 ring-1 ring-violet-400/50'
+                : 'border-slate-800 hover:border-cyan-500'
+                }`}
             >
               <img
                 src={sample.url}
@@ -176,7 +195,7 @@ export const ImageSection: React.FC<ImageSectionProps> = ({
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
             <Sliders className="w-4 h-4 text-violet-400" />
-            <span>Ajustes de Imagen para Impresión</span>
+            <span>Ajustes Finos de Relieve 3D</span>
           </h3>
           <button
             onClick={() => onChange({ brightness: 0, contrast: 20, invert: false })}
@@ -187,41 +206,29 @@ export const ImageSection: React.FC<ImageSectionProps> = ({
           </button>
         </div>
 
-        {/* Brightness Slider */}
-        <div className="space-y-1.5">
-          <div className="flex justify-between text-xs">
-            <span className="text-slate-400 flex items-center gap-1.5">
-              <Sun className="w-3.5 h-3.5 text-amber-400" /> Brillo
-            </span>
-            <span className="text-cyan-400 font-mono font-medium">{config.brightness}</span>
-          </div>
-          <input
-            type="range"
-            min="-100"
-            max="100"
-            value={config.brightness}
-            onChange={(e) => onChange({ brightness: Number(e.target.value) })}
-            className="w-full accent-cyan-500 bg-slate-800 h-2 rounded-lg cursor-pointer"
-          />
-        </div>
+        {/* Brightness Control */}
+        <NumberSliderControl
+          label="Brillo"
+          icon={Sun}
+          value={config.brightness}
+          min={-100}
+          max={100}
+          step={1}
+          color="amber"
+          onChange={(brightness) => onChange({ brightness })}
+        />
 
-        {/* Contrast Slider */}
-        <div className="space-y-1.5">
-          <div className="flex justify-between text-xs">
-            <span className="text-slate-400 flex items-center gap-1.5">
-              <Contrast className="w-3.5 h-3.5 text-violet-400" /> Contraste
-            </span>
-            <span className="text-cyan-400 font-mono font-medium">{config.contrast}</span>
-          </div>
-          <input
-            type="range"
-            min="-100"
-            max="100"
-            value={config.contrast}
-            onChange={(e) => onChange({ contrast: Number(e.target.value) })}
-            className="w-full accent-violet-500 bg-slate-800 h-2 rounded-lg cursor-pointer"
-          />
-        </div>
+        {/* Contrast Control */}
+        <NumberSliderControl
+          label="Contraste"
+          icon={Contrast}
+          value={config.contrast}
+          min={-100}
+          max={100}
+          step={1}
+          color="violet"
+          onChange={(contrast) => onChange({ contrast })}
+        />
 
         {/* Invert Color Switch */}
         <div className="flex items-center justify-between pt-2 border-t border-slate-800">
@@ -236,19 +243,27 @@ export const ImageSection: React.FC<ImageSectionProps> = ({
             </p>
           </div>
           <button
+            type="button"
             onClick={() => onChange({ invert: !config.invert })}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-              config.invert ? 'bg-cyan-500' : 'bg-slate-800'
-            }`}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${config.invert ? 'bg-cyan-500' : 'bg-slate-800'
+              }`}
           >
             <span
-              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                config.invert ? 'translate-x-6' : 'translate-x-1'
-              }`}
+              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${config.invert ? 'translate-x-6' : 'translate-x-1'
+                }`}
             />
           </button>
         </div>
       </div>
+
+      {/* Image Preparation Modal */}
+      <ImageEditorModal
+        isOpen={isEditorModalOpen}
+        imageSrc={editorSourceUrl}
+        onClose={() => setIsEditorModalOpen(false)}
+        onApply={handleEditorApply}
+      />
     </div>
   );
 };
+

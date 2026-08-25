@@ -4,6 +4,7 @@ import { tursoService } from '../../lib/turso';
 import { createMercadoPagoPreference } from '../../lib/mercadopago';
 import { useAuth } from '../../context/AuthContext';
 import { useCurrency } from '../../context/CurrencyContext';
+import { COLOMBIA_DEPARTMENTS, getMunicipalitiesForDepartment } from '../../lib/colombiaData';
 import { X, CheckCircle2, Download, Truck, Lock, ArrowLeft, User, Plus, MapPin, Edit2, ShieldCheck, MessageSquare, Wallet } from 'lucide-react';
 import { BRAND, getWhatsAppUrl } from '../../lib/brand';
 
@@ -29,6 +30,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [completedOrder, setCompletedOrder] = useState<Order | null>(null);
   const [useCustomAddress, setUseCustomAddress] = useState(false);
   const [isEditingSavedAddress, setIsEditingSavedAddress] = useState(false);
+  const [isCustomCity, setIsCustomCity] = useState(false);
 
   const [savedAddress, setSavedAddress] = useState<ShippingDetails | null>(null);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'mercadopago' | 'whatsapp'>('mercadopago');
@@ -38,7 +40,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     email: customerUser?.email || '',
     phone: '',
     address: '',
-    city: '',
+    department: 'Antioquia',
+    city: 'Medellín',
     postalCode: '',
     country: 'Colombia'
   });
@@ -59,7 +62,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           try {
             const parsed = JSON.parse(storedLocal);
             setSavedAddress(parsed);
-            setShipping(parsed);
+            setShipping({ ...parsed, country: 'Colombia' });
             return;
           } catch (e) {
             console.error('Error parsing stored address:', e);
@@ -71,7 +74,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           if (orders.length > 0 && orders[0].shippingDetails) {
             const lastShip = orders[0].shippingDetails;
             setSavedAddress(lastShip);
-            setShipping(lastShip);
+            setShipping({ ...lastShip, country: 'Colombia' });
             localStorage.setItem(`nebulab_saved_address_${customerUser.email.toLowerCase()}`, JSON.stringify(lastShip));
           } else {
             const initial: ShippingDetails = {
@@ -79,7 +82,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               email: customerUser.email,
               phone: '',
               address: '',
-              city: '',
+              department: 'Antioquia',
+              city: 'Medellín',
               postalCode: '',
               country: 'Colombia',
             };
@@ -103,10 +107,12 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const shippingFee = subtotal >= freeThresholdUsd || items.length === 0 ? 0 : pricingData.shipping.standardFeeUsd;
   const total = subtotal + shippingFee;
 
+  const availableMunicipalities = getMunicipalitiesForDepartment(shipping.department || '');
+
   const handleShippingSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!shipping.fullName || !shipping.email || !shipping.address || !shipping.city) {
-      alert('Por favor completa los campos requeridos de envío.');
+      alert('Por favor completa todos los campos requeridos de envío.');
       return;
     }
     setStep('payment');
@@ -132,7 +138,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       .join('\n\n');
 
     const formattedTotal = formatItemPrice(order.total);
-    const msg = `¡Hola! Quisiera realizar el pedido de mis productos personalizados ${BRAND.name}:\n\n🆔 *Orden ID:* ${order.id}\n👤 *Cliente:* ${order.shippingDetails.fullName}\n📱 *Teléfono:* ${order.shippingDetails.phone}\n📍 *Dirección:* ${order.shippingDetails.address}, ${order.shippingDetails.city} (${order.shippingDetails.country})\n\n📦 *Detalles del Producto:*\n${itemDetails}\n\n💰 *Total a Pagar:* ${formattedTotal}\n\n¿Me ayudan a coordinar el pago y la entrega?`;
+    const locationStr = `${order.shippingDetails.city}${order.shippingDetails.department ? `, ${order.shippingDetails.department}` : ''} (Colombia)`;
+    const msg = `¡Hola! Quisiera realizar el pedido de mis productos personalizados ${BRAND.name}:\n\n🆔 *Orden ID:* ${order.id}\n👤 *Cliente:* ${order.shippingDetails.fullName}\n📱 *Teléfono:* ${order.shippingDetails.phone}\n📍 *Dirección:* ${order.shippingDetails.address}, ${locationStr}\n\n📦 *Detalles del Producto:*\n${itemDetails}\n\n💰 *Total a Pagar:* ${formattedTotal}\n\n¿Me ayudan a coordinar el pago y la entrega?`;
 
     return getWhatsAppUrl(msg);
   };
@@ -149,7 +156,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       shippingFee,
       total,
       currency: currency,
-      shippingDetails: shipping,
+      shippingDetails: {
+        ...shipping,
+        country: 'Colombia'
+      },
       paymentMethod: selectedPaymentMethod,
       status: 'confirmed',
       paymentStatus: 'pending',
@@ -211,7 +221,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             )}
             <div>
               <h3 className="text-base sm:text-lg font-bold font-outfit">
-                {step === 'shipping' && 'Datos de Envío y Contacto'}
+                {step === 'shipping' && 'Datos de Envío y Contacto (Colombia)'}
                 {step === 'payment' && 'Pasarela de Pago Segura'}
                 {step === 'confirmation' && '¡Pedido Confirmado con Éxito!'}
               </h3>
@@ -285,9 +295,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                         <p className="font-semibold text-slate-100">{savedAddress.fullName}</p>
                         <p className="text-[11px] text-slate-400 flex items-center gap-1">
                           <MapPin className="w-3 h-3 text-cyan-400 shrink-0" />
-                          <span>{savedAddress.address}, {savedAddress.city}</span>
+                          <span>{savedAddress.address}, {savedAddress.city}{savedAddress.department ? ` (${savedAddress.department})` : ''}</span>
                         </p>
-                        <p className="text-[11px] text-slate-400">📱 {savedAddress.phone} ({savedAddress.country})</p>
+                        <p className="text-[11px] text-slate-400">📱 {savedAddress.phone} (Colombia 🇨🇴)</p>
                       </div>
                     ) : (
                       <div className="text-[11px] text-slate-400">
@@ -307,7 +317,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                         email: '',
                         phone: '',
                         address: '',
-                        city: '',
+                        department: 'Antioquia',
+                        city: 'Medellín',
                         postalCode: '',
                         country: 'Colombia',
                       });
@@ -326,7 +337,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       <input type="radio" checked={useCustomAddress} onChange={() => {}} className="accent-cyan-500" />
                     </div>
                     <p className="text-xs text-slate-300">Despachar a otro destinatario</p>
-                    <p className="text-[10px] text-slate-500 mt-2">Ingresa un nombre, correo y dirección totalmente diferentes para este envío.</p>
+                    <p className="text-[10px] text-slate-400 mt-2">Ingresa un nombre, correo y dirección totalmente diferentes para este envío.</p>
                   </div>
 
                 </div>
@@ -359,10 +370,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     <input
                       type="text"
                       required
-                      placeholder="Juan Pérez"
+                      placeholder="Ej. Juan Camilo Pérez"
                       value={shipping.fullName}
                       onChange={(e) => setShipping({ ...shipping, fullName: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:border-cyan-500 focus:outline-none"
+                      className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder:text-slate-400 focus:border-cyan-500 focus:outline-none"
                     />
                   </div>
 
@@ -371,10 +382,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     <input
                       type="email"
                       required
-                      placeholder="juan@ejemplo.com"
+                      placeholder="Ej. juan.perez@gmail.com"
                       value={shipping.email}
                       onChange={(e) => setShipping({ ...shipping, email: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:border-cyan-500 focus:outline-none"
+                      className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder:text-slate-400 focus:border-cyan-500 focus:outline-none"
                     />
                   </div>
                 </div>
@@ -387,10 +398,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   </label>
                   <input
                     type="password"
-                    placeholder="Crea una contraseña personalizada..."
+                    placeholder="Ej. Crea una contraseña segura..."
                     value={accountPassword}
                     onChange={(e) => setAccountPassword(e.target.value)}
-                    className="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-white focus:border-cyan-500 focus:outline-none"
+                    className="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-white placeholder:text-slate-400 focus:border-cyan-500 focus:outline-none"
                   />
                   <p className="text-[10px] text-slate-400">
                     Tu cuenta se creará automáticamente vinculada a tu correo para darte acceso a tus archivos e impresiones.
@@ -410,10 +421,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       <input
                         type="text"
                         required
-                        placeholder="Ej. María Gómez"
+                        placeholder="Ej. María Fernanda Gómez"
                         value={shipping.fullName}
                         onChange={(e) => setShipping({ ...shipping, fullName: e.target.value })}
-                        className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:border-cyan-500 focus:outline-none"
+                        className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder:text-slate-400 focus:border-cyan-500 focus:outline-none"
                       />
                     </div>
 
@@ -422,10 +433,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       <input
                         type="email"
                         required
-                        placeholder="maria@ejemplo.com"
+                        placeholder="Ej. maria.gomez@gmail.com"
                         value={shipping.email}
                         onChange={(e) => setShipping({ ...shipping, email: e.target.value })}
-                        className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:border-cyan-500 focus:outline-none"
+                        className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder:text-slate-400 focus:border-cyan-500 focus:outline-none"
                       />
                     </div>
                   </div>
@@ -433,31 +444,106 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-300">Teléfono Movil *</label>
+                    <label className="text-xs font-semibold text-slate-300">Teléfono Móvil (WhatsApp) *</label>
                     <input
                       type="tel"
                       required
-                      placeholder="+57 300 000 0000"
+                      placeholder="Ej. 312 456 7890"
                       value={shipping.phone}
                       onChange={(e) => setShipping({ ...shipping, phone: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:border-cyan-500 focus:outline-none"
+                      className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder:text-slate-400 focus:border-cyan-500 focus:outline-none"
                     />
                   </div>
 
+                  {/* Country Selector (Only Colombia) */}
                   <div className="space-y-1">
                     <label className="text-xs font-semibold text-slate-300">País de Entrega</label>
+                    <div className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white flex items-center justify-between shadow-inner">
+                      <span className="font-semibold text-slate-200">🇨🇴 Colombia</span>
+                      <span className="text-[10px] text-cyan-400 font-bold bg-cyan-950/60 border border-cyan-800/60 px-2 py-0.5 rounded-md">
+                        Envíos Nacionales
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Colombia Department & Municipality Selector */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-300">Departamento *</label>
                     <select
-                      value={shipping.country}
-                      onChange={(e) => setShipping({ ...shipping, country: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:border-cyan-500 focus:outline-none"
+                      required
+                      value={shipping.department || 'Antioquia'}
+                      onChange={(e) => {
+                        const newDept = e.target.value;
+                        const munis = getMunicipalitiesForDepartment(newDept);
+                        setIsCustomCity(false);
+                        setShipping({
+                          ...shipping,
+                          department: newDept,
+                          city: munis[0] || ''
+                        });
+                      }}
+                      className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:border-cyan-500 focus:outline-none cursor-pointer"
                     >
-                      <option value="Colombia">Colombia</option>
-                      <option value="España">España</option>
-                      <option value="México">México</option>
-                      <option value="Argentina">Argentina</option>
-                      <option value="Chile">Chile</option>
-                      <option value="Estados Unidos">Estados Unidos</option>
+                      {COLOMBIA_DEPARTMENTS.map((d) => (
+                        <option key={d.code} value={d.name}>
+                          {d.name}
+                        </option>
+                      ))}
                     </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold text-slate-300">Municipio / Ciudad *</label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsCustomCity(!isCustomCity);
+                          if (!isCustomCity) {
+                            setShipping({ ...shipping, city: '' });
+                          } else {
+                            setShipping({ ...shipping, city: availableMunicipalities[0] || '' });
+                          }
+                        }}
+                        className="text-[10px] text-cyan-400 hover:text-cyan-300 underline"
+                      >
+                        {isCustomCity ? 'Elegir de la lista' : 'Escribir otro municipio'}
+                      </button>
+                    </div>
+
+                    {!isCustomCity && availableMunicipalities.length > 0 ? (
+                      <select
+                        required
+                        value={shipping.city || ''}
+                        onChange={(e) => {
+                          if (e.target.value === '__custom__') {
+                            setIsCustomCity(true);
+                            setShipping({ ...shipping, city: '' });
+                          } else {
+                            setShipping({ ...shipping, city: e.target.value });
+                          }
+                        }}
+                        className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:border-cyan-500 focus:outline-none cursor-pointer"
+                      >
+                        {availableMunicipalities.map((m) => (
+                          <option key={m} value={m}>
+                            {m}
+                          </option>
+                        ))}
+                        <option value="__custom__">Otro municipio / Corregimiento...</option>
+                      </select>
+                    ) : (
+                      <input
+                        type="text"
+                        required
+                        placeholder="Ej. Nombre del Municipio o Corregimiento"
+                        value={shipping.city}
+                        onChange={(e) => setShipping({ ...shipping, city: e.target.value })}
+                        className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder:text-slate-400 focus:border-cyan-500 focus:outline-none"
+                      />
+                    )}
                   </div>
                 </div>
 
@@ -466,37 +552,22 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   <input
                     type="text"
                     required
-                    placeholder="Ej. Cra 8 # 57e - 13, Apt 302"
+                    placeholder="Ej. Carrera 15 # 85-30, Apto 402, Torre 2 (Barrio / Indicación)"
                     value={shipping.address}
                     onChange={(e) => setShipping({ ...shipping, address: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:border-cyan-500 focus:outline-none"
+                    className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder:text-slate-400 focus:border-cyan-500 focus:outline-none"
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-300">Ciudad *</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="Ej. Manizales / Bogotá"
-                      value={shipping.city}
-                      onChange={(e) => setShipping({ ...shipping, city: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:border-cyan-500 focus:outline-none"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-300">Código Postal *</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="27001"
-                      value={shipping.postalCode}
-                      onChange={(e) => setShipping({ ...shipping, postalCode: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:border-cyan-500 focus:outline-none"
-                    />
-                  </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-slate-300">Código Postal (Opcional)</label>
+                  <input
+                    type="text"
+                    placeholder="Ej. 170001 o déjalo en blanco"
+                    value={shipping.postalCode}
+                    onChange={(e) => setShipping({ ...shipping, postalCode: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder:text-slate-400 focus:border-cyan-500 focus:outline-none"
+                  />
                 </div>
               </div>
             )}

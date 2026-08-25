@@ -93,7 +93,7 @@ export const PricingSummary: React.FC<PricingSummaryProps> = ({
             </span>
           </div>
         </div>
-        
+
         <div className="flex items-center gap-1 text-[11px] text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
           <Truck className="w-3.5 h-3.5" />
           <span>Envío 24-48h</span>
@@ -138,11 +138,10 @@ export const PricingSummary: React.FC<PricingSummaryProps> = ({
       {/* Gift Box Checkbox Option */}
       <div
         onClick={() => setGiftBox(!giftBox)}
-        className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${
-          giftBox
-            ? 'bg-violet-500/10 border-violet-500/80 text-white'
-            : 'bg-slate-950/50 border-slate-800 text-slate-400 hover:border-slate-700'
-        }`}
+        className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${giftBox
+          ? 'bg-violet-500/10 border-violet-500/80 text-white'
+          : 'bg-slate-950/50 border-slate-800 text-slate-400 hover:border-slate-700'
+          }`}
       >
         <div className="flex items-center gap-2.5">
           <Gift className={`w-4 h-4 ${giftBox ? 'text-violet-400' : 'text-slate-400'}`} />
@@ -153,9 +152,8 @@ export const PricingSummary: React.FC<PricingSummaryProps> = ({
             <p className="text-[10px] text-slate-400">Caja rígida protectora con cinta y dedicatoria</p>
           </div>
         </div>
-        <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${
-          giftBox ? 'bg-violet-500 border-violet-500 text-white' : 'border-slate-700 bg-slate-900'
-        }`}>
+        <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${giftBox ? 'bg-violet-500 border-violet-500 text-white' : 'border-slate-700 bg-slate-900'
+          }`}>
           {giftBox && <Check className="w-3.5 h-3.5 stroke-[3]" />}
         </div>
       </div>
@@ -164,11 +162,10 @@ export const PricingSummary: React.FC<PricingSummaryProps> = ({
       <div className="space-y-2.5 pt-2">
         <button
           onClick={handleAdd}
-          className={`w-full py-3.5 px-4 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all duration-300 shadow-xl ${
-            addedAnimation
-              ? 'bg-emerald-500 text-white scale-[0.99]'
-              : 'bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white shadow-cyan-500/20 hover:scale-[1.01] active:scale-95'
-          }`}
+          className={`w-full py-3.5 px-4 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all duration-300 shadow-xl ${addedAnimation
+            ? 'bg-emerald-500 text-white scale-[0.99]'
+            : 'bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white shadow-cyan-500/20 hover:scale-[1.01] active:scale-95'
+            }`}
         >
           {addedAnimation ? (
             <>

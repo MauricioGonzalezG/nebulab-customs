@@ -1,7 +1,8 @@
 import React from 'react';
 import { BaseType, LithophaneConfig } from '../../types';
-import { Lightbulb, Box, MessageSquare, Zap, Sparkles, AlertTriangle } from 'lucide-react';
+import { Lightbulb, Box, MessageSquare, Zap, Sparkles, AlertTriangle, Disc, ArrowDownUp, Compass, Network } from 'lucide-react';
 import { useCurrency } from '../../context/CurrencyContext';
+import { NumberSliderControl } from './NumberSliderControl';
 
 interface BaseSectionProps {
   config: LithophaneConfig;
@@ -116,7 +117,8 @@ export const BaseSection: React.FC<BaseSectionProps> = ({ config, onChange }) =>
                   puckAngle: 55,
                   puckArcCoverage: 180,
                   strutCount: 4,
-                  strutLength: 60
+                  strutLength: 60,
+                  strutWidth: 5
                 })}
                 className="px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 text-[11px] font-bold border border-amber-500/40 transition-colors"
               >
@@ -126,72 +128,56 @@ export const BaseSection: React.FC<BaseSectionProps> = ({ config, onChange }) =>
           )}
 
           {/* Puck Diameter */}
-          <div className="space-y-1.5">
-            <div className="flex justify-between text-xs">
-              <span className="text-slate-300">Diámetro del Vaso Puck</span>
-              <span className="text-cyan-400 font-mono font-bold">{config.puckDiameter || 70} mm</span>
-            </div>
-            <input
-              type="range"
-              min="48"
-              max="80"
-              step="1"
-              value={config.puckDiameter || 70}
-              onChange={(e) => onChange({ puckDiameter: Number(e.target.value) })}
-              className="w-full accent-cyan-500 bg-slate-800 h-2 rounded-lg cursor-pointer"
-            />
-          </div>
+          <NumberSliderControl
+            label="Diámetro del Vaso Puck"
+            icon={Disc}
+            value={config.puckDiameter || 70}
+            min={48}
+            max={80}
+            step={1}
+            unit="mm"
+            color="cyan"
+            onChange={(puckDiameter) => onChange({ puckDiameter })}
+          />
 
           {/* Puck Depth */}
-          <div className="space-y-1.5">
-            <div className="flex justify-between text-xs">
-              <span className="text-slate-300">Profundidad del Vaso</span>
-              <span className="text-cyan-400 font-mono font-bold">{config.puckDepth || 25} mm</span>
-            </div>
-            <input
-              type="range"
-              min="15"
-              max="40"
-              step="1"
-              value={config.puckDepth || 25}
-              onChange={(e) => onChange({ puckDepth: Number(e.target.value) })}
-              className="w-full accent-cyan-500 bg-slate-800 h-2 rounded-lg cursor-pointer"
-            />
-          </div>
+          <NumberSliderControl
+            label="Profundidad del Vaso"
+            icon={ArrowDownUp}
+            value={config.puckDepth || 25}
+            min={15}
+            max={40}
+            step={1}
+            unit="mm"
+            color="cyan"
+            onChange={(puckDepth) => onChange({ puckDepth })}
+          />
 
           {/* Puck Angle */}
-          <div className="space-y-1.5">
-            <div className="flex justify-between text-xs">
-              <span className="text-slate-300">Ángulo de Inclinación</span>
-              <span className="text-cyan-400 font-mono font-bold">{config.puckAngle || 55}°</span>
-            </div>
-            <input
-              type="range"
-              min="30"
-              max="70"
-              step="5"
-              value={config.puckAngle || 55}
-              onChange={(e) => onChange({ puckAngle: Number(e.target.value) })}
-              className="w-full accent-cyan-500 bg-slate-800 h-2 rounded-lg cursor-pointer"
-            />
-          </div>
+          <NumberSliderControl
+            label="Ángulo de Inclinación"
+            icon={Compass}
+            value={config.puckAngle || 55}
+            min={30}
+            max={70}
+            step={5}
+            unit="°"
+            color="cyan"
+            onChange={(puckAngle) => onChange({ puckAngle })}
+          />
 
           {/* Puck Arc Opening (C-Cup Coverage) */}
-          <div className="space-y-1.5">
-            <div className="flex justify-between text-xs">
-              <span className="text-slate-300">Abertura del Vaso (C-Socket Arc)</span>
-              <span className="text-cyan-400 font-mono font-bold">{config.puckArcCoverage || 180}°</span>
-            </div>
-            <input
-              type="range"
-              min="180"
-              max="300"
-              step="10"
-              value={config.puckArcCoverage || 180}
-              onChange={(e) => onChange({ puckArcCoverage: Number(e.target.value) })}
-              className="w-full accent-cyan-500 bg-slate-800 h-2 rounded-lg cursor-pointer"
-            />
-          </div>
+          <NumberSliderControl
+            label="Abertura del Vaso (C-Socket Arc)"
+            icon={Compass}
+            value={config.puckArcCoverage || 180}
+            min={180}
+            max={300}
+            step={10}
+            unit="°"
+            color="cyan"
+            onChange={(puckArcCoverage) => onChange({ puckArcCoverage })}
+          />
 
           {/* Strut Count Selection */}
           <div className="space-y-1.5 pt-2 border-t border-slate-800">
@@ -214,39 +200,31 @@ export const BaseSection: React.FC<BaseSectionProps> = ({ config, onChange }) =>
             </div>
           </div>
 
-          {/* Strut Length & Width Sliders */}
+          {/* Strut Length & Width Controls */}
           <div className="space-y-3 pt-2 border-t border-slate-800">
-            <div className="space-y-1.5">
-              <div className="flex justify-between text-xs">
-                <span className="text-slate-300 font-semibold">Largo de los Conectores (Brazos)</span>
-                <span className="text-cyan-400 font-mono font-bold">{config.strutLength || 60} mm</span>
-              </div>
-              <input
-                type="range"
-                min="40"
-                max="120"
-                step="5"
-                value={config.strutLength || 60}
-                onChange={(e) => onChange({ strutLength: Number(e.target.value) })}
-                className="w-full accent-cyan-500 bg-slate-800 h-2 rounded-lg cursor-pointer"
-              />
-            </div>
+            <NumberSliderControl
+              label="Largo de los Conectores (Brazos)"
+              icon={Network}
+              value={config.strutLength || 60}
+              min={40}
+              max={120}
+              step={5}
+              unit="mm"
+              color="cyan"
+              onChange={(strutLength) => onChange({ strutLength })}
+            />
 
-            <div className="space-y-1.5">
-              <div className="flex justify-between text-xs">
-                <span className="text-slate-300 font-semibold">Ancho / Grosor de los Conectores</span>
-                <span className="text-cyan-400 font-mono font-bold">{config.strutWidth ?? 5} mm</span>
-              </div>
-              <input
-                type="range"
-                min="2"
-                max="10"
-                step="0.5"
-                value={config.strutWidth ?? 5}
-                onChange={(e) => onChange({ strutWidth: Number(e.target.value) })}
-                className="w-full accent-cyan-500 bg-slate-800 h-2 rounded-lg cursor-pointer"
-              />
-            </div>
+            <NumberSliderControl
+              label="Ancho / Grosor de los Conectores"
+              icon={Network}
+              value={config.strutWidth ?? 5}
+              min={2}
+              max={10}
+              step={0.5}
+              unit="mm"
+              color="cyan"
+              onChange={(strutWidth) => onChange({ strutWidth })}
+            />
           </div>
 
           {/* Show / Hide Puck Lamp Toggle */}
@@ -287,7 +265,7 @@ export const BaseSection: React.FC<BaseSectionProps> = ({ config, onChange }) =>
           placeholder="Escribe aquí cualquier indicación especial para tu pedido (ej. detalles de personalización, empaque, sugerencias, etc.)..."
           value={config.notes || ''}
           onChange={(e) => onChange({ notes: e.target.value })}
-          className="w-full px-3.5 py-2.5 bg-slate-900/90 border border-slate-800 rounded-xl text-xs text-slate-100 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none transition-colors resize-none shadow-inner"
+          className="w-full px-3.5 py-2.5 bg-slate-900/90 border border-slate-800 rounded-xl text-xs text-slate-100 placeholder:text-slate-400 focus:border-cyan-500 focus:outline-none transition-colors resize-none shadow-inner"
         />
       </div>
 
@@ -313,45 +291,34 @@ export const BaseSection: React.FC<BaseSectionProps> = ({ config, onChange }) =>
         {config.enableLight && (
           <div className="space-y-4 pt-2 border-t border-slate-800">
             {/* Light Warmth */}
-            <div className="space-y-1.5">
-              <div className="flex justify-between text-xs">
-                <span className="text-slate-400 flex items-center gap-1">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-400" /> Temperatura de Luz
-                </span>
-                <span className="text-amber-400 font-mono text-[11px]">
-                  {config.lightWarmth < 30 ? 'Blanco Frío (6500K)' : config.lightWarmth < 70 ? 'Neutro (4000K)' : 'Cálido Ámbar (2700K)'}
-                </span>
-              </div>
-              <input
-                type="range"
-                min="0"
-                max="100"
-                value={config.lightWarmth}
-                onChange={(e) => onChange({ lightWarmth: Number(e.target.value) })}
-                className="w-full accent-amber-500 bg-slate-800 h-2 rounded-lg cursor-pointer"
-              />
-            </div>
+            <NumberSliderControl
+              label="Temperatura de Luz"
+              icon={Sparkles}
+              value={config.lightWarmth}
+              min={0}
+              max={100}
+              step={1}
+              color="amber"
+              description={config.lightWarmth < 30 ? 'Blanco Frío (6500K)' : config.lightWarmth < 70 ? 'Neutro (4000K)' : 'Cálido Ámbar (2700K)'}
+              onChange={(lightWarmth) => onChange({ lightWarmth })}
+            />
 
             {/* Light Intensity */}
-            <div className="space-y-1.5">
-              <div className="flex justify-between text-xs">
-                <span className="text-slate-400 flex items-center gap-1">
-                  <Zap className="w-3.5 h-3.5 text-cyan-400" /> Intensidad Lumínica
-                </span>
-                <span className="text-cyan-400 font-mono text-[11px]">{config.lightIntensity}%</span>
-              </div>
-              <input
-                type="range"
-                min="10"
-                max="100"
-                value={config.lightIntensity}
-                onChange={(e) => onChange({ lightIntensity: Number(e.target.value) })}
-                className="w-full accent-cyan-500 bg-slate-800 h-2 rounded-lg cursor-pointer"
-              />
-            </div>
+            <NumberSliderControl
+              label="Intensidad Lumínica"
+              icon={Zap}
+              value={config.lightIntensity}
+              min={10}
+              max={100}
+              step={1}
+              unit="%"
+              color="cyan"
+              onChange={(lightIntensity) => onChange({ lightIntensity })}
+            />
           </div>
         )}
       </div>
     </div>
   );
 };
+

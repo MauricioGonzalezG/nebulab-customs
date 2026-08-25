@@ -224,6 +224,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
       o.shippingDetails.fullName.toLowerCase().includes(searchLower) ||
       o.shippingDetails.email.toLowerCase().includes(searchLower) ||
       o.shippingDetails.phone.includes(searchLower) ||
+      (o.shippingDetails.department && o.shippingDetails.department.toLowerCase().includes(searchLower)) ||
       o.shippingDetails.city.toLowerCase().includes(searchLower);
 
     return matchesStatus && matchesSearch;
@@ -470,7 +471,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
                           </div>
                           <div className="text-xs text-slate-400 flex items-center gap-1.5">
                             <MapPin className="w-3 h-3 text-slate-500" />
-                            <span>{order.shippingDetails.city}, {order.shippingDetails.country}</span>
+                            <span>{order.shippingDetails.city}{order.shippingDetails.department ? `, ${order.shippingDetails.department}` : ''}, {order.shippingDetails.country}</span>
                           </div>
                         </td>
 

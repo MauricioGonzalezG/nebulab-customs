@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { CartItem, LithophaneConfig, Order } from './types';
-import { createPlaceholderImage, processImageForLithophane, ProcessedImageData } from './core/imageProcessor';
+import { createPlaceholderImage, processImageForLithophane, calculateLithophaneDimensions, ProcessedImageData } from './core/imageProcessor';
 import { downloadLithophaneSTL } from './core/stlExporter';
 import { Header } from './components/Header';
 import { HomePage } from './components/home/HomePage';
@@ -104,9 +104,25 @@ export const App: React.FC = () => {
   useEffect(() => {
     const defaultImage = new Image();
     defaultImage.crossOrigin = 'Anonymous';
-    defaultImage.onload = () => setCurrentImageElement(defaultImage);
+    defaultImage.onload = () => {
+      setCurrentImageElement(defaultImage);
+      const { width, height } = calculateLithophaneDimensions(
+        defaultImage.naturalWidth || defaultImage.width,
+        defaultImage.naturalHeight || defaultImage.height,
+        120
+      );
+      setConfig((prev) => ({ ...prev, width, height }));
+    };
     defaultImage.onerror = () => {
-      createPlaceholderImage().then((img) => setCurrentImageElement(img));
+      createPlaceholderImage().then((img) => {
+        setCurrentImageElement(img);
+        const { width, height } = calculateLithophaneDimensions(
+          img.naturalWidth || img.width,
+          img.naturalHeight || img.height,
+          120
+        );
+        setConfig((prev) => ({ ...prev, width, height }));
+      });
     };
     defaultImage.src = LITHOPHANE_SAMPLE_IMAGES[1].url;
   }, []);

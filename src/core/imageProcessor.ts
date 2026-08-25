@@ -11,6 +11,41 @@ export interface ProcessedImageData {
   aspectRatio: number;
 }
 
+/**
+ * Calculates proportional 3D dimensions (width and height in mm)
+ * maintaining image aspect ratio with a maximum of 120mm x 120mm.
+ */
+export function calculateLithophaneDimensions(
+  imgWidth: number,
+  imgHeight: number,
+  maxDimension: number = 120,
+  minDimension: number = 25
+): { width: number; height: number } {
+  if (!imgWidth || !imgHeight || imgWidth <= 0 || imgHeight <= 0) {
+    return { width: 120, height: 100 };
+  }
+
+  const aspect = imgWidth / imgHeight;
+  let width: number;
+  let height: number;
+
+  if (aspect >= 1) {
+    // Landscape or square: cap width at maxDimension (120mm)
+    width = maxDimension;
+    height = Math.round(maxDimension / aspect);
+    if (height < minDimension) height = minDimension;
+    if (height > maxDimension) height = maxDimension;
+  } else {
+    // Portrait or vertical: cap height at maxDimension (120mm)
+    height = maxDimension;
+    width = Math.round(maxDimension * aspect);
+    if (width < minDimension) width = minDimension;
+    if (width > maxDimension) width = maxDimension;
+  }
+
+  return { width, height };
+}
+
 export function processImageForLithophane(
   imgElement: HTMLImageElement,
   options: {

@@ -306,7 +306,7 @@ export const MyOrdersModal: React.FC<MyOrdersModalProps> = ({
 
                   <div className="pt-2 border-t border-slate-800/60 flex items-center justify-between text-xs">
                     <span className="text-slate-400">
-                      Dirección: {order.shippingDetails.address}, {order.shippingDetails.city}
+                      Dirección: {order.shippingDetails.address}, {order.shippingDetails.city}{order.shippingDetails.department ? ` (${order.shippingDetails.department})` : ''}
                     </span>
                     <div className="flex items-center gap-1.5">
                       <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${

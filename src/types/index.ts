@@ -145,6 +145,7 @@ export interface ShippingDetails {
   email: string;
   phone: string;
   address: string;
+  department?: string;
   city: string;
   postalCode: string;
   country: string;
