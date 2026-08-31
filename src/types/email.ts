@@ -2,14 +2,19 @@ import { Order } from './index';
 
 export interface EmailSettings {
   enabled: boolean;
-  provider: 'gmail' | 'custom_smtp';
+  provider: 'mailtrap' | 'gmail';
   senderEmail: string;
   senderName: string;
+  // Mailtrap Configuration
+  mailtrapApiToken?: string;
+  // Gmail SMTP Configuration
   gmailAppPassword?: string;
   smtpHost?: string;
   smtpPort?: number;
   smtpSecure?: boolean;
+  // Admin Alert Destination
   adminNotificationEmail: string;
+  // Event triggers
   events: {
     notifyCustomerNewOrder: boolean;
     notifyAdminNewOrder: boolean;

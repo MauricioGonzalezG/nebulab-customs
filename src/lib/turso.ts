@@ -7,9 +7,10 @@ export const DEFAULT_ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_DEFAULT_PASSWOR
 
 export const DEFAULT_EMAIL_SETTINGS: EmailSettings = {
   enabled: false,
-  provider: 'gmail',
-  senderEmail: '',
+  provider: 'mailtrap',
+  senderEmail: 'hello@demomailtrap.co',
   senderName: 'Nebulab Studio 3D',
+  mailtrapApiToken: '',
   gmailAppPassword: '',
   smtpHost: 'smtp.gmail.com',
   smtpPort: 465,
