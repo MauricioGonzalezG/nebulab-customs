@@ -11,17 +11,16 @@
   },
   "dependencies": {
     "@libsql/client": "^0.17.4",
-    "@types/jszip": "^3.4.0",
-    "@types/nodemailer": "^8.0.1",
     "jszip": "^3.10.1",
     "lucide-react": "^0.344.0",
-    "mailtrap": "^4.10.0",
-    "nodemailer": "^9.1.0",
+    "nodemailer": "^6.9.16",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "three": "^0.162.0"
   },
   "devDependencies": {
+    "@types/jszip": "^3.4.0",
+    "@types/nodemailer": "^6.4.17",
     "@types/react": "^18.2.64",
     "@types/react-dom": "^18.2.21",
     "@types/three": "^0.162.0",

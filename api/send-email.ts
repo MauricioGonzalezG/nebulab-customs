@@ -1,5 +1,4 @@
 import nodemailer from 'nodemailer';
-import { MailtrapClient } from 'mailtrap';
 import {
   buildCustomerOrderEmail,
   buildAdminNewOrderEmail,
@@ -69,14 +68,38 @@ export default async function handler(req: any, res: any) {
 
         const effectiveSender = senderEmail || 'hello@demomailtrap.co';
 
-        const client = new MailtrapClient({ token: mailtrapToken.trim() });
-        return await client.send({
-          from: { email: effectiveSender, name: senderName },
-          to: [{ email: cleanTo }],
-          subject,
-          html,
-          category,
+        const response = await fetch('https://send.api.mailtrap.io/api/send', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${mailtrapToken.trim()}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            from: {
+              email: effectiveSender,
+              name: senderName,
+            },
+            to: [
+              {
+                email: cleanTo,
+              },
+            ],
+            subject,
+            html,
+            category,
+          }),
         });
+
+        if (!response.ok) {
+          const errorData: any = await response.json().catch(() => ({}));
+          const errorMsg =
+            (Array.isArray(errorData?.errors) ? errorData.errors.join(', ') : errorData?.errors) ||
+            errorData?.message ||
+            `Error de Mailtrap (${response.status})`;
+          throw new Error(`Mailtrap: ${errorMsg}`);
+        }
+
+        return await response.json().catch(() => ({ success: true }));
       } else {
         // Gmail SMTP
         const gmailAppPassword =
@@ -216,8 +239,8 @@ export default async function handler(req: any, res: any) {
       userMessage = 'Gmail rechazó las credenciales. Verifica que el correo emisor sea correcto y que la contraseña de aplicación de 16 caracteres esté activa.';
     } else if (userMessage.includes('Unauthorized') || userMessage.includes('Invalid API Token') || userMessage.includes('401')) {
       userMessage = 'Mailtrap rechazó el Token API. Verifica que el Token API de Mailtrap sea válido en la configuración.';
-    } else if (userMessage.includes('Domain not found') || userMessage.includes('unverified')) {
-      userMessage = 'Mailtrap: El dominio emisor debe estar verificado o debes usar "hello@demomailtrap.co" para pruebas.';
+    } else if (userMessage.includes('Domain not found') || userMessage.includes('unverified') || userMessage.includes('from.email')) {
+      userMessage = 'Mailtrap: El correo emisor debe ser "hello@demomailtrap.co" o pertenecer a tu dominio verificado en Mailtrap.';
     }
 
     return res.status(500).json({
