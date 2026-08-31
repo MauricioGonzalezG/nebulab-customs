@@ -30,18 +30,21 @@ export const emailService = {
       });
 
       if (!response.ok) {
-        const errText = await response.text();
-        let errMsg = 'Error al despachar el correo';
+        let errMsg = `Error de envío (${response.status})`;
         try {
-          const parsed = JSON.parse(errText);
-          errMsg = parsed.message || parsed.error || errMsg;
-        } catch (e) {
-          if (errText.includes('FUNCTION_INVOCATION_FAILED')) {
-            errMsg = 'Error al invocar la función de envío en el servidor. Verifica las credenciales de Gmail y la conexión.';
-          } else {
-            errMsg = errText || errMsg;
+          const errText = await response.text();
+          try {
+            const parsed = JSON.parse(errText);
+            errMsg = parsed.message || parsed.error || errMsg;
+          } catch (e) {
+            if (errText.includes('FUNCTION_INVOCATION_FAILED')) {
+              errMsg = 'La función del servidor falló al ejecutarse en Vercel. Por favor verifica tus credenciales.';
+            } else if (errText) {
+              errMsg = errText;
+            }
           }
-        }
+        } catch (e) {}
+
         return {
           success: false,
           error: errMsg,

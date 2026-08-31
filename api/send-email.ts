@@ -1,4 +1,3 @@
-import nodemailer from 'nodemailer';
 import {
   buildCustomerOrderEmail,
   buildAdminNewOrderEmail,
@@ -68,7 +67,7 @@ export default async function handler(req: any, res: any) {
 
         const effectiveSender = senderEmail || 'hello@demomailtrap.co';
 
-        const response = await fetch('https://send.api.mailtrap.io/api/send', {
+        const mtRes = await fetch('https://send.api.mailtrap.io/api/send', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${mailtrapToken.trim()}`,
@@ -90,18 +89,39 @@ export default async function handler(req: any, res: any) {
           }),
         });
 
-        if (!response.ok) {
-          const errorData: any = await response.json().catch(() => ({}));
-          const errorMsg =
+        if (!mtRes.ok) {
+          const errorData: any = await mtRes.json().catch(() => ({}));
+          const rawErrors =
             (Array.isArray(errorData?.errors) ? errorData.errors.join(', ') : errorData?.errors) ||
             errorData?.message ||
-            `Error de Mailtrap (${response.status})`;
-          throw new Error(`Mailtrap: ${errorMsg}`);
+            `Error HTTP ${mtRes.status} de Mailtrap`;
+
+          let userFriendly = rawErrors;
+          if (
+            mtRes.status === 401 ||
+            String(rawErrors).toLowerCase().includes('unauthorized') ||
+            String(rawErrors).toLowerCase().includes('incorrect api token')
+          ) {
+            userFriendly =
+              'Token API de Mailtrap no autorizado (401). Verifica que hayas copiado el "API Token" desde tu cuenta de Mailtrap (mailtrap.io → Email Sending → API Tokens).';
+          } else if (
+            String(rawErrors).toLowerCase().includes('from.email') ||
+            String(rawErrors).toLowerCase().includes('domain') ||
+            String(rawErrors).toLowerCase().includes('unverified')
+          ) {
+            userFriendly =
+              'Mailtrap: El correo emisor debe ser "hello@demomailtrap.co" para pruebas, o debes tener tu propio dominio verificado en Mailtrap.';
+          }
+
+          throw new Error(userFriendly);
         }
 
-        return await response.json().catch(() => ({ success: true }));
+        return await mtRes.json().catch(() => ({ success: true }));
       } else {
-        // Gmail SMTP
+        // Gmail SMTP via dynamic import
+        const nodemailerModule = await import('nodemailer');
+        const nodemailer = (nodemailerModule as any).default || nodemailerModule;
+
         const gmailAppPassword =
           customSettings?.gmailAppPassword ||
           process.env.SMTP_GMAIL_APP_PASSWORD ||
@@ -237,13 +257,9 @@ export default async function handler(req: any, res: any) {
     let userMessage = error?.message || 'Error al enviar el correo.';
     if (userMessage.includes('535') || userMessage.includes('BadCredentials') || userMessage.includes('Username and Password not accepted')) {
       userMessage = 'Gmail rechazó las credenciales. Verifica que el correo emisor sea correcto y que la contraseña de aplicación de 16 caracteres esté activa.';
-    } else if (userMessage.includes('Unauthorized') || userMessage.includes('Invalid API Token') || userMessage.includes('401')) {
-      userMessage = 'Mailtrap rechazó el Token API. Verifica que el Token API de Mailtrap sea válido en la configuración.';
-    } else if (userMessage.includes('Domain not found') || userMessage.includes('unverified') || userMessage.includes('from.email')) {
-      userMessage = 'Mailtrap: El correo emisor debe ser "hello@demomailtrap.co" o pertenecer a tu dominio verificado en Mailtrap.';
     }
 
-    return res.status(500).json({
+    return res.status(400).json({
       success: false,
       message: userMessage,
       error: error?.message || error?.toString(),
