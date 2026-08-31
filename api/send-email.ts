@@ -77,10 +77,15 @@ export default async function handler(req: any, res: any) {
       nodemailer;
 
     const transporter = createTransportFn({
-      service: 'gmail',
+      host: 'smtp.gmail.com',
+      port: 465,
+      secure: true,
       auth: {
         user: senderEmail.trim(),
         pass: cleanAppPassword,
+      },
+      tls: {
+        rejectUnauthorized: false,
       },
     });
 
