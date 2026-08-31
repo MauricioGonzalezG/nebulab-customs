@@ -4,14 +4,16 @@ import {
   buildAdminNewOrderEmail,
   buildStatusChangeEmail,
   buildTestEmail,
-} from '../src/lib/emailTemplates';
+} from './emailTemplates';
 
 export default async function handler(req: any, res: any) {
+  // Always attach CORS headers
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
   // CORS Preflight
   if (req.method === 'OPTIONS') {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     return res.status(200).send('OK');
   }
 
@@ -20,7 +22,18 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
-    const { type, order, newStatus, testRecipient, customSettings } = req.body || {};
+    // Parse body safely whether it's JSON object or string
+    let body = req.body;
+    if (typeof body === 'string') {
+      try {
+        body = JSON.parse(body);
+      } catch (e) {
+        body = {};
+      }
+    }
+    if (!body) body = {};
+
+    const { type, order, newStatus, testRecipient, customSettings } = body;
 
     const senderEmail =
       customSettings?.senderEmail ||
@@ -47,7 +60,6 @@ export default async function handler(req: any, res: any) {
       notifyCustomerStatusChange: true,
     };
 
-    // If test email, sender credentials are required
     if (!senderEmail || !gmailAppPassword) {
       return res.status(400).json({
         success: false,
@@ -55,14 +67,17 @@ export default async function handler(req: any, res: any) {
       });
     }
 
-    // Clean app password (remove spaces if user copied "abcd efgh ijkl mnop")
-    const cleanAppPassword = gmailAppPassword.replace(/\s+/g, '');
+    // Clean app password (remove spaces if user copied "xzgt asae xpoc glfv")
+    const cleanAppPassword = String(gmailAppPassword).replace(/\s+/g, '');
 
-    // Setup Nodemailer Transporter for Gmail SMTP
-    const transporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 465,
-      secure: true, // true for 465, false for other ports
+    // Robust Nodemailer transporter initialization
+    const createTransportFn =
+      (nodemailer as any).createTransport ||
+      (nodemailer as any).default?.createTransport ||
+      nodemailer;
+
+    const transporter = createTransportFn({
+      service: 'gmail',
       auth: {
         user: senderEmail.trim(),
         pass: cleanAppPassword,
@@ -109,7 +124,7 @@ export default async function handler(req: any, res: any) {
               html: customerTemplate.html,
             })
             .then(() => sentTo.push(customerEmail))
-            .catch((err) => {
+            .catch((err: any) => {
               console.error(`Error sending customer order email to ${customerEmail}:`, err);
             })
         );
@@ -129,7 +144,7 @@ export default async function handler(req: any, res: any) {
               html: adminTemplate.html,
             })
             .then(() => sentTo.push(adminEmail))
-            .catch((err) => {
+            .catch((err: any) => {
               console.error(`Error sending admin alert email to ${adminEmail}:`, err);
             })
         );
@@ -179,10 +194,16 @@ export default async function handler(req: any, res: any) {
     });
   } catch (error: any) {
     console.error('Error in send-email API handler:', error);
+
+    let userMessage = error?.message || 'Error al enviar el correo.';
+    if (userMessage.includes('535') || userMessage.includes('BadCredentials') || userMessage.includes('Username and Password not accepted')) {
+      userMessage = 'Gmail rechazó las credenciales. Verifica que el correo emisor sea correcto y que la contraseña de aplicación de 16 caracteres esté activa en tu cuenta de Google.';
+    }
+
     return res.status(500).json({
       success: false,
-      message: error?.message || 'Error interno al enviar el correo.',
-      error: error?.toString(),
+      message: userMessage,
+      error: error?.message || error?.toString(),
     });
   }
 }

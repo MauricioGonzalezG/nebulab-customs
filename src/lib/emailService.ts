@@ -36,7 +36,11 @@ export const emailService = {
           const parsed = JSON.parse(errText);
           errMsg = parsed.message || parsed.error || errMsg;
         } catch (e) {
-          errMsg = errText || errMsg;
+          if (errText.includes('FUNCTION_INVOCATION_FAILED')) {
+            errMsg = 'Error al invocar la función de envío en el servidor. Verifica las credenciales de Gmail y la conexión.';
+          } else {
+            errMsg = errText || errMsg;
+          }
         }
         return {
           success: false,
