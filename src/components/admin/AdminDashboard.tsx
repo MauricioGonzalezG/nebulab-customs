@@ -11,6 +11,9 @@ import { processCollarImage, ProcessedCollarData } from '../../core/collarProces
 import { LithophaneViewer } from '../3d/LithophaneViewer';
 import { ClickerViewer } from '../3d/ClickerViewer';
 import { CollarViewer } from '../3d/CollarViewer';
+import { EmailSettingsTab } from './EmailSettingsTab';
+import { OrderLogsModal } from './OrderLogsModal';
+import { emailService } from '../../lib/emailService';
 
 import { downloadOrderImage } from '../../lib/imageDownloader';
 
@@ -38,6 +41,7 @@ import {
   Image as ImageIcon,
   CreditCard,
   Wallet,
+  History,
 } from 'lucide-react';
 
 interface AdminDashboardProps {
@@ -49,7 +53,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [customers, setCustomers] = useState<CustomerWithMetrics[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [mainTab, setMainTab] = useState<'orders' | 'customers'>('orders');
+  const [mainTab, setMainTab] = useState<'orders' | 'customers' | 'email_settings'>('orders');
 
   const [dbStatus, setDbStatus] = useState<{ connected: boolean; mode: string; url: string; info: string }>({
     connected: false,
@@ -62,6 +66,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [selectedOrderItem, setSelectedOrderItem] = useState<{ order: Order; item: CartItem } | null>(null);
   const [selectedPaymentOrder, setSelectedPaymentOrder] = useState<Order | null>(null);
+  const [selectedLogsOrder, setSelectedLogsOrder] = useState<Order | null>(null);
 
   // 3D Preview state for selected order item
   const [previewProcessedData, setPreviewProcessedData] = useState<ProcessedImageData | null>(null);
@@ -92,21 +97,69 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
     fetchDashboardData();
   }, []);
 
-  // Handle status update
+  // Handle status update & dispatch email notification & audit log
   const handleStatusChange = async (orderId: string, newStatus: Order['status']) => {
     try {
-      await tursoService.updateOrderStatus(orderId, newStatus);
-      setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o)));
+      const targetOrder = orders.find((o) => o.id === orderId);
+      const previousStatus = targetOrder?.status;
+      const actorName = adminUser?.email ? `Admin (${adminUser.email})` : 'Admin';
+
+      await tursoService.updateOrderStatus(orderId, newStatus, actorName);
+      
+      const newLog = {
+        id: `LOG-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        timestamp: new Date().toISOString(),
+        type: 'status_change' as const,
+        title: `Estado actualizado a "${newStatus.toUpperCase()}"`,
+        description: `Estado modificado de "${previousStatus || 'N/A'}" a "${newStatus}".`,
+        actor: actorName,
+      };
+
+      setOrders((prev) =>
+        prev.map((o) => (o.id === orderId ? { ...o, status: newStatus, logs: [newLog, ...(o.logs || [])] } : o))
+      );
+
+      // Dispatch status update email to customer asynchronously
+      if (targetOrder && previousStatus !== newStatus) {
+        const updatedOrder: Order = { ...targetOrder, status: newStatus };
+        emailService
+          .sendStatusChangeEmail(updatedOrder, newStatus, previousStatus)
+          .then((res) => {
+            if (res.success && res.sentTo && res.sentTo.length > 0) {
+              console.log(`Email de cambio de estado enviado a ${res.sentTo.join(', ')} para orden ${orderId}`);
+              tursoService.addOrderLog(orderId, {
+                type: 'email_sent',
+                title: `Notificación Enviada (${newStatus.toUpperCase()})`,
+                description: `Email despachado exitosamente a: ${res.sentTo.join(', ')}`,
+                actor: 'Sistema de Notificaciones',
+              }).catch(console.error);
+            }
+          })
+          .catch((err) => console.error('Error enviando correo de cambio de estado:', err));
+      }
     } catch (err) {
       alert('Error al actualizar el estado de la orden.');
     }
   };
 
-  // Handle payment status update
+  // Handle payment status update & audit log
   const handlePaymentStatusChange = async (orderId: string, newPaymentStatus: Order['paymentStatus']) => {
     try {
-      await tursoService.updatePaymentStatus(orderId, newPaymentStatus);
-      setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, paymentStatus: newPaymentStatus } : o)));
+      const actorName = adminUser?.email ? `Admin (${adminUser.email})` : 'Admin';
+      await tursoService.updatePaymentStatus(orderId, newPaymentStatus, actorName);
+      
+      const newLog = {
+        id: `LOG-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        timestamp: new Date().toISOString(),
+        type: 'payment_update' as const,
+        title: `Estado de pago: "${(newPaymentStatus || 'pending').toUpperCase()}"`,
+        description: `Estado de pago actualizado a "${newPaymentStatus}".`,
+        actor: actorName,
+      };
+
+      setOrders((prev) =>
+        prev.map((o) => (o.id === orderId ? { ...o, paymentStatus: newPaymentStatus, logs: [newLog, ...(o.logs || [])] } : o))
+      );
     } catch (err) {
       alert('Error al actualizar el estado de pago.');
     }
@@ -359,8 +412,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
           </div>
         </div>
 
-        {/* Tab Switcher: Orders vs Customers */}
-        <div className="flex bg-slate-900/90 p-1.5 rounded-2xl border border-slate-800 w-fit">
+        {/* Tab Switcher: Orders vs Customers vs Email Settings */}
+        <div className="flex bg-slate-900/90 p-1.5 rounded-2xl border border-slate-800 w-fit flex-wrap gap-1">
           <button
             onClick={() => { setMainTab('orders'); setSearchTerm(''); }}
             className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
@@ -382,6 +435,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
           >
             <Users className="w-4 h-4" />
             <span>Usuarios / Clientes ({customers.length})</span>
+          </button>
+          <button
+            onClick={() => { setMainTab('email_settings'); setSearchTerm(''); }}
+            className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+              mainTab === 'email_settings'
+                ? 'bg-gradient-to-r from-cyan-500 to-violet-600 text-white shadow-md'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Mail className="w-4 h-4" />
+            <span>Configuración de Correos</span>
           </button>
         </div>
 
@@ -589,6 +653,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
                         <td className="px-6 py-4 text-right">
                           <div className="flex items-center justify-end gap-1.5 flex-wrap">
                             <button
+                              onClick={() => setSelectedLogsOrder(order)}
+                              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30 transition-colors flex items-center gap-1.5 text-xs font-semibold"
+                              title="Ver Historial de Auditoría, Estados y Notas"
+                            >
+                              <History className="w-4 h-4 text-amber-400" />
+                              <span className="hidden xl:inline">Historial</span>
+                              <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-300 font-mono">
+                                {order.logs?.length || 0}
+                              </span>
+                            </button>
+
+                            <button
                               onClick={() => setSelectedPaymentOrder(order)}
                               className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-cyan-500/30 transition-colors flex items-center gap-1 text-xs font-semibold"
                               title="Ver Información Completa de Pago"
@@ -642,7 +718,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
             </div>
 
           </div>
-        ) : (
+        ) : mainTab === 'customers' ? (
           /* Tab 2: Customers Table Container */
           <div className="bg-slate-900/80 border border-slate-800 rounded-3xl shadow-xl overflow-hidden">
             
@@ -718,6 +794,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
             </div>
 
           </div>
+        ) : (
+          /* Tab 3: Email Configuration Tab */
+          <EmailSettingsTab />
         )}
 
       </main>
@@ -1103,6 +1182,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Order Logs & Notes Audit Modal */}
+      {selectedLogsOrder && (
+        <OrderLogsModal
+          order={selectedLogsOrder}
+          onClose={() => setSelectedLogsOrder(null)}
+          onOrderUpdated={(updated) => {
+            setSelectedLogsOrder(updated);
+            setOrders((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
+          }}
+        />
       )}
 
     </div>

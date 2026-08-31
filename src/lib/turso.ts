@@ -1,9 +1,26 @@
 import { createClient, Client } from '@libsql/client/web';
-import { Order } from '../types';
+import { Order, EmailSettings, OrderLogEntry } from '../types';
 
 // Admin credentials configuration
 export const DEFAULT_ADMIN_EMAIL = import.meta.env.VITE_ADMIN_DEFAULT_EMAIL || 'admin@nebuladb3d.com.co';
 export const DEFAULT_ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_DEFAULT_PASSWORD || 'Nebulab26*';
+
+export const DEFAULT_EMAIL_SETTINGS: EmailSettings = {
+  enabled: false,
+  provider: 'gmail',
+  senderEmail: '',
+  senderName: 'Nebulab Studio 3D',
+  gmailAppPassword: '',
+  smtpHost: 'smtp.gmail.com',
+  smtpPort: 465,
+  smtpSecure: true,
+  adminNotificationEmail: DEFAULT_ADMIN_EMAIL,
+  events: {
+    notifyCustomerNewOrder: true,
+    notifyAdminNewOrder: true,
+    notifyCustomerStatusChange: true,
+  },
+};
 
 const dbUrl = import.meta.env.VITE_TURSO_DATABASE_URL || '';
 const dbToken = import.meta.env.VITE_TURSO_AUTH_TOKEN || '';
@@ -87,6 +104,41 @@ const seedInitialLocalOrders = (): Order[] => {
       },
       paymentMethod: 'whatsapp',
       status: 'confirmed',
+      paymentStatus: 'approved',
+      logs: [
+        {
+          id: 'LOG-849201-1',
+          timestamp: new Date(Date.now() - 3600000 * 24 * 2).toISOString(),
+          type: 'system',
+          title: 'Pedido Registrado',
+          description: 'Orden creada por el cliente a través de WhatsApp Checkout.',
+          actor: 'Cliente (Carlos Mendoza)',
+        },
+        {
+          id: 'LOG-849201-2',
+          timestamp: new Date(Date.now() - 3600000 * 24 * 2 + 1000 * 90).toISOString(),
+          type: 'email_sent',
+          title: 'Email de Confirmación Enviado',
+          description: 'Resumen de compra enviado a carlos.mendoza@example.com',
+          actor: 'Sistema de Correos',
+        },
+        {
+          id: 'LOG-849201-3',
+          timestamp: new Date(Date.now() - 3600000 * 24 * 1.8).toISOString(),
+          type: 'payment_update',
+          title: 'Pago Aprobado',
+          description: 'Comprobante de transferencia Bancolombia validado.',
+          actor: 'Admin (admin@nebuladb3d.com.co)',
+        },
+        {
+          id: 'LOG-849201-4',
+          timestamp: new Date(Date.now() - 3600000 * 24 * 1.5).toISOString(),
+          type: 'status_change',
+          title: 'Estado Actualizado a Confirmado',
+          description: 'Orden confirmada y enviada a la cola de preparación 3D.',
+          actor: 'Admin (admin@nebuladb3d.com.co)',
+        },
+      ],
       createdAt: new Date(Date.now() - 3600000 * 24 * 2).toISOString(),
     },
     {
@@ -139,6 +191,33 @@ const seedInitialLocalOrders = (): Order[] => {
       },
       paymentMethod: 'whatsapp',
       status: 'processing',
+      paymentStatus: 'approved',
+      logs: [
+        {
+          id: 'LOG-392014-1',
+          timestamp: new Date(Date.now() - 3600000 * 5).toISOString(),
+          type: 'system',
+          title: 'Pedido Registrado',
+          description: 'Orden creada por el cliente a través de WhatsApp Checkout.',
+          actor: 'Cliente (María Fernanda Gómez)',
+        },
+        {
+          id: 'LOG-392014-2',
+          timestamp: new Date(Date.now() - 3600000 * 4.8).toISOString(),
+          type: 'status_change',
+          title: 'Estado Actualizado a En Proceso',
+          description: 'Impresión de litofanía plana en PLA Marfil iniciada en impresora #3.',
+          actor: 'Admin (admin@nebuladb3d.com.co)',
+        },
+        {
+          id: 'LOG-392014-3',
+          timestamp: new Date(Date.now() - 3600000 * 4.7).toISOString(),
+          type: 'email_sent',
+          title: 'Notificación de Estado Enviada',
+          description: 'Aviso de producción enviado a maria.gomez@example.com',
+          actor: 'Sistema de Correos',
+        },
+      ],
       createdAt: new Date(Date.now() - 3600000 * 5).toISOString(),
     },
   ];
@@ -247,11 +326,12 @@ export const tursoService = {
           payment_status TEXT NOT NULL DEFAULT 'pending',
           currency TEXT DEFAULT 'COP',
           payment_details_json TEXT,
+          logs_json TEXT,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
       `);
 
-      // Migration for existing tables without payment_status, currency or payment_details_json columns
+      // Migration for existing tables without payment_status, currency, payment_details_json or logs_json columns
       try {
         await tursoClient.execute(`ALTER TABLE orders ADD COLUMN payment_status TEXT DEFAULT 'pending';`);
       } catch (e) {}
@@ -260,6 +340,9 @@ export const tursoService = {
       } catch (e) {}
       try {
         await tursoClient.execute(`ALTER TABLE orders ADD COLUMN payment_details_json TEXT;`);
+      } catch (e) {}
+      try {
+        await tursoClient.execute(`ALTER TABLE orders ADD COLUMN logs_json TEXT;`);
       } catch (e) {}
 
       // Create order_images table for storing original photos without bloating the main orders list
@@ -273,6 +356,15 @@ export const tursoService = {
           preview_data TEXT,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY(order_id) REFERENCES orders(id) ON DELETE CASCADE
+        );
+      `);
+
+      // Create store_settings table for persistent configs (email, gateways, etc.)
+      await tursoClient.execute(`
+        CREATE TABLE IF NOT EXISTS store_settings (
+          key TEXT PRIMARY KEY,
+          value_json TEXT NOT NULL,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
       `);
 
@@ -504,6 +596,7 @@ export const tursoService = {
         status: String(row.status) as Order['status'],
         paymentStatus: (row.payment_status ? String(row.payment_status) : 'pending') as Order['paymentStatus'],
         paymentDetails: row.payment_details_json ? JSON.parse(String(row.payment_details_json)) : undefined,
+        logs: row.logs_json ? JSON.parse(String(row.logs_json)) : [],
         createdAt: String(row.created_at),
       }));
     } catch (err) {
@@ -673,8 +766,8 @@ export const tursoService = {
     try {
       await tursoClient.execute({
         sql: `
-          INSERT INTO orders (id, items_json, subtotal, shipping_fee, total, currency, shipping_details_json, payment_method, status, payment_status, payment_details_json, created_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO orders (id, items_json, subtotal, shipping_fee, total, currency, shipping_details_json, payment_method, status, payment_status, payment_details_json, logs_json, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           ON CONFLICT(id) DO UPDATE SET
             items_json = excluded.items_json,
             subtotal = excluded.subtotal,
@@ -685,7 +778,8 @@ export const tursoService = {
             payment_method = excluded.payment_method,
             status = excluded.status,
             payment_status = excluded.payment_status,
-            payment_details_json = excluded.payment_details_json;
+            payment_details_json = excluded.payment_details_json,
+            logs_json = excluded.logs_json;
         `,
         args: [
           sanitizedOrder.id,
@@ -699,6 +793,7 @@ export const tursoService = {
           sanitizedOrder.status,
           sanitizedOrder.paymentStatus || 'pending',
           sanitizedOrder.paymentDetails ? JSON.stringify(sanitizedOrder.paymentDetails) : null,
+          JSON.stringify(sanitizedOrder.logs || []),
           sanitizedOrder.createdAt || new Date().toISOString(),
         ],
       });
@@ -707,37 +802,228 @@ export const tursoService = {
     }
   },
 
-  updateOrderStatus: async (orderId: string, status: Order['status']): Promise<void> => {
+  addOrderLog: async (
+    orderId: string,
+    log: Omit<OrderLogEntry, 'id' | 'timestamp'> & { id?: string; timestamp?: string }
+  ): Promise<OrderLogEntry> => {
+    const newEntry: OrderLogEntry = {
+      id: log.id || `LOG-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      timestamp: log.timestamp || new Date().toISOString(),
+      type: log.type,
+      title: log.title,
+      description: log.description,
+      actor: log.actor || 'Sistema',
+      metadata: log.metadata,
+    };
+
+    // Update LocalStorage
     const local = seedInitialLocalOrders();
-    const updatedLocal = local.map((o) => (o.id === orderId ? { ...o, status } : o));
+    const orderIndex = local.findIndex((o) => o.id === orderId);
+    if (orderIndex >= 0) {
+      const existingLogs = local[orderIndex].logs || [];
+      local[orderIndex].logs = [newEntry, ...existingLogs];
+      localStorage.setItem(LOCAL_STORAGE_ORDERS_KEY, JSON.stringify(local));
+    }
+
+    // Update Turso DB
+    if (tursoClient && isConfigured) {
+      try {
+        const res = await tursoClient.execute({
+          sql: `SELECT logs_json FROM orders WHERE id = ? LIMIT 1`,
+          args: [orderId],
+        });
+        if (res.rows.length > 0) {
+          let currentLogs: OrderLogEntry[] = [];
+          if (res.rows[0].logs_json) {
+            try {
+              currentLogs = JSON.parse(String(res.rows[0].logs_json));
+            } catch (e) {}
+          }
+          const updatedLogs = [newEntry, ...currentLogs];
+          await tursoClient.execute({
+            sql: `UPDATE orders SET logs_json = ? WHERE id = ?`,
+            args: [JSON.stringify(updatedLogs), orderId],
+          });
+        }
+      } catch (err) {
+        console.error('Error adding order log in Turso:', err);
+      }
+    }
+
+    return newEntry;
+  },
+
+  updateOrderStatus: async (
+    orderId: string,
+    status: Order['status'],
+    actor: string = 'Admin',
+    note?: string
+  ): Promise<void> => {
+    const local = seedInitialLocalOrders();
+    const existing = local.find((o) => o.id === orderId);
+    const prevStatus = existing?.status;
+
+    const logEntry: OrderLogEntry = {
+      id: `LOG-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      timestamp: new Date().toISOString(),
+      type: 'status_change',
+      title: `Estado actualizado a "${status.toUpperCase()}"`,
+      description: note || `Estado del pedido modificado de "${prevStatus || 'N/A'}" a "${status}".`,
+      actor,
+    };
+
+    const updatedLocal = local.map((o) => {
+      if (o.id === orderId) {
+        return {
+          ...o,
+          status,
+          logs: [logEntry, ...(o.logs || [])],
+        };
+      }
+      return o;
+    });
     localStorage.setItem(LOCAL_STORAGE_ORDERS_KEY, JSON.stringify(updatedLocal));
 
     if (!tursoClient || !isConfigured) return;
 
     try {
+      const res = await tursoClient.execute({
+        sql: `SELECT logs_json FROM orders WHERE id = ? LIMIT 1`,
+        args: [orderId],
+      });
+      let currentLogs: OrderLogEntry[] = [];
+      if (res.rows.length > 0 && res.rows[0].logs_json) {
+        try {
+          currentLogs = JSON.parse(String(res.rows[0].logs_json));
+        } catch (e) {}
+      }
+      const newLogsJson = JSON.stringify([logEntry, ...currentLogs]);
+
       await tursoClient.execute({
-        sql: `UPDATE orders SET status = ? WHERE id = ?`,
-        args: [status, orderId],
+        sql: `UPDATE orders SET status = ?, logs_json = ? WHERE id = ?`,
+        args: [status, newLogsJson, orderId],
       });
     } catch (err) {
       console.error('Error updating order status in Turso:', err);
     }
   },
 
-  updatePaymentStatus: async (orderId: string, paymentStatus: Order['paymentStatus']): Promise<void> => {
+  updatePaymentStatus: async (
+    orderId: string,
+    paymentStatus: Order['paymentStatus'],
+    actor: string = 'Admin',
+    note?: string
+  ): Promise<void> => {
     const local = seedInitialLocalOrders();
-    const updatedLocal = local.map((o) => (o.id === orderId ? { ...o, paymentStatus } : o));
+    const existing = local.find((o) => o.id === orderId);
+    const prevPay = existing?.paymentStatus;
+
+    const logEntry: OrderLogEntry = {
+      id: `LOG-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      timestamp: new Date().toISOString(),
+      type: 'payment_update',
+      title: `Estado de pago: "${(paymentStatus || 'pending').toUpperCase()}"`,
+      description: note || `Estado de pago modificado de "${prevPay || 'pending'}" a "${paymentStatus}".`,
+      actor,
+    };
+
+    const updatedLocal = local.map((o) => {
+      if (o.id === orderId) {
+        return {
+          ...o,
+          paymentStatus,
+          logs: [logEntry, ...(o.logs || [])],
+        };
+      }
+      return o;
+    });
     localStorage.setItem(LOCAL_STORAGE_ORDERS_KEY, JSON.stringify(updatedLocal));
 
     if (!tursoClient || !isConfigured) return;
 
     try {
+      const res = await tursoClient.execute({
+        sql: `SELECT logs_json FROM orders WHERE id = ? LIMIT 1`,
+        args: [orderId],
+      });
+      let currentLogs: OrderLogEntry[] = [];
+      if (res.rows.length > 0 && res.rows[0].logs_json) {
+        try {
+          currentLogs = JSON.parse(String(res.rows[0].logs_json));
+        } catch (e) {}
+      }
+      const newLogsJson = JSON.stringify([logEntry, ...currentLogs]);
+
       await tursoClient.execute({
-        sql: `UPDATE orders SET payment_status = ? WHERE id = ?`,
-        args: [paymentStatus || 'pending', orderId],
+        sql: `UPDATE orders SET payment_status = ?, logs_json = ? WHERE id = ?`,
+        args: [paymentStatus || 'pending', newLogsJson, orderId],
       });
     } catch (err) {
       console.error('Error updating payment status in Turso:', err);
+    }
+  },
+
+  getEmailSettings: async (): Promise<EmailSettings> => {
+    const LOCAL_EMAIL_SETTINGS_KEY = 'nebulab_email_settings_v1';
+    let localSettings: EmailSettings = { ...DEFAULT_EMAIL_SETTINGS };
+    const rawLocal = localStorage.getItem(LOCAL_EMAIL_SETTINGS_KEY);
+    if (rawLocal) {
+      try {
+        localSettings = { ...DEFAULT_EMAIL_SETTINGS, ...JSON.parse(rawLocal) };
+      } catch (e) {
+        console.error('Error parsing local email settings', e);
+      }
+    }
+
+    if (!tursoClient || !isConfigured) {
+      return localSettings;
+    }
+
+    try {
+      const res = await tursoClient.execute({
+        sql: `SELECT value_json FROM store_settings WHERE key = 'email_settings' LIMIT 1`,
+        args: [],
+      });
+      if (res.rows.length > 0) {
+        const parsed = JSON.parse(String(res.rows[0].value_json));
+        const merged: EmailSettings = {
+          ...DEFAULT_EMAIL_SETTINGS,
+          ...parsed,
+          events: {
+            ...DEFAULT_EMAIL_SETTINGS.events,
+            ...(parsed.events || {}),
+          },
+        };
+        localStorage.setItem(LOCAL_EMAIL_SETTINGS_KEY, JSON.stringify(merged));
+        return merged;
+      }
+    } catch (err) {
+      console.error('Error fetching email settings from Turso:', err);
+    }
+
+    return localSettings;
+  },
+
+  saveEmailSettings: async (settings: EmailSettings): Promise<void> => {
+    const LOCAL_EMAIL_SETTINGS_KEY = 'nebulab_email_settings_v1';
+    localStorage.setItem(LOCAL_EMAIL_SETTINGS_KEY, JSON.stringify(settings));
+
+    if (!tursoClient || !isConfigured) return;
+
+    try {
+      await tursoClient.execute({
+        sql: `
+          INSERT INTO store_settings (key, value_json, updated_at)
+          VALUES ('email_settings', ?, CURRENT_TIMESTAMP)
+          ON CONFLICT(key) DO UPDATE SET
+            value_json = excluded.value_json,
+            updated_at = CURRENT_TIMESTAMP;
+        `,
+        args: [JSON.stringify(settings)],
+      });
+    } catch (err) {
+      console.error('Error saving email settings in Turso:', err);
+      throw err;
     }
   },
 };

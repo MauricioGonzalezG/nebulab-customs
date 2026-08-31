@@ -71,9 +71,33 @@ export default async function handler(req: any, res: any) {
           targetOrderStatus = 'cancelled';
         }
 
+        const webhookLogEntry = {
+          id: `LOG-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+          timestamp: new Date().toISOString(),
+          type: 'payment_update',
+          title: `Pago Mercado Pago: ${targetPaymentStatus.toUpperCase()}`,
+          description: `Notificación IPN/Webhook procesada para Payment ID #${paymentId} (${paymentStatus}). Estado orden: ${targetOrderStatus}.`,
+          actor: 'Mercado Pago Webhook',
+          metadata: { paymentId, paymentStatus, rawAction: body.action || query.topic },
+        };
+
+        // Fetch existing logs if available
+        let existingLogs: any[] = [];
+        try {
+          const res = await tursoClient.execute({
+            sql: `SELECT logs_json FROM orders WHERE id = ? LIMIT 1`,
+            args: [externalReference],
+          });
+          if (res.rows.length > 0 && res.rows[0].logs_json) {
+            existingLogs = JSON.parse(String(res.rows[0].logs_json));
+          }
+        } catch (e) {}
+
+        const updatedLogsJson = JSON.stringify([webhookLogEntry, ...existingLogs]);
+
         await tursoClient.execute({
-          sql: `UPDATE orders SET payment_status = ?, status = ? WHERE id = ?`,
-          args: [targetPaymentStatus, targetOrderStatus, externalReference],
+          sql: `UPDATE orders SET payment_status = ?, status = ?, logs_json = ? WHERE id = ?`,
+          args: [targetPaymentStatus, targetOrderStatus, updatedLogsJson, externalReference],
         });
 
         console.log(`Order ${externalReference} successfully updated to payment_status=${targetPaymentStatus}, status=${targetOrderStatus} in Turso DB!`);

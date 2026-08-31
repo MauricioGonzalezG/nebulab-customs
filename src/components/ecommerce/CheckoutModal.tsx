@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { CartItem, Order, ShippingDetails } from '../../types';
+import { CartItem, Order, ShippingDetails, OrderLogEntry } from '../../types';
 import { tursoService } from '../../lib/turso';
+import { emailService } from '../../lib/emailService';
 import { createMercadoPagoPreference } from '../../lib/mercadopago';
 import { useAuth } from '../../context/AuthContext';
 import { useCurrency } from '../../context/CurrencyContext';
@@ -149,6 +150,17 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     setIsProcessing(true);
 
     const orderId = `LITHO-${Math.floor(100000 + Math.random() * 900000)}`;
+    const initialLogs: OrderLogEntry[] = [
+      {
+        id: `LOG-${orderId}-1`,
+        timestamp: new Date().toISOString(),
+        type: 'system',
+        title: 'Pedido Registrado por el Cliente',
+        description: `Orden creada exitosamente con ${items.length} producto(s) 3D por un total de ${formatPriceUsdOnly(total)} mediante método de pago "${selectedPaymentMethod.toUpperCase()}".`,
+        actor: `Cliente (${shipping.fullName})`,
+      },
+    ];
+
     const order: Order = {
       id: orderId,
       items: [...items],
@@ -163,6 +175,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       paymentMethod: selectedPaymentMethod,
       status: 'confirmed',
       paymentStatus: 'pending',
+      logs: initialLogs,
       createdAt: new Date().toISOString()
     };
 
@@ -172,6 +185,22 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       }
       await tursoService.createOrGetCustomerFromOrder(shipping.fullName, shipping.email, accountPassword);
       await tursoService.saveOrder(order);
+
+      // Send order confirmation to customer and alert to admin asynchronously
+      emailService
+        .sendOrderCreatedEmails(order)
+        .then((res) => {
+          if (res.success && res.sentTo && res.sentTo.length > 0) {
+            console.log(`Correos de nuevo pedido despachados con éxito a: ${res.sentTo.join(', ')}`);
+            tursoService.addOrderLog(order.id, {
+              type: 'email_sent',
+              title: 'Correos de Confirmación Despachados',
+              description: `Notificaciones de nuevo pedido enviadas exitosamente a: ${res.sentTo.join(', ')}`,
+              actor: 'Sistema de Notificaciones',
+            }).catch(console.error);
+          }
+        })
+        .catch((err) => console.error('Error enviando notificaciones de nuevo pedido:', err));
     } catch (err) {
       console.error('Error saving order/customer to DB:', err);
     }

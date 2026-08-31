@@ -152,6 +152,16 @@ export interface ShippingDetails {
   notes?: string;
 }
 
+export interface OrderLogEntry {
+  id: string;
+  timestamp: string; // ISO date string
+  type: 'status_change' | 'payment_update' | 'email_sent' | 'note' | 'system';
+  title: string;
+  description?: string;
+  actor?: string; // e.g. 'Admin (admin@nebuladb3d.com.co)', 'Sistema (Checkout)', 'Mercado Pago Webhook'
+  metadata?: Record<string, any>;
+}
+
 export interface Order {
   id: string;
   items: CartItem[];
@@ -171,6 +181,9 @@ export interface Order {
     notes?: string;
     [key: string]: any;
   };
+  logs?: OrderLogEntry[];
   createdAt: string;
 }
+
+export * from './email';
 
