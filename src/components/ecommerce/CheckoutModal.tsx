@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { CartItem, Order, ShippingDetails, OrderLogEntry } from '../../types';
 import { tursoService } from '../../lib/turso';
 import { emailService } from '../../lib/emailService';
+import { notifyNewSale } from '../../lib/notifySale';
 import { createMercadoPagoPreference } from '../../lib/mercadopago';
 import { useAuth } from '../../context/AuthContext';
 import { useCurrency } from '../../context/CurrencyContext';
@@ -185,6 +186,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       }
       await tursoService.createOrGetCustomerFromOrder(shipping.fullName, shipping.email, accountPassword);
       await tursoService.saveOrder(order);
+
+      // Telegram: aviso instantáneo de nueva venta (no bloquea el checkout)
+      notifyNewSale(order);
 
       // Send order confirmation to customer and alert to admin asynchronously
       emailService

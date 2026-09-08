@@ -1,5 +1,34 @@
 import { createClient } from '@libsql/client/web';
 
+async function notifyTelegramPaymentApproved(orderId: string, paymentId: string, amount?: number): Promise<void> {
+  try {
+    const token =
+      (process.env as Record<string, string | undefined>).TELEGRAM_BOT_TOKEN ||
+      (process.env as Record<string, string | undefined>).VITE_TELEGRAM_BOT_TOKEN ||
+      '';
+    const chatId =
+      (process.env as Record<string, string | undefined>).TELEGRAM_CHAT_ID ||
+      (process.env as Record<string, string | undefined>).VITE_TELEGRAM_CHAT_ID ||
+      '';
+    if (!token || !chatId) return;
+
+    const money = typeof amount === 'number' ? amount.toLocaleString('es-CO') : undefined;
+    const text =
+      `✅ <b>PAGO APROBADO — Nebulab 3D</b>\n` +
+      `🧾 <b>Orden:</b> ${orderId}\n` +
+      `🆔 <b>Pago MP:</b> ${paymentId}` +
+      (money ? `\n💰 <b>Monto MP:</b> ${money}` : '');
+
+    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' }),
+    });
+  } catch (err) {
+    console.error('Telegram payment notification failed:', err);
+  }
+}
+
 export default async function handler(req: any, res: any) {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -101,6 +130,14 @@ export default async function handler(req: any, res: any) {
         });
 
         console.log(`Order ${externalReference} successfully updated to payment_status=${targetPaymentStatus}, status=${targetOrderStatus} in Turso DB!`);
+
+        if (targetPaymentStatus === 'approved') {
+          await notifyTelegramPaymentApproved(
+            externalReference,
+            String(paymentId),
+            typeof paymentData?.transaction_amount === 'number' ? paymentData.transaction_amount : undefined
+          );
+        }
       }
     }
 
