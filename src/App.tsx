@@ -21,6 +21,7 @@ import { CollarStudio } from './components/collar/CollarStudio';
 import { useAuth } from './context/AuthContext';
 import { ImageIcon, Layers, Lightbulb, Sparkles, CheckCircle2, ArrowLeft, Lock } from 'lucide-react';
 import { BRAND, getWhatsAppUrl } from './lib/brand';
+import { captureAttribution, trackPageView, pathForView, trackAddToCart, trackBeginCheckout, trackPurchase, trackViewItem } from './lib/analytics';
 
 const getViewFromPath = (path: string): 'home' | 'studio' | 'clicker' | 'collar' | 'admin' => {
   const p = path.toLowerCase();
@@ -100,6 +101,19 @@ export const App: React.FC = () => {
   // Active control tab
   const [activeTab, setActiveTab] = useState<'image' | 'shape' | 'base'>('image');
 
+  // GA4: captura atribución (UTMs/fbclid/referrer) una sola vez al entrar
+  useEffect(() => {
+    captureAttribution();
+  }, []);
+
+  // GA4: page_view manual en cada cambio de vista (SPA con pushState)
+  useEffect(() => {
+    trackPageView(pathForView(currentView));
+    if (currentView === 'studio') trackViewItem({ item_id: 'litofania', item_name: 'Litofanía personalizada' });
+    if (currentView === 'clicker') trackViewItem({ item_id: 'clicker', item_name: 'Clicker personalizado' });
+    if (currentView === 'collar') trackViewItem({ item_id: 'collar', item_name: 'Collar para mascota' });
+  }, [currentView]);
+
   // Start with the dog sample so the 3D viewer is useful immediately.
   useEffect(() => {
     const defaultImage = new Image();
@@ -160,6 +174,12 @@ export const App: React.FC = () => {
     if (typeof itemOrGiftBox === 'object' && itemOrGiftBox !== null) {
       setCart((prev) => [...prev, itemOrGiftBox]);
       setIsCartOpen(true);
+      trackAddToCart({
+        item_id: itemOrGiftBox.itemType || 'producto',
+        item_name: itemOrGiftBox.itemType || 'Producto Nebulab',
+        price: itemOrGiftBox.price,
+        quantity: itemOrGiftBox.quantity || 1,
+      });
       return;
     }
 
@@ -179,7 +199,27 @@ export const App: React.FC = () => {
 
     setCart((prev) => [...prev, newItem]);
     setIsCartOpen(true);
+    trackAddToCart({
+      item_id: 'litofania',
+      item_name: 'Litofanía personalizada',
+      price: priceCalc.totalPrice,
+      quantity: 1,
+    });
   };
+
+  // GA4: inicio de checkout cuando se abre el modal con productos
+  const checkoutTrackedRef = useRef(false);
+  useEffect(() => {
+    if (isCheckoutOpen && cart.length > 0 && !checkoutTrackedRef.current) {
+      const value = cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
+      const numItems = cart.reduce((acc, item) => acc + item.quantity, 0);
+      trackBeginCheckout({ value, num_items: numItems });
+      checkoutTrackedRef.current = true;
+    }
+    if (!isCheckoutOpen) {
+      checkoutTrackedRef.current = false;
+    }
+  }, [isCheckoutOpen, cart]);
 
   const handleBuyNow = (itemOrGiftBox?: CartItem | boolean) => {
     handleAddToCart(itemOrGiftBox);
@@ -207,6 +247,17 @@ export const App: React.FC = () => {
   };
 
   const handleOrderCompleted = (_order: Order) => {
+    try {
+      const value = cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
+      const numItems = cart.reduce((acc, item) => acc + item.quantity, 0);
+      trackPurchase({
+        transaction_id: _order?.id || `ORDER-${Date.now()}`,
+        value,
+        num_items: numItems,
+      });
+    } catch {
+      /* no bloquear el flujo de compra si falla analytics */
+    }
     setCart([]); // Clear cart after order
   };
 
