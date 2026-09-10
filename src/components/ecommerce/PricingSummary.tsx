@@ -161,6 +161,7 @@ export const PricingSummary: React.FC<PricingSummaryProps> = ({
       {/* Action Buttons */}
       <div className="space-y-2.5 pt-2">
         <button
+          data-tour="litho-add"
           onClick={handleAdd}
           className={`w-full py-3.5 px-4 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all duration-300 shadow-xl ${addedAnimation
             ? 'bg-emerald-500 text-white scale-[0.99]'
@@ -181,6 +182,7 @@ export const PricingSummary: React.FC<PricingSummaryProps> = ({
         </button>
 
         <button
+          data-tour="litho-buy"
           onClick={() => onBuyNow(giftBox)}
           className="w-full py-3 px-4 rounded-xl font-bold text-sm bg-violet-600 hover:bg-violet-500 text-white border border-violet-500/40 flex items-center justify-center gap-2 shadow-lg shadow-violet-600/20 transition-all hover:scale-[1.01] active:scale-95"
         >

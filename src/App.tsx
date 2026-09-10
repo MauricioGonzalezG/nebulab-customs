@@ -8,6 +8,7 @@ import { LithophaneViewer } from './components/3d/LithophaneViewer';
 import { ImageSection, LITHOPHANE_SAMPLE_IMAGES } from './components/editor/ImageSection';
 import { ShapeSection } from './components/editor/ShapeSection';
 import { BaseSection } from './components/editor/BaseSection';
+import { LithophaneTour } from './components/editor/LithophaneTour';
 import { PricingSummary, calculatePrice } from './components/ecommerce/PricingSummary';
 import { CartDrawer } from './components/ecommerce/CartDrawer';
 import { CheckoutModal } from './components/ecommerce/CheckoutModal';
@@ -19,7 +20,8 @@ import { MyOrdersModal } from './components/customer/MyOrdersModal';
 import { ClickerStudio } from './components/clicker/ClickerStudio';
 import { CollarStudio } from './components/collar/CollarStudio';
 import { useAuth } from './context/AuthContext';
-import { ImageIcon, Layers, Lightbulb, Sparkles, CheckCircle2, ArrowLeft, Lock } from 'lucide-react';
+import { useCurrency } from './context/CurrencyContext';
+import { ImageIcon, Layers, Lightbulb, Sparkles, CheckCircle2, ArrowLeft, Lock, Upload, ShoppingCart } from 'lucide-react';
 import { BRAND, getWhatsAppUrl } from './lib/brand';
 import { captureAttribution, trackPageView, pathForView, trackAddToCart, trackBeginCheckout, trackPurchase, trackViewItem } from './lib/analytics';
 
@@ -34,6 +36,7 @@ const getViewFromPath = (path: string): 'home' | 'studio' | 'clicker' | 'collar'
 
 export const App: React.FC = () => {
   const { isAuthenticated, customerUser } = useAuth();
+  const { formatPrice } = useCurrency();
 
   // Navigation view state initialized from current URL path
   const [currentView, setCurrentView] = useState<'home' | 'studio' | 'clicker' | 'collar' | 'admin'>(() =>
@@ -100,6 +103,32 @@ export const App: React.FC = () => {
 
   // Active control tab
   const [activeTab, setActiveTab] = useState<'image' | 'shape' | 'base'>('image');
+
+  // Guided tour & simplified client flow
+  const [isTourOpen, setIsTourOpen] = useState(false);
+  const [userPickedImage, setUserPickedImage] = useState(false);
+  const [isEditorOpen, setIsEditorOpen] = useState(false);
+
+  const handleTourClose = () => {
+    setIsTourOpen(false);
+  };
+
+  // Oculta el botón flotante móvil cuando la tarjeta de subida ya está en pantalla
+  const [isUploadZoneVisible, setIsUploadZoneVisible] = useState(false);
+  useEffect(() => {
+    if (isAuthenticated || currentView !== 'studio') {
+      setIsUploadZoneVisible(false);
+      return;
+    }
+    const target = document.querySelector('[data-tour="litho-upload"]');
+    if (!target || typeof IntersectionObserver === 'undefined') return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setIsUploadZoneVisible(entry.isIntersecting && entry.intersectionRatio >= 0.35),
+      { threshold: [0, 0.35, 0.75] }
+    );
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [isAuthenticated, currentView, isEditorOpen]);
 
   // GA4: captura atribución (UTMs/fbclid/referrer) una sola vez al entrar
   useEffect(() => {
@@ -223,6 +252,7 @@ export const App: React.FC = () => {
 
   const handleBuyNow = (itemOrGiftBox?: CartItem | boolean) => {
     handleAddToCart(itemOrGiftBox);
+    if (isTourOpen) handleTourClose();
     setIsCartOpen(false);
     setIsCheckoutOpen(true);
   };
@@ -263,6 +293,10 @@ export const App: React.FC = () => {
 
   const cartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
   const cartTotal = cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
+
+  // Precio visible en la barra inferior móvil (sin caja de regalo)
+  const lithoBarPrice = calculatePrice(config, false);
+  const lithoBarPriceLabel = formatPrice(lithoBarPrice.totalPriceCop, lithoBarPrice.totalPrice);
 
   // Synchronize state with browser back/forward buttons
   useEffect(() => {
@@ -386,7 +420,7 @@ export const App: React.FC = () => {
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             {/* Left Column: 3D Viewport & Interactive Preview */}
-            <div ref={viewerRef} className="lg:col-span-7 space-y-6 lg:sticky lg:top-24">
+            <div ref={viewerRef} data-tour="litho-preview" className="lg:col-span-7 space-y-6 lg:sticky lg:top-24">
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-xl font-bold font-outfit text-white flex items-center gap-2">
@@ -419,12 +453,12 @@ export const App: React.FC = () => {
                   <p className="text-[10px] text-slate-400 mt-0.5">Dispersión de luz milimétrica</p>
                 </div>
                 <div className="bg-slate-900/60 border border-slate-800/80 p-3 rounded-xl text-center">
-                  <Layers className="w-4 h-4 text-violet-400 mx-auto mb-1" />
+                  <Layers className="w-4 h-4 text-cyan-400 mx-auto mb-1" />
                   <div className="text-xs font-bold text-slate-200">Material Eco PLA</div>
                   <p className="text-[10px] text-slate-400 mt-0.5">Termoplástico no tóxico</p>
                 </div>
                 <div className="bg-slate-900/60 border border-slate-800/80 p-3 rounded-xl text-center">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400 mx-auto mb-1" />
+                  <CheckCircle2 className="w-4 h-4 text-cyan-400 mx-auto mb-1" />
                   <div className="text-xs font-bold text-slate-200">Listo para Fabricar</div>
                   <p className="text-[10px] text-slate-400 mt-0.5">Exportación directa a STL</p>
                 </div>
@@ -434,66 +468,117 @@ export const App: React.FC = () => {
             {/* Right Column: Customizer Controls & E-Commerce Box */}
             <div className="lg:col-span-5 space-y-6">
 
-              {/* Tab Navigation */}
-              <div className="flex bg-slate-900/90 p-1.5 rounded-2xl border border-slate-800">
-                <button
-                  onClick={() => setActiveTab('image')}
-                  className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${activeTab === 'image'
-                    ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md'
-                    : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                >
-                  <ImageIcon className="w-3.5 h-3.5" />
-                  <span>1. Imagen</span>
-                </button>
+              {isAuthenticated ? (
+                <>
+                  {/* Tab Navigation (solo administradores) */}
+                  <div className="flex bg-slate-900/90 p-1.5 rounded-2xl border border-slate-800">
+                    <button
+                      onClick={() => setActiveTab('image')}
+                      className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${activeTab === 'image'
+                        ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md'
+                        : 'text-slate-400 hover:text-slate-200'
+                        }`}
+                    >
+                      <ImageIcon className="w-3.5 h-3.5" />
+                      <span>1. Imagen</span>
+                    </button>
 
-                <button
-                  onClick={() => setActiveTab('shape')}
-                  className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${activeTab === 'shape'
-                    ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md'
-                    : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                >
-                  <Layers className="w-3.5 h-3.5" />
-                  <span>2. Forma</span>
-                </button>
+                    <button
+                      onClick={() => setActiveTab('shape')}
+                      className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${activeTab === 'shape'
+                        ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md'
+                        : 'text-slate-400 hover:text-slate-200'
+                        }`}
+                    >
+                      <Layers className="w-3.5 h-3.5" />
+                      <span>2. Forma</span>
+                    </button>
 
-                <button
-                  onClick={() => setActiveTab('base')}
-                  className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${activeTab === 'base'
-                    ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md'
-                    : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                >
-                  <Lightbulb className="w-3.5 h-3.5" />
-                  <span>3. Base & Luz</span>
-                </button>
-              </div>
+                    <button
+                      onClick={() => setActiveTab('base')}
+                      className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${activeTab === 'base'
+                        ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md'
+                        : 'text-slate-400 hover:text-slate-200'
+                        }`}
+                    >
+                      <Lightbulb className="w-3.5 h-3.5" />
+                      <span>3. Base & Luz</span>
+                    </button>
+                  </div>
 
-              {/* Tab Contents */}
-              {activeTab === 'image' && (
-                <ImageSection
-                  config={config}
-                  onChange={updateConfig}
-                  onImageLoaded={(img) => {
-                    setCurrentImageElement(img);
-                    scrollToViewerOnMobile();
-                  }}
-                />
-              )}
+                  {/* Tab Contents */}
+                  {activeTab === 'image' && (
+                    <ImageSection
+                      config={config}
+                      onChange={updateConfig}
+                      onImageLoaded={(img) => {
+                        setCurrentImageElement(img);
+                        scrollToViewerOnMobile();
+                      }}
+                    />
+                  )}
 
-              {activeTab === 'shape' && (
-                <ShapeSection
-                  config={config}
-                  onChange={updateConfig}
-                />
-              )}
+                  {activeTab === 'shape' && (
+                    <ShapeSection
+                      config={config}
+                      onChange={updateConfig}
+                    />
+                  )}
 
-              {activeTab === 'base' && (
-                <BaseSection
-                  config={config}
-                  onChange={updateConfig}
-                />
+                  {activeTab === 'base' && (
+                    <BaseSection
+                      config={config}
+                      onChange={updateConfig}
+                    />
+                  )}
+                </>
+              ) : (
+                <div className="space-y-4">
+                  {/* Encabezado del flujo simple para clientes */}
+                  <div className="relative overflow-hidden rounded-2xl border border-cyan-800/50 bg-gradient-to-r from-cyan-950/60 via-slate-900 to-blue-950/40 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <h2 className="text-sm font-bold font-outfit text-white flex items-center gap-2">
+                          <Sparkles className="w-4 h-4 text-cyan-400" />
+                          <span>Crea tu litofanía en 3 sencillos pasos</span>
+                        </h2>
+                        <p className="mt-1 text-[11px] leading-relaxed text-slate-400">
+                          Sube tu foto, revisa la vista previa 3D y añádela al carrito. Nosotros la imprimimos y te la enviamos.
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setIsTourOpen(true)}
+                        className="shrink-0 rounded-xl border border-cyan-500/40 bg-cyan-500/10 px-3 py-2 text-[11px] font-bold text-cyan-300 transition-colors hover:bg-cyan-500/20"
+                      >
+                        Ver tutorial
+                      </button>
+                    </div>
+                    <div className="mt-3 grid grid-cols-3 gap-2">
+                      {[
+                        { n: '1', label: 'Sube tu foto' },
+                        { n: '2', label: 'Previsualiza en 3D' },
+                        { n: '3', label: 'Añade y paga' },
+                      ].map((s) => (
+                        <div key={s.n} className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-950/60 px-2.5 py-2">
+                          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-cyan-500/20 text-[10px] font-bold text-cyan-300">{s.n}</span>
+                          <span className="text-[10px] font-semibold text-slate-300">{s.label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <ImageSection
+                    config={config}
+                    onChange={updateConfig}
+                    simple
+                    onEditorOpenChange={setIsEditorOpen}
+                    onImageLoaded={(img) => {
+                      setCurrentImageElement(img);
+                      setUserPickedImage(true);
+                      scrollToViewerOnMobile();
+                    }}
+                  />
+                </div>
               )}
 
               {/* Pricing Summary & E-commerce Checkout CTAs */}
@@ -505,6 +590,42 @@ export const App: React.FC = () => {
               />
             </div>
           </div>
+
+          {/* Mobile: barra inferior grande para subir la foto / comprar */}
+          {!isAuthenticated && !isUploadZoneVisible && (
+            <>
+              <div className="h-32 lg:hidden" />
+              <button
+                type="button"
+                onClick={() =>
+                  userPickedImage ? handleBuyNow(false) : window.dispatchEvent(new Event('nebulab:open-litho-upload'))
+                }
+                className={`fixed bottom-0 left-0 right-0 z-40 flex items-center gap-2.5 rounded-t-3xl border-t px-6 pt-4 pb-[max(1.1rem,env(safe-area-inset-bottom))] text-white lg:hidden ${
+                  userPickedImage
+                    ? 'justify-between border-violet-400/40 bg-violet-600 shadow-[0_-10px_36px_rgba(139,92,246,0.45)]'
+                    : 'justify-center border-cyan-400/40 bg-gradient-to-r from-cyan-500 to-blue-600 shadow-[0_-10px_36px_rgba(34,211,238,0.45)]'
+                }`}
+              >
+                {userPickedImage ? (
+                  <>
+                    <span className="flex flex-col items-start leading-tight">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-violet-200/90">Total</span>
+                      <span className="text-base font-extrabold">{lithoBarPriceLabel}</span>
+                    </span>
+                    <span className="flex items-center gap-2 text-base font-extrabold">
+                      <ShoppingCart className="h-5 w-5" />
+                      <span>Comprar</span>
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-5 w-5" />
+                    <span className="text-base font-extrabold">Subir mi foto</span>
+                  </>
+                )}
+              </button>
+            </>
+          )}
 
         </main>
       )}
@@ -540,6 +661,20 @@ export const App: React.FC = () => {
         isOpen={isHelpOpen}
         onClose={() => setIsHelpOpen(false)}
       />
+
+      {/* Guided Tour for Lithophane Studio (clientes) */}
+      {currentView === 'studio' && !isAuthenticated && (
+        <LithophaneTour
+          isOpen={isTourOpen}
+          userPickedImage={userPickedImage}
+          editorOpen={isEditorOpen}
+          cartCount={cartCount}
+          onClose={handleTourClose}
+          onStepChange={(id) => {
+            if (id === 'buy') setIsCartOpen(false);
+          }}
+        />
+      )}
 
       {/* Admin Login Modal */}
       <LoginModal

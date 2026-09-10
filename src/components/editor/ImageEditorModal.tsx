@@ -25,7 +25,6 @@ interface ImageEditorModalProps {
   onApply: (processedDataUrl: string, imgElement: HTMLImageElement) => void;
 }
 
-type AspectRatio = 'free' | '1:1' | '4:3' | '3:4' | '16:9' | 'original';
 type ActiveTab = 'crop' | 'bg' | 'adjust';
 type BgMode = 'transparent' | 'white' | 'original';
 
@@ -38,8 +37,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
   const [activeTab, setActiveTab] = useState<ActiveTab>('crop');
   const [rawImage, setRawImage] = useState<HTMLImageElement | null>(null);
 
-  // Transform & Crop state
-  const [aspectRatio, setAspectRatio] = useState<AspectRatio>('original');
+  // Transform state (recorte siempre en modo libre)
   const [zoom, setZoom] = useState<number>(1);
   const [panX, setPanX] = useState<number>(0);
   const [panY, setPanY] = useState<number>(0);
@@ -114,40 +112,10 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
       setGrayscale(true);
       setSharpen(20);
       setInvert(false);
-      setAspectRatio('original');
       setActiveTab('crop');
     };
     img.src = imageSrc;
   }, [imageSrc, isOpen]);
-
-  // Adjust crop box when aspect ratio changes
-  const applyAspectRatio = useCallback((ratio: AspectRatio) => {
-    setAspectRatio(ratio);
-    if (!rawImage) return;
-
-    if (ratio === 'free') {
-      setCropBox({ x: 0.05, y: 0.05, w: 0.9, h: 0.9 });
-      return;
-    }
-
-    let targetRatio = 1;
-    if (ratio === '1:1') targetRatio = 1;
-    else if (ratio === '4:3') targetRatio = 4 / 3;
-    else if (ratio === '3:4') targetRatio = 3 / 4;
-    else if (ratio === '16:9') targetRatio = 16 / 9;
-    else if (ratio === 'original') targetRatio = rawImage.naturalWidth / rawImage.naturalHeight;
-
-    // Adapt to box within [0.05, 0.05, 0.9, 0.9]
-    let w = 0.85;
-    let h = w / targetRatio;
-    if (h > 0.85) {
-      h = 0.85;
-      w = h * targetRatio;
-    }
-    const x = Math.max(0.02, (1 - w) / 2);
-    const y = Math.max(0.02, (1 - h) / 2);
-    setCropBox({ x, y, w, h });
-  }, [rawImage]);
 
   // Render clean image (for export) and preview image (with crop handles/grid)
   const renderPreview = useCallback(() => {
@@ -530,19 +498,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
         cx = nextX;
       }
 
-      // Maintain aspect ratio if not free
-      if (aspectRatio !== 'free') {
-        let targetRatio = 1;
-        if (aspectRatio === '1:1') targetRatio = 1;
-        else if (aspectRatio === '4:3') targetRatio = 4 / 3;
-        else if (aspectRatio === '3:4') targetRatio = 3 / 4;
-        else if (aspectRatio === '16:9') targetRatio = 16 / 9;
-        else if (aspectRatio === 'original' && rawImage) {
-          targetRatio = rawImage.naturalWidth / rawImage.naturalHeight;
-        }
-        ch = cw / targetRatio;
-      }
-
+      // Modo libre: los tiradores se mueven sin mantener proporción
       setCropBox({ x: cx, y: cy, w: cw, h: ch });
     }
   };
@@ -748,38 +704,9 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
               </button>
             </div>
 
-            {/* TAB 1: CROP & ASPECT RATIO */}
+            {/* TAB 1: CROP (modo libre) */}
             {activeTab === 'crop' && (
               <div className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-300 uppercase tracking-wider block">
-                    Proporción de Recorte:
-                  </label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {[
-                      { id: 'original', label: 'Original ⭐' },
-                      { id: 'free', label: 'Libre' },
-                      { id: '1:1', label: '1:1 Cuadrado' },
-                      { id: '4:3', label: '4:3 Horizontal' },
-                      { id: '3:4', label: '3:4 Vertical' },
-                      { id: '16:9', label: '16:9 Cine' }
-                    ].map((asp) => (
-                      <button
-                        key={asp.id}
-                        type="button"
-                        onClick={() => applyAspectRatio(asp.id as AspectRatio)}
-                        className={`py-2 px-2.5 rounded-xl text-xs font-bold border transition-all ${
-                          aspectRatio === asp.id
-                            ? 'bg-cyan-500/20 border-cyan-500 text-white shadow-sm'
-                            : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
-                        }`}
-                      >
-                        {asp.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
                 {/* Zoom & Pan Sliders */}
                 <div className="bg-slate-950/80 rounded-2xl p-4 border border-slate-800 space-y-4">
                   <NumberSliderControl
@@ -979,7 +906,6 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                   } else {
                     setCropBox({ x: 0.05, y: 0.05, w: 0.9, h: 0.9 });
                   }
-                  setAspectRatio('original');
                   setRemoveBg(false);
                   setBgTolerance(45);
                   setBgMode('transparent');
@@ -996,7 +922,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
               <button
                 type="button"
                 onClick={handleApply}
-                className="flex-1 py-3 px-5 rounded-2xl bg-gradient-to-r from-cyan-500 to-violet-600 hover:from-cyan-400 hover:to-violet-500 text-white font-bold text-xs sm:text-sm shadow-lg shadow-cyan-500/25 transition-all flex items-center justify-center gap-2 active:scale-95"
+                className="flex-1 py-3 px-5 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold text-xs sm:text-sm shadow-lg shadow-cyan-500/25 transition-all flex items-center justify-center gap-2 active:scale-95"
               >
                 <Check className="w-4 h-4" />
                 <span>Aplicar a la Litofanía</span>

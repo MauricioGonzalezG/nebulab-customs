@@ -1,8 +1,9 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { LithophaneConfig } from '../../types';
 import { Upload, Image as ImageIcon, Sliders, RefreshCw, Sun, Contrast, ArrowLeftRight, Sparkles, X } from 'lucide-react';
 import { NumberSliderControl } from './NumberSliderControl';
 import { ImageEditorModal } from './ImageEditorModal';
+import { STUDIO } from '../../lib/studioTheme';
 
 import { calculateLithophaneDimensions } from '../../core/imageProcessor';
 
@@ -10,6 +11,9 @@ interface ImageSectionProps {
   config: LithophaneConfig;
   onChange: (updates: Partial<LithophaneConfig>) => void;
   onImageLoaded: (imgElement: HTMLImageElement) => void;
+  /** Modo cliente final: solo subir foto y muestras, sin ajustes técnicos. */
+  simple?: boolean;
+  onEditorOpenChange?: (isOpen: boolean) => void;
 }
 
 export const LITHOPHANE_SAMPLE_IMAGES = [
@@ -33,7 +37,9 @@ export const LITHOPHANE_SAMPLE_IMAGES = [
 export const ImageSection: React.FC<ImageSectionProps> = ({
   config,
   onChange,
-  onImageLoaded
+  onImageLoaded,
+  simple = false,
+  onEditorOpenChange
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isEditorModalOpen, setIsEditorModalOpen] = useState(false);
@@ -47,6 +53,15 @@ export const ImageSection: React.FC<ImageSectionProps> = ({
     }
   });
 
+  const [isDragActive, setIsDragActive] = useState(false);
+
+  // Permite que el tour guiado abra el selector de archivos desde el exterior
+  useEffect(() => {
+    const handler = () => fileInputRef.current?.click();
+    window.addEventListener('nebulab:open-litho-upload', handler);
+    return () => window.removeEventListener('nebulab:open-litho-upload', handler);
+  }, []);
+
   const dismissUploadHint = () => {
     setShowUploadHint(false);
     try {
@@ -56,21 +71,41 @@ export const ImageSection: React.FC<ImageSectionProps> = ({
     }
   };
 
+  const processFile = (file: File) => {
+    if (!file.type.startsWith('image/')) return;
+    dismissUploadHint();
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const url = event.target?.result as string;
+      // Open interactive preparation editor with the uploaded photo
+      setEditorSourceUrl(url);
+      setIsEditorModalOpen(true);
+      onEditorOpenChange?.(true);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      dismissUploadHint();
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const url = event.target?.result as string;
-        // Open interactive preparation editor with the uploaded photo
-        setEditorSourceUrl(url);
-        setIsEditorModalOpen(true);
-      };
-      reader.readAsDataURL(file);
+      processFile(file);
       // Reset input value so same file can be re-selected if desired
       e.target.value = '';
     }
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragActive(true);
+  };
+
+  const handleDragLeave = () => setIsDragActive(false);
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragActive(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) processFile(file);
   };
 
   const handleLoadSample = (sampleId: string, sampleUrl: string) => {
@@ -108,9 +143,65 @@ export const ImageSection: React.FC<ImageSectionProps> = ({
           <span>Fotografía para la Litofanía</span>
         </label>
 
+        {simple ? (
+          /* ── Tarjeta destacada de subida para clientes ── */
+          <div className="relative rounded-3xl bg-gradient-to-r from-cyan-400 via-sky-500 to-blue-500 p-[2px] shadow-[0_0_40px_rgba(34,211,238,0.3)]">
+            <div
+              data-tour="litho-upload"
+              onClick={() => fileInputRef.current?.click()}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              className={`relative cursor-pointer rounded-[22px] p-6 sm:p-8 text-center transition-all duration-200 group ${
+                isDragActive ? 'bg-cyan-950/70 ring-2 ring-cyan-300' : 'bg-slate-900 hover:bg-slate-800/80'
+              }`}
+            >
+              <span className="absolute left-4 top-4 rounded-full bg-gradient-to-r from-cyan-400 to-blue-600 px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider text-white shadow-lg shadow-cyan-500/25">
+                Paso 1
+              </span>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/png, image/jpeg, image/webp"
+                onChange={handleFileChange}
+                className="hidden"
+              />
+              <div className="mt-4 flex flex-col items-center gap-3.5">
+                <div
+                  className={`flex h-16 w-16 sm:h-20 sm:w-20 items-center justify-center rounded-full ${STUDIO.iconTile} transition-transform duration-200 ${
+                    isDragActive ? 'scale-110' : 'group-hover:scale-110'
+                  }`}
+                >
+                  <Upload className="h-8 w-8 sm:h-10 sm:w-10" />
+                </div>
+                <div>
+                  <p className="text-lg sm:text-2xl font-extrabold font-outfit text-white">
+                    {config.sampleId ? 'Sube tu foto aquí' : 'Foto cargada con éxito'}
+                  </p>
+                  <p className="mt-1 text-xs sm:text-sm text-slate-400">
+                    {isDragActive
+                      ? '¡Suéltala para cargarla!'
+                      : 'Toca aquí para elegirla desde tu dispositivo o arrástrala. JPG, PNG o WEBP.'}
+                  </p>
+                </div>
+                <span className="pointer-events-none mt-1 inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-400 to-blue-600 px-7 py-3.5 text-sm font-extrabold text-white shadow-xl shadow-cyan-500/25 transition-all group-hover:from-cyan-300 group-hover:to-blue-500 group-hover:scale-[1.03]">
+                  <ImageIcon className="h-4 w-4" />
+                  <span>{config.sampleId ? 'Subir mi foto' : 'Cambiar mi foto'}</span>
+                </span>
+                <span className="text-[10px] text-slate-500">Incluye recorte y ajuste automático de la imagen</span>
+              </div>
+            </div>
+          </div>
+        ) : (
         <div
+          data-tour="litho-upload"
           onClick={() => fileInputRef.current?.click()}
-          className="relative border-2 border-dashed border-slate-700 hover:border-cyan-500/80 bg-slate-900/60 hover:bg-slate-900 rounded-2xl p-6 text-center cursor-pointer transition-all duration-200 group shadow-inner"
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          className={`relative border-2 border-dashed bg-slate-900/60 hover:bg-slate-900 rounded-2xl p-6 text-center cursor-pointer transition-all duration-200 group shadow-inner ${
+            isDragActive ? 'border-cyan-400 bg-cyan-950/40' : 'border-slate-700 hover:border-cyan-500/80'
+          }`}
         >
           {showUploadHint && (
             <div
@@ -158,6 +249,7 @@ export const ImageSection: React.FC<ImageSectionProps> = ({
             </div>
           </div>
         </div>
+        )}
       </div>
 
       {/* Preset Samples */}
@@ -171,7 +263,7 @@ export const ImageSection: React.FC<ImageSectionProps> = ({
               key={sample.id}
               onClick={() => handleLoadSample(sample.id, sample.url)}
               className={`group relative h-16 rounded-xl overflow-hidden border transition-all text-left ${config.sampleId === sample.id
-                ? 'border-violet-400 ring-1 ring-violet-400/50'
+                ? 'border-cyan-400 ring-1 ring-cyan-400/50'
                 : 'border-slate-800 hover:border-cyan-500'
                 }`}
             >
@@ -190,7 +282,8 @@ export const ImageSection: React.FC<ImageSectionProps> = ({
         </div>
       </div>
 
-      {/* Image Adjustments */}
+      {/* Image Adjustments (solo para administradores) */}
+      {!simple && (
       <div className="bg-slate-900/90 rounded-2xl p-5 border border-slate-800/80 space-y-5">
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
@@ -255,12 +348,16 @@ export const ImageSection: React.FC<ImageSectionProps> = ({
           </button>
         </div>
       </div>
+      )}
 
       {/* Image Preparation Modal */}
       <ImageEditorModal
         isOpen={isEditorModalOpen}
         imageSrc={editorSourceUrl}
-        onClose={() => setIsEditorModalOpen(false)}
+        onClose={() => {
+          setIsEditorModalOpen(false);
+          onEditorOpenChange?.(false);
+        }}
         onApply={handleEditorApply}
       />
     </div>
