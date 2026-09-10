@@ -22,6 +22,11 @@ export function calculatePrice(config: LithophaneConfig, giftBox: boolean = fals
   baseExtraCop: number;
   giftExtraCop: number;
   totalPriceCop: number;
+  shippingUsd: number;
+  shippingCop: number;
+  grandTotal: number;
+  grandTotalCop: number;
+  isFreeShipping: boolean;
 } {
   const data = getPricingDataSync();
   const litho = data.lithophane;
@@ -48,6 +53,11 @@ export function calculatePrice(config: LithophaneConfig, giftBox: boolean = fals
   const totalPriceCop = basePriceCop + sizeExtraCop + baseExtraCop + giftExtraCop;
   const totalPrice = basePriceUsd + sizeExtraUsd + baseExtraUsd + giftExtraUsd;
 
+  // Envío estimado con la misma regla del checkout: gratis desde el umbral
+  const isFreeShipping = totalPrice >= data.shipping.freeThresholdUsd;
+  const shippingUsd = isFreeShipping ? 0 : data.shipping.standardFeeUsd;
+  const shippingCop = totalPriceCop >= data.shipping.freeThresholdCop ? 0 : data.shipping.standardFeeCop;
+
   return {
     basePrice: basePriceUsd,
     sizeExtra: sizeExtraUsd,
@@ -59,6 +69,11 @@ export function calculatePrice(config: LithophaneConfig, giftBox: boolean = fals
     baseExtraCop,
     giftExtraCop,
     totalPriceCop,
+    shippingUsd,
+    shippingCop,
+    grandTotal: totalPrice + shippingUsd,
+    grandTotalCop: totalPriceCop + shippingCop,
+    isFreeShipping,
   };
 }
 
@@ -133,6 +148,25 @@ export const PricingSummary: React.FC<PricingSummaryProps> = ({
             <span className="text-cyan-400">+{formatPrice(priceDetails.giftExtraCop, priceDetails.giftExtra)}</span>
           </div>
         )}
+
+        <div className="flex justify-between">
+          <span className="text-slate-400 flex items-center gap-1.5">
+            <Truck className="w-3.5 h-3.5 text-slate-500" />
+            <span>Envío estimado (24-48h)</span>
+          </span>
+          {priceDetails.isFreeShipping ? (
+            <span className="text-emerald-400 font-bold">Gratis</span>
+          ) : (
+            <span className="text-cyan-400">+{formatPrice(priceDetails.shippingCop, priceDetails.shippingUsd)}</span>
+          )}
+        </div>
+
+        <div className="flex justify-between items-baseline pt-2 mt-1 border-t border-slate-800">
+          <span className="text-xs font-bold text-slate-200">Total estimado con envío</span>
+          <span className="text-base font-extrabold text-white font-outfit">
+            {formatPrice(priceDetails.grandTotalCop, priceDetails.grandTotal)}
+          </span>
+        </div>
       </div>
 
       {/* Gift Box Checkbox Option */}

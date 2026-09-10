@@ -294,9 +294,9 @@ export const App: React.FC = () => {
   const cartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
   const cartTotal = cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
 
-  // Precio visible en la barra inferior móvil (sin caja de regalo)
+  // Precio visible en la barra inferior móvil (total con envío estimado, sin caja de regalo)
   const lithoBarPrice = calculatePrice(config, false);
-  const lithoBarPriceLabel = formatPrice(lithoBarPrice.totalPriceCop, lithoBarPrice.totalPrice);
+  const lithoBarPriceLabel = formatPrice(lithoBarPrice.grandTotalCop, lithoBarPrice.grandTotal);
 
   // Synchronize state with browser back/forward buttons
   useEffect(() => {
