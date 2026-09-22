@@ -78,8 +78,10 @@ export function PlateViewer({ model, config }: { model: PlateModel; config: Plat
     group.scale.setScalar(60 / config.width);
   }, [model, config]);
 
-  return <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-white/[0.025]">
-    <div ref={mount} role="img" aria-label={`Vista 3D de la placa ${config.text} ${config.subtitle}`} className="h-[330px] sm:h-[470px] w-full touch-none" />
+  // El montaje es absoluto: el canvas nunca dicta el ancho del layout (evita
+  // desbordes en móvil cuando el visor cambia de tamaño).
+  return <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-white/[0.025] h-[330px] sm:h-[470px]">
+    <div ref={mount} role="img" aria-label={`Vista 3D de la placa ${config.text} ${config.subtitle}`} className="absolute inset-0 touch-none" />
     {error && <p role="alert" className="absolute inset-0 flex items-center justify-center p-8 text-center">No se pudo iniciar la vista 3D. Activa WebGL en tu navegador. Puedes seguir descargando la placa.</p>}
     <button onClick={() => reset.current()} className="absolute top-4 right-4 rounded-xl border border-white/10 bg-slate-950/80 p-3 text-slate-300" aria-label="Restablecer vista"><RotateCcw size={16} /></button>
     <p className="absolute bottom-5 inset-x-4 text-center text-xs text-slate-400 pointer-events-none">Arrastra para girar · Acerca con la rueda o con dos dedos</p>

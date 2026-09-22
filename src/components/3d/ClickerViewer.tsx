@@ -210,6 +210,10 @@ export const ClickerViewer: React.FC<ClickerViewerProps> = ({
     rendererRef.current = renderer;
 
     container.innerHTML = '';
+    // Absoluto: el canvas no debe aportar ancho propio al layout (móvil).
+    renderer.domElement.style.position = 'absolute';
+    renderer.domElement.style.top = '0';
+    renderer.domElement.style.left = '0';
     container.appendChild(renderer.domElement);
 
     const controls = new OrbitControls(camera, renderer.domElement);
@@ -642,7 +646,7 @@ export const ClickerViewer: React.FC<ClickerViewerProps> = ({
     <div
       ref={mountRef}
       onPointerDown={handlePointerDown}
-      className="w-full h-full cursor-grab active:cursor-grabbing select-none"
+      className="relative w-full h-full cursor-grab active:cursor-grabbing select-none"
       title="Arrastra para rotar la cámara 3D • Haz clic sobre el keycap para probar la pulsación mecánica"
     />
   );

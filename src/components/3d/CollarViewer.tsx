@@ -178,6 +178,10 @@ export const CollarViewer: React.FC<CollarViewerProps> = ({ config, processedDat
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
     container.innerHTML = '';
+    // Absoluto: el canvas no debe aportar ancho propio al layout (móvil).
+    renderer.domElement.style.position = 'absolute';
+    renderer.domElement.style.top = '0';
+    renderer.domElement.style.left = '0';
     container.appendChild(renderer.domElement);
 
     const controls = new OrbitControls(camera, renderer.domElement);
@@ -402,5 +406,5 @@ export const CollarViewer: React.FC<CollarViewerProps> = ({ config, processedDat
     };
   }, [config, processedData]);
 
-  return <div ref={mountRef} className="w-full h-full min-h-[420px]" />;
+  return <div ref={mountRef} className="relative w-full h-full min-h-[420px]" />;
 };

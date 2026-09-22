@@ -131,7 +131,7 @@ export function PlateStudio({ onBackToHome, onAddToCart, onBuyNow }: PlateStudio
             </nav>
             <h1 className="font-outfit text-base sm:text-lg font-extrabold text-white flex items-center gap-2">
               <span>Placas llavero 3D</span>
-              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border border-yellow-300/30 bg-yellow-300/10 text-yellow-300">Nebulab Studio</span>
+              <span className="hidden sm:inline text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border border-yellow-300/30 bg-yellow-300/10 text-yellow-300">Nebulab Studio</span>
             </h1>
           </div>
         </div>
@@ -157,7 +157,7 @@ export function PlateStudio({ onBackToHome, onAddToCart, onBuyNow }: PlateStudio
         <KeyRound className="hidden sm:block text-yellow-300 mt-6" size={34} />
       </div>
       <div className="grid lg:grid-cols-12 gap-7 items-start">
-        <section className="lg:col-span-7 lg:sticky lg:top-24 space-y-4" aria-label="Vista previa de la placa">
+        <section className="min-w-0 lg:col-span-7 lg:sticky lg:top-24 space-y-4" aria-label="Vista previa de la placa">
           <div className="flex justify-between gap-3 items-center"><h3 className="font-bold text-lg">Tu placa en 3D</h3><span className="text-xs text-slate-400">{config.width} × {config.height}{isAuthenticated ? ` × ${(config.thickness + config.relief).toFixed(1)}` : ''} mm</span></div>
           {model ? <PlateViewer model={model} config={config} /> : <div className="h-[330px] sm:h-[470px] rounded-3xl border border-white/10 flex items-center justify-center gap-3 text-slate-400"><Loader2 className="animate-spin" size={20} /> Preparando tu placa…</div>}
           {isAuthenticated && <>
@@ -168,7 +168,7 @@ export function PlateStudio({ onBackToHome, onAddToCart, onBuyNow }: PlateStudio
           </>}
           {error && <div role="alert" className="text-sm text-rose-300">{error} {!api && <button className="underline ml-2" onClick={() => setRetry(value => value + 1)}>Reintentar</button>}</div>}
         </section>
-        <section className="lg:col-span-5 space-y-4" aria-label="Personalizar placa">
+        <section className="min-w-0 lg:col-span-5 space-y-4" aria-label="Personalizar placa">
           {isAuthenticated ? (
             <>
               <div className={panel}>
@@ -236,7 +236,7 @@ export function PlateStudio({ onBackToHome, onAddToCart, onBuyNow }: PlateStudio
             <div className="flex items-center justify-between gap-3">
               <div>
                 <span className="block text-[11px] text-slate-400">Precio por unidad</span>
-                <span className="text-2xl font-extrabold text-white font-outfit">{formatPrice(unitPriceCop, unitPriceUsd)}</span>
+                <span className="whitespace-nowrap text-xl font-extrabold text-white font-outfit sm:text-2xl">{formatPrice(unitPriceCop, unitPriceUsd)}</span>
               </div>
               <div className="flex items-center gap-2">
                 <button onClick={() => setQuantity(value => Math.max(1, value - 1))} disabled={quantity <= 1} className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/15 bg-white/[0.04] text-slate-200 hover:bg-white/10 disabled:opacity-40" aria-label="Quitar una unidad"><Minus size={13} /></button>
@@ -259,8 +259,8 @@ export function PlateStudio({ onBackToHome, onAddToCart, onBuyNow }: PlateStudio
             </div>
             {!config.text.trim() && <p className="text-[11px] text-amber-300">Escribe una matrícula o un nombre para continuar.</p>}
             <div className="grid grid-cols-2 gap-2">
-              <button onClick={() => onAddToCart(createCartItem())} disabled={!canOrder} className="flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-3 py-3 text-xs font-bold text-white shadow-lg shadow-cyan-500/20 transition-all hover:from-cyan-400 hover:to-blue-500 disabled:cursor-not-allowed disabled:opacity-40"><ShoppingBag size={15} /> Añadir al Carrito</button>
-              <button onClick={() => onBuyNow(createCartItem())} disabled={!canOrder} className="flex items-center justify-center gap-1.5 rounded-xl border border-violet-500/40 bg-violet-600 px-3 py-3 text-xs font-bold text-white shadow-lg shadow-violet-600/20 transition-all hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-40"><CreditCard size={15} /> Comprar Ahora</button>
+              <button onClick={() => onAddToCart(createCartItem())} disabled={!canOrder} className="flex items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-2 py-3 text-[11px] font-bold text-white shadow-lg shadow-cyan-500/20 transition-all hover:from-cyan-400 hover:to-blue-500 disabled:cursor-not-allowed disabled:opacity-40 sm:text-xs"><ShoppingBag size={15} /> Añadir al Carrito</button>
+              <button onClick={() => onBuyNow(createCartItem())} disabled={!canOrder} className="flex items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-violet-500/40 bg-violet-600 px-2 py-3 text-[11px] font-bold text-white shadow-lg shadow-violet-600/20 transition-all hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-40 sm:text-xs"><CreditCard size={15} /> Comprar Ahora</button>
             </div>
           </div>
           {isAuthenticated && (

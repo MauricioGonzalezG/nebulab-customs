@@ -733,7 +733,7 @@ export const App: React.FC = () => {
             <p>© 2026 {BRAND.name} · {BRAND.locations}</p>
             <span className="text-[10px] text-slate-600 font-mono">{BRAND.tagline.toUpperCase()}</span>
           </div>
-          <div className="flex items-center gap-4 text-slate-400">
+          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-slate-400">
             <a href={getWhatsAppUrl()} target="_blank" rel="noreferrer" className="hover:text-white transition-colors">WhatsApp</a>
             <span>•</span>
             <a href={BRAND.instagramUrl} target="_blank" rel="noreferrer" className="hover:text-white transition-colors">{BRAND.instagramHandle}</a>
