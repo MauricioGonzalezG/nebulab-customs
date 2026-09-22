@@ -106,8 +106,8 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                   <div className="w-20 h-20 rounded-xl bg-slate-800 overflow-hidden shrink-0 border border-slate-700">
                     <img
                       src={item.previewImageDataUrl}
-                      alt="Litofanía 3D"
-                      className="w-full h-full object-cover"
+                      alt={item.itemType === 'plate' ? 'Placa llavero 3D' : 'Producto 3D'}
+                      className={`w-full h-full ${item.itemType === 'plate' ? 'object-contain p-1.5 bg-slate-950' : 'object-cover'}`}
                     />
                   </div>
 
@@ -120,6 +120,8 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                             ? `Collar Mascota 3D (${item.collarConfig?.petName || 'Personalizado'})`
                             : item.itemType === 'clicker'
                             ? (item.clickerConfig?.type === 'clicker' ? 'Clicker MX 3D' : 'Llavero 3D')
+                            : item.itemType === 'plate'
+                            ? `Placa llavero 3D (${item.plateConfig?.text || 'Personalizada'})`
                             : `Litofanía ${item.config.shape === 'arc' ? 'Curvada' : item.config.shape === 'flat' ? 'Plana' : 'Cilíndrica'}`}
                         </h4>
                         <button
@@ -155,6 +157,17 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                             {item.clickerConfig.type === 'clicker' && (
                               <span className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-950 text-cyan-400 border border-cyan-800/50 uppercase font-mono">
                                 Switch: {item.clickerConfig.switchType}
+                              </span>
+                            )}
+                          </>
+                        ) : item.itemType === 'plate' && item.plateConfig ? (
+                          <>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">
+                              {item.plateConfig.width}x{item.plateConfig.height}mm
+                            </span>
+                            {item.plateConfig.subtitle && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-yellow-950 text-yellow-300 border border-yellow-800/50 uppercase font-mono">
+                                {item.plateConfig.subtitle}
                               </span>
                             )}
                           </>

@@ -31,5 +31,9 @@
     <collar>
       <basePrice cop="60000" usd="14.90" />
     </collar>
+
+    <plates>
+      <unitPrice cop="17000" usd="4.25" />
+    </plates>
   </products>
 </pricingConfig>

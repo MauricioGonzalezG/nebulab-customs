@@ -36,6 +36,10 @@ export interface PricingData {
     basePriceCop: number;
     basePriceUsd: number;
   };
+  plates: {
+    unitPriceCop: number;
+    unitPriceUsd: number;
+  };
 }
 
 const DEFAULT_XML = `<?xml version="1.0" encoding="UTF-8"?>
@@ -71,6 +75,10 @@ const DEFAULT_XML = `<?xml version="1.0" encoding="UTF-8"?>
     <collar>
       <basePrice cop="60000" usd="14.90" />
     </collar>
+
+    <plates>
+      <unitPrice cop="17000" usd="4.25" />
+    </plates>
   </products>
 </pricingConfig>`;
 
@@ -128,6 +136,9 @@ export function parsePricingXml(xmlText: string): PricingData {
   const collarEl = xmlDoc.querySelector('collar');
   const collarBaseEl = collarEl?.querySelector('basePrice');
 
+  const platesEl = xmlDoc.querySelector('plates');
+  const platesUnitEl = platesEl?.querySelector('unitPrice');
+
   return {
     defaultCurrency,
     currencies: currencyMap,
@@ -157,6 +168,10 @@ export function parsePricingXml(xmlText: string): PricingData {
     collar: {
       basePriceCop: parseFloat(collarBaseEl?.getAttribute('cop') || '60000'),
       basePriceUsd: parseFloat(collarBaseEl?.getAttribute('usd') || '14.90'),
+    },
+    plates: {
+      unitPriceCop: parseFloat(platesUnitEl?.getAttribute('cop') || '17000'),
+      unitPriceUsd: parseFloat(platesUnitEl?.getAttribute('usd') || '4.25'),
     },
   };
 }

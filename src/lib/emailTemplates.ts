@@ -25,6 +25,12 @@ const BRAND_ACCENT = '#06b6d4'; // Cyan
 const BRAND_DARK = '#0b0f19';
 const BRAND_CARD = '#151d2e';
 
+// Los montos de la orden se persisten en USD; al mostrarlos en COP se aplica
+// la tasa de la tienda (1 USD = 4000 COP), igual que en el checkout.
+const COP_RATE = 4000;
+const orderAmount = (amountUsd: number, currency: string): number =>
+  currency === 'COP' ? Math.round(amountUsd * COP_RATE) : amountUsd;
+
 /**
  * Generate item description summary for email
  */
@@ -49,6 +55,20 @@ const getItemDescriptionHtml = (item: CartItem): string => {
         Base: <span style="color: #cbd5e1;">${item.clickerConfig.baseStyle}</span> | 
         Switch: <span style="color: #cbd5e1;">${item.clickerConfig.switchType}</span> | 
         Relieve: <span style="color: #cbd5e1;">${item.clickerConfig.reliefStyle}</span>
+      </div>
+    `;
+  }
+
+  if (item.itemType === 'plate' && item.plateConfig) {
+    const plate = item.plateConfig;
+    return `
+      <div style="font-size: 13px; color: #94a3b8; line-height: 1.5; margin-top: 4px;">
+        Texto: <strong style="color: #f1f5f9;">${plate.text}</strong>${plate.subtitle ? ` | Línea 2: <span style="color: #cbd5e1;">${plate.subtitle}</span>` : ''}<br/>
+        Medidas: <span style="color: #cbd5e1;">${plate.width}×${plate.height}×${(plate.thickness + plate.relief).toFixed(1)}mm</span> | 
+        Relieve: <span style="color: #cbd5e1;">${plate.relief}mm</span> | 
+        Borde: <span style="color: #cbd5e1;">${plate.border ? 'Sí' : 'No'}</span><br/>
+        Colores: <span style="color: #cbd5e1;">base ${plate.baseColor}</span> | 
+        <span style="color: #cbd5e1;">texto ${plate.detailColor}</span>
       </div>
     `;
   }
@@ -180,9 +200,9 @@ const wrapInEmailTemplate = (title: string, preheader: string, contentHtml: stri
  */
 export const buildCustomerOrderEmail = (order: Order): { subject: string; html: string } => {
   const curr = order.currency || 'COP';
-  const formattedTotal = formatEmailPrice(order.total, curr);
-  const formattedSubtotal = formatEmailPrice(order.subtotal, curr);
-  const formattedShipping = order.shippingFee > 0 ? formatEmailPrice(order.shippingFee, curr) : '¡Gratis!';
+  const formattedTotal = formatEmailPrice(orderAmount(order.total, curr), curr);
+  const formattedSubtotal = formatEmailPrice(orderAmount(order.subtotal, curr), curr);
+  const formattedShipping = order.shippingFee > 0 ? formatEmailPrice(orderAmount(order.shippingFee, curr), curr) : '¡Gratis!';
 
   const itemsHtml = order.items
     .map(
@@ -192,14 +212,14 @@ export const buildCustomerOrderEmail = (order: Order): { subject: string; html: 
           <tr>
             <td style="vertical-align: top;">
               <div style="font-size: 15px; font-weight: 700; color: #f8fafc;">
-                ${item.title || (item.itemType === 'collar' ? 'Collar para Mascota 3D' : item.itemType === 'clicker' ? 'Clicker / Llavero 3D' : 'Litofanía 3D Personalizada')}
+                ${item.title || (item.itemType === 'collar' ? 'Collar para Mascota 3D' : item.itemType === 'clicker' ? 'Clicker / Llavero 3D' : item.itemType === 'plate' ? 'Placa Llavero 3D Personalizada' : 'Litofanía 3D Personalizada')}
                 <span style="color: #38bdf8; font-size: 13px; font-weight: 500;"> x${item.quantity}</span>
               </div>
               ${getItemDescriptionHtml(item)}
             </td>
             <td style="vertical-align: top; text-align: right; white-space: nowrap; padding-left: 12px;">
               <div style="font-size: 15px; font-weight: 700; color: #38bdf8;">
-                ${formatEmailPrice(item.price * item.quantity, curr)}
+                ${formatEmailPrice(orderAmount(item.price * item.quantity, curr), curr)}
               </div>
             </td>
           </tr>
@@ -297,7 +317,7 @@ export const buildCustomerOrderEmail = (order: Order): { subject: string; html: 
  */
 export const buildAdminNewOrderEmail = (order: Order): { subject: string; html: string } => {
   const curr = order.currency || 'COP';
-  const formattedTotal = formatEmailPrice(order.total, curr);
+  const formattedTotal = formatEmailPrice(orderAmount(order.total, curr), curr);
   const shipping = order.shippingDetails;
 
   const itemsHtml = order.items
@@ -305,7 +325,7 @@ export const buildAdminNewOrderEmail = (order: Order): { subject: string; html: 
       (item) => `
       <div style="padding: 12px; background-color: #0f172a; border-radius: 10px; margin-bottom: 8px; border: 1px solid #1e293b;">
         <strong style="color: #f8fafc; font-size: 14px;">
-          ${item.title || (item.itemType === 'collar' ? 'Collar 3D' : item.itemType === 'clicker' ? 'Clicker/Llavero 3D' : 'Litofanía 3D')} (x${item.quantity})
+          ${item.title || (item.itemType === 'collar' ? 'Collar 3D' : item.itemType === 'clicker' ? 'Clicker/Llavero 3D' : item.itemType === 'plate' ? 'Placa Llavero 3D' : 'Litofanía 3D')} (x${item.quantity})
         </strong>
         ${getItemDescriptionHtml(item)}
       </div>
@@ -441,7 +461,7 @@ export const buildStatusChangeEmail = (order: Order, newStatus: Order['status'])
             Cliente: <strong style="color: #f1f5f9;">${shipping.fullName}</strong>
           </td>
           <td style="text-align: right; font-size: 13px; color: #94a3b8; vertical-align: top;">
-            Total: <strong style="color: #38bdf8; font-size: 15px;">${formatEmailPrice(order.total, curr)}</strong>
+            Total: <strong style="color: #38bdf8; font-size: 15px;">${formatEmailPrice(orderAmount(order.total, curr), curr)}</strong>
           </td>
         </tr>
       </table>

@@ -661,10 +661,12 @@ export const tursoService = {
       const item = order.items.find((i) => i.id === itemId);
       if (item) {
         const directUrl =
-          (item.itemType === 'collar' ? item.collarConfig?.imageUrl : null) ||
-          (item.itemType === 'clicker' ? item.clickerConfig?.imageUrl : null) ||
-          item.config?.imageUrl ||
-          item.previewImageDataUrl;
+          item.itemType === 'plate'
+            ? null
+            : (item.itemType === 'collar' ? item.collarConfig?.imageUrl : null) ||
+              (item.itemType === 'clicker' ? item.clickerConfig?.imageUrl : null) ||
+              item.config?.imageUrl ||
+              item.previewImageDataUrl;
 
         if (directUrl && directUrl !== '[STORED_IN_TURSO]') {
           return {
@@ -693,12 +695,15 @@ export const tursoService = {
 
     const sanitizedItems = order.items.map((item) => {
       const itemCopy = JSON.parse(JSON.stringify(item));
+      // Las placas se reconstruyen desde su configuración: no tienen foto original que guardar.
       const mainImageUrl =
-        (item.itemType === 'collar' ? item.collarConfig?.imageUrl : null) ||
-        (item.itemType === 'clicker' ? item.clickerConfig?.imageUrl : null) ||
-        item.config?.imageUrl ||
-        item.previewImageDataUrl ||
-        '';
+        item.itemType === 'plate'
+          ? ''
+          : (item.itemType === 'collar' ? item.collarConfig?.imageUrl : null) ||
+            (item.itemType === 'clicker' ? item.clickerConfig?.imageUrl : null) ||
+            item.config?.imageUrl ||
+            item.previewImageDataUrl ||
+            '';
 
       const previewUrl = item.previewImageDataUrl || '';
       const imageKey = `${order.id}_${item.id}`;

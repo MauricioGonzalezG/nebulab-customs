@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { lazy, Suspense, useEffect, useState, useRef } from 'react';
 import { CartItem, LithophaneConfig, Order } from './types';
 import { createPlaceholderImage, processImageForLithophane, calculateLithophaneDimensions, ProcessedImageData } from './core/imageProcessor';
 import { downloadLithophaneSTL } from './core/stlExporter';
@@ -25,8 +25,11 @@ import { ImageIcon, Layers, Lightbulb, Sparkles, CheckCircle2, ArrowLeft, Lock, 
 import { BRAND, getWhatsAppUrl } from './lib/brand';
 import { captureAttribution, trackPageView, pathForView, trackAddToCart, trackBeginCheckout, trackPurchase, trackViewItem } from './lib/analytics';
 
-const getViewFromPath = (path: string): 'home' | 'studio' | 'clicker' | 'collar' | 'admin' => {
+const PlateStudio = lazy(() => import('./components/plates/PlateStudio').then(module => ({ default: module.PlateStudio })));
+
+const getViewFromPath = (path: string): 'home' | 'studio' | 'clicker' | 'collar' | 'plates' | 'admin' => {
   const p = path.toLowerCase();
+  if (p.includes('/placas')) return 'plates';
   if (p.includes('/collar') || p.includes('/mascota')) return 'collar';
   if (p.includes('/clicker') || p.includes('/llavero')) return 'clicker';
   if (p.includes('/litofania') || p.includes('/lithophane') || p.includes('/studio')) return 'studio';
@@ -39,7 +42,7 @@ export const App: React.FC = () => {
   const { formatPrice } = useCurrency();
 
   // Navigation view state initialized from current URL path
-  const [currentView, setCurrentView] = useState<'home' | 'studio' | 'clicker' | 'collar' | 'admin'>(() =>
+  const [currentView, setCurrentView] = useState<'home' | 'studio' | 'clicker' | 'collar' | 'plates' | 'admin'>(() =>
     getViewFromPath(window.location.pathname)
   );
 
@@ -140,6 +143,7 @@ export const App: React.FC = () => {
     trackPageView(pathForView(currentView));
     if (currentView === 'studio') trackViewItem({ item_id: 'litofania', item_name: 'Litofanía personalizada' });
     if (currentView === 'clicker') trackViewItem({ item_id: 'clicker', item_name: 'Clicker personalizado' });
+    if (currentView === 'plates') trackViewItem({ item_id: 'placas', item_name: 'Placa personalizada' });
     if (currentView === 'collar') trackViewItem({ item_id: 'collar', item_name: 'Collar para mascota' });
   }, [currentView]);
 
@@ -258,6 +262,20 @@ export const App: React.FC = () => {
   };
 
 
+  // Descarga el archivo 3D del ítem comprado (solo administradores): placa o litofanía en edición.
+  const handleDownloadOrderItem = (item?: CartItem) => {
+    if (item?.itemType === 'plate' && item.plateConfig) {
+      const plateConfig = item.plateConfig;
+      import('./core/plateExporter')
+        .then(({ downloadPlateFile }) => downloadPlateFile(plateConfig, 'stl'))
+        .catch((err) => console.error('Error exportando placa:', err));
+      return;
+    }
+    if (processedData) {
+      downloadLithophaneSTL(processedData, config, undefined, currentImageElement);
+    }
+  };
+
   const handleUpdateQuantity = (id: string, delta: number) => {
     setCart((prev) =>
       prev
@@ -318,10 +336,10 @@ export const App: React.FC = () => {
     return () => window.removeEventListener('popstate', handlePopState);
   }, [isAuthenticated]);
 
-  const navigateTo = (view: 'home' | 'studio' | 'clicker' | 'collar' | 'admin') => {
+  const navigateTo = (view: 'home' | 'studio' | 'clicker' | 'collar' | 'plates' | 'admin') => {
     setCurrentView(view);
     const targetPath =
-      view === 'collar'
+      view === 'plates' ? '/placas' : view === 'collar'
         ? '/collares'
         : view === 'clicker'
           ? '/clickers'
@@ -368,6 +386,7 @@ export const App: React.FC = () => {
         onNavigateStudio={() => navigateTo('studio')}
         onNavigateClicker={() => navigateTo('clicker')}
         onNavigateCollar={() => navigateTo('collar')}
+        onNavigatePlates={() => navigateTo('plates')}
         onOpenMyOrders={() => setIsMyOrdersOpen(true)}
         onOpenCustomerAuth={() => setIsCustomerAuthOpen(true)}
         customerName={customerUser?.name || null}
@@ -381,9 +400,18 @@ export const App: React.FC = () => {
           onOpenLithophaneStudio={() => navigateTo('studio')}
           onOpenClickerStudio={() => navigateTo('clicker')}
           onOpenCollarStudio={() => navigateTo('collar')}
+          onOpenPlateStudio={() => navigateTo('plates')}
           onOpenAuth={() => setIsCustomerAuthOpen(true)}
           onOpenMyOrders={() => setIsMyOrdersOpen(true)}
         />
+      ) : currentView === 'plates' ? (
+        <Suspense fallback={<p className="p-10 text-center text-slate-400">Cargando Placas…</p>}>
+          <PlateStudio
+            onBackToHome={() => navigateTo('home')}
+            onAddToCart={handleAddToCart}
+            onBuyNow={handleBuyNow}
+          />
+        </Suspense>
       ) : currentView === 'clicker' ? (
         <ClickerStudio
           onBackToHome={() => navigateTo('home')}
@@ -649,11 +677,7 @@ export const App: React.FC = () => {
         onClose={() => setIsCheckoutOpen(false)}
         items={cart}
         onOrderCompleted={handleOrderCompleted}
-        onDownloadSTL={() => {
-          if (processedData) {
-            downloadLithophaneSTL(processedData, config, undefined, currentImageElement);
-          }
-        }}
+        onDownloadSTL={handleDownloadOrderItem}
       />
 
       {/* Help Modal */}

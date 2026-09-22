@@ -1,3 +1,5 @@
+import type { PlateConfig } from '../core/plateBuilder';
+
 export type LithophaneShape = 'flat' | 'arc' | 'cylinder';
 export type BaseType = 'none' | 'flat-stand' | 'night-light' | 'led-wooden-base';
 export type MaterialType = 'white-pla' | 'warm-ivory' | 'marble' | 'glow-blue';
@@ -128,11 +130,12 @@ export interface CollarConfig {
 
 export interface CartItem {
   id: string;
-  itemType?: 'lithophane' | 'clicker' | 'collar';
+  itemType?: 'lithophane' | 'clicker' | 'collar' | 'plate';
   title?: string;
   config: LithophaneConfig;
   clickerConfig?: ClickerConfig;
   collarConfig?: CollarConfig;
+  plateConfig?: PlateConfig;
   previewImageDataUrl: string;
   price: number;
   quantity: number;

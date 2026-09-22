@@ -14,11 +14,12 @@ interface HeaderProps {
   onNavigateStudio?: () => void;
   onNavigateClicker?: () => void;
   onNavigateCollar?: () => void;
+  onNavigatePlates?: () => void;
   onOpenMyOrders: () => void;
   onOpenCustomerAuth: () => void;
   customerName?: string | null;
   isAdminAuthenticated?: boolean;
-  currentView?: 'home' | 'studio' | 'clicker' | 'collar' | 'admin';
+  currentView?: 'home' | 'studio' | 'clicker' | 'collar' | 'plates' | 'admin';
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -31,6 +32,7 @@ export const Header: React.FC<HeaderProps> = ({
   onNavigateStudio,
   onNavigateClicker,
   onNavigateCollar,
+  onNavigatePlates,
   onOpenMyOrders,
   onOpenCustomerAuth,
   customerName,
@@ -115,6 +117,11 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <Heart className="w-3.5 h-3.5 text-rose-400" />
               <span>Collares</span>
+            </button>
+          )}
+          {onNavigatePlates && (
+            <button onClick={() => { onNavigatePlates(); closeMobileMenu(); }} className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap transition-all ${currentView === 'plates' ? 'brand-nav-active' : 'brand-nav-inactive'}`}>
+              <Key className="w-3.5 h-3.5 text-yellow-300" /> Placas
             </button>
           )}
         </nav>
@@ -230,6 +237,11 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
           )}
 
+          {onNavigatePlates && (
+            <button onClick={() => { onNavigatePlates(); closeMobileMenu(); }} className="brand-mobile-item">
+              <Key className="w-4 h-4 text-yellow-300" /> Placas
+            </button>
+          )}
           {customerName ? (
             <button onClick={() => { onOpenMyOrders(); closeMobileMenu(); }} className="brand-mobile-item">
               <Package className="w-4 h-4 text-cyan-400" /> Mis pedidos ({customerName})

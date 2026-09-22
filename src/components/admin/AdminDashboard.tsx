@@ -8,9 +8,11 @@ import { downloadClicker3MF } from '../../core/clicker3mfExporter';
 import { processImageForLithophane, createPlaceholderImage, ProcessedImageData } from '../../core/imageProcessor';
 import { processClickerImage, ProcessedClickerData } from '../../core/clickerProcessor';
 import { processCollarImage, ProcessedCollarData } from '../../core/collarProcessor';
+import type { PlateModel } from '../../core/plateBuilder';
 import { LithophaneViewer } from '../3d/LithophaneViewer';
 import { ClickerViewer } from '../3d/ClickerViewer';
 import { CollarViewer } from '../3d/CollarViewer';
+import { PlateViewer } from '../3d/PlateViewer';
 import { EmailSettingsTab } from './EmailSettingsTab';
 import { OrderLogsModal } from './OrderLogsModal';
 import { emailService } from '../../lib/emailService';
@@ -72,7 +74,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
   const [previewProcessedData, setPreviewProcessedData] = useState<ProcessedImageData | null>(null);
   const [previewClickerProcessedData, setPreviewClickerProcessedData] = useState<ProcessedClickerData | null>(null);
   const [previewCollarProcessedData, setPreviewCollarProcessedData] = useState<ProcessedCollarData | null>(null);
+  const [previewPlateModel, setPreviewPlateModel] = useState<PlateModel | null>(null);
   const [isProcessing3D, setIsProcessing3D] = useState(false);
+
+  // Libera la geometría de la última placa inspeccionada (evita fugas de memoria)
+  useEffect(() => () => previewPlateModel?.dispose(), [previewPlateModel]);
 
   const fetchDashboardData = async () => {
     setIsLoading(true);
@@ -178,6 +184,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
           ? 'png'
           : imageData.startsWith('data:image/webp')
           ? 'webp'
+          : imageData.startsWith('data:image/svg')
+          ? 'svg'
           : 'jpg';
         const filename = `foto_${itemType || 'producto'}_${orderId}_${itemId}.${ext}`;
         downloadOrderImage(imageData, filename);
@@ -196,6 +204,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
   const handleInspectItem = async (order: Order, item: CartItem) => {
     setSelectedOrderItem({ order, item });
     setIsProcessing3D(true);
+    setPreviewPlateModel(null);
+
+    // Las placas se reconstruyen desde su configuración (no dependen de una foto).
+    if (item.itemType === 'plate' && item.plateConfig) {
+      try {
+        const { buildPlate, loadPlateEngine } = await import('../../core/plateBuilder');
+        const api = await loadPlateEngine();
+        setPreviewPlateModel(buildPlate(api, item.plateConfig));
+      } catch (e) {
+        console.error('Error generando la placa del pedido:', e);
+      } finally {
+        setIsProcessing3D(false);
+      }
+      return;
+    }
 
     try {
       let sourceUrl =
@@ -554,6 +577,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
                                       ? 'bg-rose-950/60 border-rose-800/50 text-rose-300 hover:bg-rose-900/60'
                                       : it.itemType === 'clicker'
                                       ? 'bg-violet-950/60 border-violet-800/50 text-violet-300 hover:bg-violet-900/60'
+                                      : it.itemType === 'plate'
+                                      ? 'bg-yellow-950/60 border-yellow-800/50 text-yellow-300 hover:bg-yellow-900/60'
                                       : 'bg-cyan-950/60 border-cyan-800/50 text-cyan-300 hover:bg-cyan-900/60'
                                   }`}
                                   title="Inspeccionar parámetros 3D"
@@ -564,24 +589,28 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
                                       ? `Collar ${it.collarConfig.petName || 'Mascota'} (${it.collarConfig.size})`
                                       : it.itemType === 'clicker' && it.clickerConfig
                                       ? `${it.clickerConfig.type === 'clicker' ? 'Clicker MX' : 'Llavero'} (${it.clickerConfig.size}mm)`
+                                      : it.itemType === 'plate' && it.plateConfig
+                                      ? `Placa ${it.plateConfig.text || 'Personalizada'} (${it.plateConfig.width}×${it.plateConfig.height}mm)`
                                       : `Litofanía ${it.config?.shape === 'arc' ? 'Curva' : it.config?.shape === 'flat' ? 'Plana' : 'Cilíndrica'} (${it.config?.width || 120}×${it.config?.height || 100}mm)`}
                                   </span>
                                 </button>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDownloadItemImage(order.id, it.id, it.itemType);
-                                  }}
-                                  disabled={downloadingImageKey === `${order.id}_${it.id}`}
-                                  className="p-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-400 border border-slate-700 transition-colors flex items-center gap-1 disabled:opacity-50"
-                                  title="Descargar Foto Original de Turso DB"
-                                >
-                                  {downloadingImageKey === `${order.id}_${it.id}` ? (
-                                    <RefreshCw className="w-3 h-3 animate-spin text-cyan-400" />
-                                  ) : (
-                                    <ImageIcon className="w-3 h-3 text-cyan-400" />
-                                  )}
-                                </button>
+                                {it.itemType !== 'plate' && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDownloadItemImage(order.id, it.id, it.itemType);
+                                    }}
+                                    disabled={downloadingImageKey === `${order.id}_${it.id}`}
+                                    className="p-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-400 border border-slate-700 transition-colors flex items-center gap-1 disabled:opacity-50"
+                                    title="Descargar Foto Original de Turso DB"
+                                  >
+                                    {downloadingImageKey === `${order.id}_${it.id}` ? (
+                                      <RefreshCw className="w-3 h-3 animate-spin text-cyan-400" />
+                                    ) : (
+                                      <ImageIcon className="w-3 h-3 text-cyan-400" />
+                                    )}
+                                  </button>
+                                )}
                               </div>
                             ))}
                           </div>
@@ -675,20 +704,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
 
                             {order.items.length > 0 && (
                               <>
-                                <button
-                                  onClick={() =>
-                                    handleDownloadItemImage(order.id, order.items[0].id, order.items[0].itemType)
-                                  }
-                                  disabled={downloadingImageKey === `${order.id}_${order.items[0].id}`}
-                                  className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-400 border border-slate-700 transition-colors flex items-center justify-center gap-1 disabled:opacity-50"
-                                  title="Descargar Foto Original de la Orden"
-                                >
-                                  {downloadingImageKey === `${order.id}_${order.items[0].id}` ? (
-                                    <RefreshCw className="w-4 h-4 animate-spin text-cyan-400" />
-                                  ) : (
-                                    <ImageIcon className="w-4 h-4 text-cyan-400" />
-                                  )}
-                                </button>
+                                {order.items[0].itemType !== 'plate' && (
+                                  <button
+                                    onClick={() =>
+                                      handleDownloadItemImage(order.id, order.items[0].id, order.items[0].itemType)
+                                    }
+                                    disabled={downloadingImageKey === `${order.id}_${order.items[0].id}`}
+                                    className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-400 border border-slate-700 transition-colors flex items-center justify-center gap-1 disabled:opacity-50"
+                                    title="Descargar Foto Original de la Orden"
+                                  >
+                                    {downloadingImageKey === `${order.id}_${order.items[0].id}` ? (
+                                      <RefreshCw className="w-4 h-4 animate-spin text-cyan-400" />
+                                    ) : (
+                                      <ImageIcon className="w-4 h-4 text-cyan-400" />
+                                    )}
+                                  </button>
+                                )}
                                 <button
                                   onClick={() => handleInspectItem(order, order.items[0])}
                                   className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-400 transition-colors"
@@ -816,13 +847,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
                   <h3 className="font-bold text-lg text-white">
                     {selectedOrderItem.item.itemType === 'clicker'
                       ? `Inspección de ${selectedOrderItem.item.clickerConfig?.type === 'clicker' ? 'Clicker Teclado MX 3D' : 'Llavero 3D'}`
+                      : selectedOrderItem.item.itemType === 'collar'
+                      ? 'Inspección de Collar para Mascota 3D'
+                      : selectedOrderItem.item.itemType === 'plate'
+                      ? `Inspección de Placa Llavero 3D`
                       : 'Inspección de Litofanía 3D'}
                   </h3>
                   <p className="text-xs text-slate-400 font-mono">Orden {selectedOrderItem.order.id} • Item {selectedOrderItem.item.id}</p>
                 </div>
               </div>
               <button
-                onClick={() => setSelectedOrderItem(null)}
+                onClick={() => {
+                  setSelectedOrderItem(null);
+                  setPreviewPlateModel(null);
+                }}
                 className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
               >
                 <X className="w-5 h-5" />
@@ -843,6 +881,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
                   <CollarViewer config={selectedOrderItem.item.collarConfig} processedData={previewCollarProcessedData} />
                 ) : selectedOrderItem.item.itemType === 'clicker' && selectedOrderItem.item.clickerConfig ? (
                   <ClickerViewer config={selectedOrderItem.item.clickerConfig} processedData={previewClickerProcessedData} />
+                ) : selectedOrderItem.item.itemType === 'plate' && selectedOrderItem.item.plateConfig && previewPlateModel ? (
+                  <PlateViewer model={previewPlateModel} config={selectedOrderItem.item.plateConfig} />
                 ) : (
                   <LithophaneViewer config={selectedOrderItem.item.config} processedData={previewProcessedData} />
                 )}
@@ -910,6 +950,36 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
                     </div>
                   </div>
 
+                ) : selectedOrderItem.item.itemType === 'plate' && selectedOrderItem.item.plateConfig ? (
+                  <div className="grid grid-cols-2 gap-3 text-xs">
+                    <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 col-span-2">
+                      <span className="text-slate-500 block">Texto Grabado</span>
+                      <span className="font-bold text-slate-200 uppercase tracking-wider">{selectedOrderItem.item.plateConfig.text || 'N/A'}</span>
+                    </div>
+                    {selectedOrderItem.item.plateConfig.subtitle && (
+                      <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 col-span-2">
+                        <span className="text-slate-500 block">Segunda Línea</span>
+                        <span className="font-bold text-slate-200 uppercase tracking-wider">{selectedOrderItem.item.plateConfig.subtitle}</span>
+                      </div>
+                    )}
+                    <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
+                      <span className="text-slate-500 block">Medidas</span>
+                      <span className="font-bold text-slate-200">{selectedOrderItem.item.plateConfig.width} × {selectedOrderItem.item.plateConfig.height} × {(selectedOrderItem.item.plateConfig.thickness + selectedOrderItem.item.plateConfig.relief).toFixed(1)} mm</span>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
+                      <span className="text-slate-500 block">Relieve / Base</span>
+                      <span className="font-bold text-slate-200">{selectedOrderItem.item.plateConfig.relief} / {selectedOrderItem.item.plateConfig.thickness} mm</span>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
+                      <span className="text-slate-500 block">Orificio / Borde</span>
+                      <span className="font-bold text-slate-200">Ø {selectedOrderItem.item.plateConfig.holeDiameter} mm · {selectedOrderItem.item.plateConfig.border ? 'Con borde' : 'Sin borde'}</span>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
+                      <span className="text-slate-500 block">Colores (Base / Texto)</span>
+                      <span className="font-bold text-slate-200 font-mono uppercase">{selectedOrderItem.item.plateConfig.baseColor} / {selectedOrderItem.item.plateConfig.detailColor}</span>
+                    </div>
+                  </div>
+
                 ) : (
                   <div className="grid grid-cols-2 gap-3 text-xs">
                     <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
@@ -950,36 +1020,45 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
 
                 {/* 3D Export & Image Download Buttons */}
                 <div className="space-y-2">
-                  <button
-                    onClick={() => {
-                      handleDownloadItemImage(
-                        selectedOrderItem.order.id,
-                        selectedOrderItem.item.id,
-                        selectedOrderItem.item.itemType
-                      );
-                    }}
-                    disabled={
-                      downloadingImageKey === `${selectedOrderItem.order.id}_${selectedOrderItem.item.id}`
-                    }
-                    className="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 font-semibold text-xs border border-cyan-500/30 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
-                  >
-                    {downloadingImageKey === `${selectedOrderItem.order.id}_${selectedOrderItem.item.id}` ? (
-                      <>
-                        <RefreshCw className="w-3.5 h-3.5 animate-spin text-cyan-400" />
-                        <span>Consultando Turso DB...</span>
-                      </>
-                    ) : (
-                      <>
-                        <ImageIcon className="w-3.5 h-3.5 text-cyan-400" />
-                        <span>Descargar Foto Original de Referencia</span>
-                      </>
-                    )}
-                  </button>
-
-                  {selectedOrderItem.item.itemType === 'clicker' && selectedOrderItem.item.clickerConfig && (
+                  {selectedOrderItem.item.itemType !== 'plate' && (
                     <button
                       onClick={() => {
-                        downloadClicker3MF(previewClickerProcessedData, selectedOrderItem.item.clickerConfig!);
+                        handleDownloadItemImage(
+                          selectedOrderItem.order.id,
+                          selectedOrderItem.item.id,
+                          selectedOrderItem.item.itemType
+                        );
+                      }}
+                      disabled={
+                        downloadingImageKey === `${selectedOrderItem.order.id}_${selectedOrderItem.item.id}`
+                      }
+                      className="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 font-semibold text-xs border border-cyan-500/30 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                      {downloadingImageKey === `${selectedOrderItem.order.id}_${selectedOrderItem.item.id}` ? (
+                        <>
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin text-cyan-400" />
+                          <span>Consultando Turso DB...</span>
+                        </>
+                      ) : (
+                        <>
+                          <ImageIcon className="w-3.5 h-3.5 text-cyan-400" />
+                          <span>Descargar Foto Original de Referencia</span>
+                        </>
+                      )}
+                    </button>
+                  )}
+
+                  {(selectedOrderItem.item.itemType === 'clicker' || selectedOrderItem.item.itemType === 'plate') && (
+                    <button
+                      onClick={() => {
+                        if (selectedOrderItem.item.itemType === 'plate' && selectedOrderItem.item.plateConfig) {
+                          const plateConfig = selectedOrderItem.item.plateConfig;
+                          import('../../core/plateExporter')
+                            .then(({ downloadPlateFile }) => downloadPlateFile(plateConfig, '3mf'))
+                            .catch((err) => console.error('Error exportando placa 3MF:', err));
+                        } else if (selectedOrderItem.item.itemType === 'clicker' && selectedOrderItem.item.clickerConfig) {
+                          downloadClicker3MF(previewClickerProcessedData, selectedOrderItem.item.clickerConfig);
+                        }
                       }}
                       className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-violet-600 hover:from-cyan-400 hover:to-violet-500 text-white font-bold text-sm shadow-lg shadow-cyan-500/25 transition-all flex items-center justify-center gap-2"
                     >
@@ -990,7 +1069,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
 
                   <button
                     onClick={() => {
-                      if (selectedOrderItem.item.itemType === 'clicker' && selectedOrderItem.item.clickerConfig) {
+                      if (selectedOrderItem.item.itemType === 'plate' && selectedOrderItem.item.plateConfig) {
+                        const plateConfig = selectedOrderItem.item.plateConfig;
+                        import('../../core/plateExporter')
+                          .then(({ downloadPlateFile }) => downloadPlateFile(plateConfig, 'stl'))
+                          .catch((err) => console.error('Error exportando placa STL:', err));
+                      } else if (selectedOrderItem.item.itemType === 'clicker' && selectedOrderItem.item.clickerConfig) {
                         downloadClickerSTL(previewClickerProcessedData, selectedOrderItem.item.clickerConfig);
                       } else if (previewProcessedData && selectedOrderItem.item.config) {
                         downloadLithophaneSTL(previewProcessedData, selectedOrderItem.item.config);

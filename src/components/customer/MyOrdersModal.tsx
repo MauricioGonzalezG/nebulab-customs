@@ -287,6 +287,15 @@ export const MyOrdersModal: React.FC<MyOrdersModalProps> = ({
                                 Tamaño: {it.clickerConfig.size}mm • Estilo: {it.clickerConfig.baseStyle} • Switch: {it.clickerConfig.switchType}
                               </span>
                             </>
+                          ) : it.itemType === 'plate' && it.plateConfig ? (
+                            <>
+                              <span className="font-semibold text-slate-200">
+                                Placa Llavero 3D
+                              </span>
+                              <span className="text-slate-500 block">
+                                Texto: {it.plateConfig.text}{it.plateConfig.subtitle ? ` · ${it.plateConfig.subtitle}` : ''} • {it.plateConfig.width}×{it.plateConfig.height}mm
+                              </span>
+                            </>
                           ) : (
                             <>
                               <span className="font-semibold text-slate-200">

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 360">
+  <defs><radialGradient id="bg"><stop stop-color="#393329"/><stop offset="1" stop-color="#151418"/></radialGradient><linearGradient id="plate" x2="0.3" y2="1"><stop stop-color="#ffe65b"/><stop offset="1" stop-color="#e9ad09"/></linearGradient></defs>
+  <rect width="600" height="360" fill="url(#bg)"/>
+  <g transform="translate(305 177) rotate(-8)">
+    <rect x="-205" y="-64" width="398" height="173" rx="20" fill="#000" opacity=".3"/>
+    <circle cx="-200" cy="5" r="27" fill="#ac7e04"/><rect x="-190" y="-82" width="390" height="174" rx="17" fill="#ac7e04"/>
+    <circle cx="-200" cy="0" r="27" fill="#f5c626"/><rect x="-190" y="-90" width="390" height="174" rx="17" fill="url(#plate)"/>
+    <circle cx="-205" cy="0" r="11" fill="#242227"/>
+    <rect x="-178" y="-78" width="366" height="150" rx="10" fill="none" stroke="#1d1a16" stroke-width="6"/>
+    <text x="5" y="-4" fill="#1d1a16" font-family="Arial,sans-serif" font-size="65" font-weight="900" text-anchor="middle" letter-spacing="5">DLX 28F</text>
+    <text x="5" y="43" fill="#1d1a16" font-family="Arial,sans-serif" font-size="29" font-weight="800" text-anchor="middle" letter-spacing="5">COLOMBIA</text>
+  </g>
+</svg>

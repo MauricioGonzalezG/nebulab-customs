@@ -14,6 +14,7 @@ interface HomePageProps {
   onOpenLithophaneStudio: () => void;
   onOpenClickerStudio: () => void;
   onOpenCollarStudio: () => void;
+  onOpenPlateStudio: () => void;
   onOpenAuth?: () => void;
   onOpenMyOrders: () => void;
 }
@@ -22,6 +23,7 @@ export const HomePage: React.FC<HomePageProps> = ({
   onOpenLithophaneStudio,
   onOpenClickerStudio,
   onOpenCollarStudio,
+  onOpenPlateStudio,
 }) => {
   const services: Array<{
     eyebrow: string;
@@ -63,6 +65,16 @@ export const HomePage: React.FC<HomePageProps> = ({
       actionLabel: 'Personalizar pieza',
       onAction: onOpenClickerStudio,
     },
+    {
+      eyebrow: 'TU MATRÍCULA EN MINIATURA',
+      title: 'Placas',
+      description: 'Tu matrícula o nombre en un llavero 3D con letras en relieve. Personalízala y la fabricamos para ti.',
+      image: '/brand/placas.svg',
+      icon: Key,
+      accent: 'text-yellow-300',
+      actionLabel: 'Diseñar placa',
+      onAction: onOpenPlateStudio,
+    },
   ];
 
   return (
@@ -100,7 +112,7 @@ export const HomePage: React.FC<HomePageProps> = ({
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
           {services.map((service) => {
             const Icon = service.icon;
             return (
