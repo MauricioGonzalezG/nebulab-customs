@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { ClickerConfig, ClickerBaseStyle } from '../types';
 import { ProcessedClickerData } from './clickerProcessor';
 import { download3MFFile, ThreeMFMeshObject } from './threeMfExporter';
+import { createEyeletShape, getClickerEyelet, shapeFromContour } from './clickerGeometry';
+import { hexToRgb } from './clickerProcessor';
 
 /**
  * Extracts vertices and triangles from any Three.js BufferGeometry
@@ -61,7 +63,8 @@ function buildBaseShapeForExport(
   style: ClickerBaseStyle,
   scale: number,
   pts: Array<{ x: number; y: number }>,
-  bevelRadius: number = 2.0
+  bevelRadius: number = 2.0,
+  margin: number = 0
 ): THREE.Shape {
   const shape = new THREE.Shape();
 
@@ -142,16 +145,7 @@ function buildBaseShapeForExport(
 
     case 'outline':
     default: {
-      if (pts.length > 2) {
-        shape.moveTo(pts[0].x * scale, pts[0].y * scale);
-        for (let i = 1; i < pts.length; i++) {
-          shape.lineTo(pts[i].x * scale, pts[i].y * scale);
-        }
-        shape.closePath();
-      } else {
-        shape.absarc(0, 0, scale, 0, Math.PI * 2, false);
-      }
-      break;
+      return shapeFromContour(pts, scale, margin);
     }
   }
 
@@ -166,22 +160,14 @@ export async function downloadClicker3MF(
   processedData: ProcessedClickerData | null,
   config: ClickerConfig
 ): Promise<void> {
-  const scale = config.size / 2;
+  const scale = config.size / 2 - (config.baseMargin ?? 1.1);
   const pts = processedData?.contourPoints || [];
   const topH = config.topHeight;
   const baseH = config.baseHeight;
+  const bedOffset = scale + (config.baseMargin ?? 1.1) + 6;
 
   // 1. Cap Silhouette Shape
-  const capShape = new THREE.Shape();
-  if (pts.length > 2) {
-    capShape.moveTo(pts[0].x * scale, pts[0].y * scale);
-    for (let i = 1; i < pts.length; i++) {
-      capShape.lineTo(pts[i].x * scale, pts[i].y * scale);
-    }
-    capShape.closePath();
-  } else {
-    capShape.absarc(0, 0, scale, 0, Math.PI * 2, false);
-  }
+  const capShape = shapeFromContour(pts, scale);
 
   const objects: ThreeMFMeshObject[] = [];
   let nextId = 2;
@@ -196,67 +182,71 @@ export async function downloadClicker3MF(
     bevelThickness: capBevel,
   });
   capBodyGeo.center();
+  capBodyGeo.computeBoundingBox();
+  const capLift = -(capBodyGeo.boundingBox?.min.z ?? 0);
+  capBodyGeo.translate(-bedOffset, 0, capLift);
   capBodyGeo.computeVertexNormals();
   objects.push(bufferGeometryTo3MFMesh(capBodyGeo, nextId++, 'Tapa Keycap Principal', config.baseColor));
 
-  // Object 2: Multi-layer Artwork / Relief Layer
-  if (config.strokeMode === 'multi') {
-    const outlineShape = new THREE.Shape();
-    if (pts.length > 2) {
-      outlineShape.moveTo(pts[0].x * scale * 0.94, -pts[0].y * scale * 0.94);
-      for (let i = 1; i < pts.length; i++) {
-        outlineShape.lineTo(pts[i].x * scale * 0.94, -pts[i].y * scale * 0.94);
+  // Convert the visible artwork into color regions. The former nested solid
+  // silhouettes hid the actual eyes, face and uploaded design in the 3MF.
+  if (processedData?.canvas) {
+    const resolution = 72;
+    const raster = document.createElement('canvas');
+    raster.width = raster.height = resolution;
+    const context = raster.getContext('2d', { willReadFrequently: true });
+    if (context) {
+      context.imageSmoothingEnabled = false;
+      context.drawImage(processedData.canvas, 0, 0, resolution, resolution);
+      const pixels = context.getImageData(0, 0, resolution, resolution).data;
+      const colors = processedData.paletteColors;
+      const rgb = colors.map(hexToRgb);
+      const region = (x: number, y: number) => {
+        const index = (y * resolution + x) * 4;
+        if (pixels[index + 3] < 128) return -1;
+        let closest = 0, best = Infinity;
+        for (let i = 0; i < rgb.length; i++) {
+          const dr = pixels[index] - rgb[i].r;
+          const dg = pixels[index + 1] - rgb[i].g;
+          const db = pixels[index + 2] - rgb[i].b;
+          const distance = dr * dr + dg * dg + db * db;
+          if (distance < best) { best = distance; closest = i; }
+        }
+        return closest;
+      };
+      const shapes = colors.map(() => [] as THREE.Shape[]);
+      const unit = 2 * scale / (resolution * 0.86);
+      for (let y = 0; y < resolution; y++) {
+        for (let x = 0; x < resolution;) {
+          const color = region(x, y);
+          if (color < 0) { x++; continue; }
+          let end = x + 1;
+          while (end < resolution && region(end, y) === color) end++;
+          const x0 = (x - resolution / 2) * unit;
+          const x1 = (end - resolution / 2) * unit;
+          const y0 = (y - resolution / 2) * unit;
+          const y1 = y0 + unit;
+          const tile = new THREE.Shape();
+          tile.moveTo(x0, y0); tile.lineTo(x1, y0);
+          tile.lineTo(x1, y1); tile.lineTo(x0, y1); tile.closePath();
+          shapes[color].push(tile);
+          x = end;
+        }
       }
-      outlineShape.closePath();
-    } else {
-      outlineShape.absarc(0, 0, scale * 0.94, 0, Math.PI * 2, false);
+      const relief = config.reliefStyle === 'embossed' ? Math.max(0.5, config.reliefDepth) : 0.5;
+      shapes.forEach((regions, i) => {
+        if (!regions.length) return;
+        const geometry = new THREE.ExtrudeGeometry(regions, { depth: relief, bevelEnabled: false });
+        geometry.translate(-bedOffset, 0, topH / 2 + 0.35 + capLift);
+        objects.push(bufferGeometryTo3MFMesh(geometry, nextId++, `Ilustración - color ${i + 1}`, colors[i]));
+      });
     }
-
-    const outlineGeo = new THREE.ExtrudeGeometry(outlineShape, {
-      depth: 0.8,
-      bevelEnabled: true,
-      bevelSegments: 1,
-      bevelSize: 0.2,
-      bevelThickness: 0.2,
-    });
-    outlineGeo.center();
-    outlineGeo.translate(0, 0, topH / 2 + 0.4);
-    objects.push(bufferGeometryTo3MFMesh(outlineGeo, nextId++, 'Capa 1 - Trazo Silueta', config.outlineColor));
-
-    // Accent Detail Layer
-    const accentShape = new THREE.Shape();
-    if (pts.length > 2) {
-      accentShape.moveTo(pts[0].x * scale * 0.78, -pts[0].y * scale * 0.78);
-      for (let i = 1; i < pts.length; i++) {
-        accentShape.lineTo(pts[i].x * scale * 0.78, -pts[i].y * scale * 0.78);
-      }
-      accentShape.closePath();
-    } else {
-      accentShape.absarc(0, 0, scale * 0.78, 0, Math.PI * 2, false);
-    }
-
-    const accentGeo = new THREE.ExtrudeGeometry(accentShape, {
-      depth: 0.6,
-      bevelEnabled: false,
-    });
-    accentGeo.center();
-    accentGeo.translate(0, 0, topH / 2 + 0.8);
-    objects.push(bufferGeometryTo3MFMesh(accentGeo, nextId++, 'Capa 2 - Acento Detalle', config.accentColor));
-  } else {
-    // Single stroke relief
-    const singleGeo = new THREE.ExtrudeGeometry(capShape, {
-      depth: 0.6,
-      bevelEnabled: false,
-    });
-    singleGeo.center();
-    singleGeo.translate(0, 0, topH / 2 + 0.3);
-    objects.push(bufferGeometryTo3MFMesh(singleGeo, nextId++, 'Relieve Monocromo Silueta', config.outlineColor));
   }
 
   // Object 3: Base Housing
-  const baseMargin = config.baseMargin ?? 2.5;
+  const baseMargin = config.baseMargin ?? 1.1;
   const baseScale = scale + baseMargin;
-  const baseShape = buildBaseShapeForExport(config.baseStyle, baseScale, pts, config.baseBevel);
+  const baseShape = buildBaseShapeForExport(config.baseStyle, config.baseStyle === 'outline' ? scale : baseScale, pts, config.baseBevel, baseMargin);
 
   if (config.type === 'clicker') {
     // Cutout 14x14mm for Cherry MX Switch Socket
@@ -270,36 +260,31 @@ export async function downloadClicker3MF(
     baseShape.holes.push(switchHole);
   }
 
-  const baseBevel = Math.min(1.0, config.baseBevel || 1.0);
+  const baseBevel = Math.min(1.0, config.baseBevel ?? 1.0);
   const baseGeo = new THREE.ExtrudeGeometry(baseShape, {
     depth: Math.max(4, baseH - baseBevel),
-    bevelEnabled: true,
+    bevelEnabled: baseBevel > 0,
     bevelSegments: 2,
     bevelSize: baseBevel,
     bevelThickness: baseBevel,
   });
   baseGeo.center();
   baseGeo.translate(0, 0, -baseH / 2 - 1.5);
-  objects.push(bufferGeometryTo3MFMesh(baseGeo, nextId++, 'Cuerpo Base (Housing)', '#F8FAFC'));
+  baseGeo.computeBoundingBox();
+  const baseLift = -(baseGeo.boundingBox?.min.z ?? 0);
+  baseGeo.translate(bedOffset, 0, baseLift);
+  objects.push(bufferGeometryTo3MFMesh(baseGeo, nextId++, 'Cuerpo Base (Housing)', config.baseColor));
 
   // Object 4: Keychain Attachment Ring (if enabled)
   if (config.includeRing || config.type === 'keychain') {
-    const holeDiam = config.ringHoleDiameter || 4.5;
-    const ringThick = config.ringThickness || 2.2;
-    const majorRadius = holeDiam / 2 + ringThick / 2;
-    const minorRadius = ringThick / 2;
-
-    const ringGeo = new THREE.TorusGeometry(majorRadius, minorRadius, 16, 32);
-    const angleDeg = config.ringAngle ?? 90;
-    const angleRad = (angleDeg * Math.PI) / 180;
-    const ringDist = baseScale + majorRadius * 0.75;
-
-    const rx = Math.cos(angleRad) * ringDist + (config.ringOffsetX || 0);
-    const ry = -Math.sin(angleRad) * ringDist + (config.ringOffsetY || 0);
-    const rz = (config.ringHeight || 0) - baseH / 2 - 1.5;
-
-    ringGeo.translate(rx, ry, rz);
-    objects.push(bufferGeometryTo3MFMesh(ringGeo, nextId++, 'Argolla de Llavero', '#F8FAFC'));
+    const eyelet = getClickerEyelet(config, pts);
+    const ringGeo = new THREE.ExtrudeGeometry(createEyeletShape(config, pts), {
+      depth: 4.5, bevelEnabled: true, bevelSegments: 2,
+      bevelSize: 0.35, bevelThickness: 0.35,
+    });
+    ringGeo.center();
+    ringGeo.translate(bedOffset + eyelet.x, eyelet.y, (config.ringHeight || 0) - 2.5 + baseLift);
+    objects.push(bufferGeometryTo3MFMesh(ringGeo, nextId++, 'Ojal imprimible para llavero', config.baseColor));
   }
 
   const filename = `NebulabStudio_Clicker_${config.type}_${config.size}mm_AMS.3mf`;

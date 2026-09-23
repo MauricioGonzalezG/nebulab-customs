@@ -6,10 +6,7 @@ export interface ProcessedClickerData {
   previewDataUrl: string;
   contourPoints: Array<{ x: number; y: number }>;
   dominantColors: string[];
-  colorLayers: Array<{
-    color: string;
-    points: Array<{ x: number; y: number }>;
-  }>;
+  paletteColors: string[];
   width: number;
   height: number;
   aspectRatio: number;
@@ -64,73 +61,58 @@ export const rgbToHex = (r: number, g: number, b: number): string => {
 };
 
 /**
- * Extracts dominant distinct colors from an ImageData object
+ * Weighted median-cut palette from the visible artwork. No invented fallback
+ * colors: even a low-contrast photo keeps its own hue family.
  */
-export const extractDominantColors = (imgData: ImageData, maxColors: number = 4): string[] => {
+export const extractDominantColors = (imgData: ImageData, maxColors: number = 8): string[] => {
   const data = imgData.data;
-  const colorBuckets = new Map<string, { count: number; r: number; g: number; b: number }>();
-
-  // Quantize into 32-level steps (5 bits per channel)
-  const step = 32;
+  type Bucket = { count: number; r: number; g: number; b: number };
+  const histogram = new Map<number, Bucket>();
   for (let i = 0; i < data.length; i += 16) {
-    const a = data[i + 3];
-    if (a < 60) continue; // Skip transparent
-
-    const r = data[i];
-    const g = data[i + 1];
-    const b = data[i + 2];
-
-    const qr = Math.floor(r / step) * step + step / 2;
-    const qg = Math.floor(g / step) * step + step / 2;
-    const qb = Math.floor(b / step) * step + step / 2;
-    const key = `${qr},${qg},${qb}`;
-
-    const existing = colorBuckets.get(key);
+    if (data[i + 3] < 160) continue;
+    const r = data[i], g = data[i + 1], b = data[i + 2];
+    const key = ((r >> 3) << 10) | ((g >> 3) << 5) | (b >> 3);
+    const existing = histogram.get(key);
     if (existing) {
-      existing.count++;
-      existing.r += r;
-      existing.g += g;
-      existing.b += b;
+      existing.count++; existing.r += r; existing.g += g; existing.b += b;
     } else {
-      colorBuckets.set(key, { count: 1, r, g, b });
+      histogram.set(key, { count: 1, r, g, b });
     }
   }
-
-  // Sort by popularity
-  const sorted = Array.from(colorBuckets.values()).sort((a, b) => b.count - a.count);
-
-  const dominantHexes: string[] = [];
-  for (const bucket of sorted) {
-    const r = Math.round(bucket.r / bucket.count);
-    const g = Math.round(bucket.g / bucket.count);
-    const b = Math.round(bucket.b / bucket.count);
-    const hex = rgbToHex(r, g, b);
-
-    // Ensure distinctness (Delta E threshold)
-    const isTooClose = dominantHexes.some(existingHex => {
-      const exRgb = hexToRgb(existingHex);
-      const dist = Math.sqrt((r - exRgb.r) ** 2 + (g - exRgb.g) ** 2 + (b - exRgb.b) ** 2);
-      return dist < 45;
+  const buckets = [...histogram.values()].map(bucket => ({
+    count: bucket.count, r: bucket.r / bucket.count,
+    g: bucket.g / bucket.count, b: bucket.b / bucket.count,
+  }));
+  if (!buckets.length) return [];
+  const boxes = [buckets];
+  const limit = Math.min(8, Math.max(1, Math.round(maxColors)));
+  while (boxes.length < limit) {
+    let bestIndex = -1, bestScore = -1, bestAxis: 'r' | 'g' | 'b' = 'r';
+    boxes.forEach((box, index) => {
+      if (box.length < 2) return;
+      const ranges = (['r', 'g', 'b'] as const).map(axis => ({
+        axis, range: Math.max(...box.map(c => c[axis])) - Math.min(...box.map(c => c[axis])),
+      }));
+      ranges.sort((a, b) => b.range - a.range);
+      const population = box.reduce((sum, c) => sum + c.count, 0);
+      const score = ranges[0].range * Math.log2(population + 1);
+      if (score > bestScore) { bestScore = score; bestIndex = index; bestAxis = ranges[0].axis; }
     });
-
-    if (!isTooClose) {
-      dominantHexes.push(hex);
-      if (dominantHexes.length >= maxColors) break;
-    }
+    if (bestIndex < 0 || bestScore < 1) break;
+    const box = boxes.splice(bestIndex, 1)[0].sort((a, b) => a[bestAxis] - b[bestAxis]);
+    const half = box.reduce((sum, c) => sum + c.count, 0) / 2;
+    let weight = 0, cut = 1;
+    while (cut < box.length - 1 && weight + box[cut - 1].count < half) weight += box[cut++ - 1].count;
+    boxes.push(box.slice(0, cut), box.slice(cut));
   }
-
-  // Fallbacks if image is monochromatic or too few colors
-  const fallbacks = ['#eab308', '#0f172a', '#ffffff', '#ef4444'];
-  while (dominantHexes.length < maxColors) {
-    for (const fb of fallbacks) {
-      if (!dominantHexes.includes(fb)) {
-        dominantHexes.push(fb);
-        if (dominantHexes.length >= maxColors) break;
-      }
-    }
-  }
-
-  return dominantHexes.slice(0, maxColors);
+  return boxes.map(box => {
+    const weight = box.reduce((sum, c) => sum + c.count, 0);
+    return rgbToHex(
+      box.reduce((sum, c) => sum + c.r * c.count, 0) / weight,
+      box.reduce((sum, c) => sum + c.g * c.count, 0) / weight,
+      box.reduce((sum, c) => sum + c.b * c.count, 0) / weight,
+    );
+  }).filter((color, index, all) => all.indexOf(color) === index);
 };
 
 /**
@@ -282,6 +264,102 @@ function traceOuterContour(
   return smoothed;
 }
 
+// Trace exposed pixel edges and keep the largest closed boundary. This avoids
+// following isolated details inside the artwork or jumping across corners.
+function traceSilhouette(data: Uint8ClampedArray, width: number, height: number, smoothing: number): Array<{ x: number; y: number }> {
+  const mask = new Uint8Array(width * height);
+  for (let i = 0; i < mask.length; i++) mask[i] = data[i * 4 + 3] >= 60 ? 1 : 0;
+  const solid = (x: number, y: number) => x >= 0 && y >= 0 && x < width && y < height && mask[y * width + x] === 1;
+  const next = new Map<number, number[]>();
+  const edge = (x1: number, y1: number, x2: number, y2: number) => {
+    const key = y1 * (width + 1) + x1;
+    const end = y2 * (width + 1) + x2;
+    const targets = next.get(key) || [];
+    targets.push(end);
+    next.set(key, targets);
+  };
+  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+    if (!solid(x, y)) continue;
+    if (!solid(x, y - 1)) edge(x, y, x + 1, y);
+    if (!solid(x + 1, y)) edge(x + 1, y, x + 1, y + 1);
+    if (!solid(x, y + 1)) edge(x + 1, y + 1, x, y + 1);
+    if (!solid(x - 1, y)) edge(x, y + 1, x, y);
+  }
+  const loops: Array<Array<{ x: number; y: number }>> = [];
+  while (next.size) {
+    const start = next.keys().next().value as number;
+    const loop: Array<{ x: number; y: number }> = [];
+    let current = start;
+    for (let guard = 0; guard < width * height * 4; guard++) {
+      loop.push({ x: current % (width + 1), y: Math.floor(current / (width + 1)) });
+      const targets = next.get(current);
+      if (!targets?.length) break;
+      current = targets.pop()!;
+      if (!targets.length) next.delete(loop[loop.length - 1].y * (width + 1) + loop[loop.length - 1].x);
+      if (current === start) { loops.push(loop); break; }
+    }
+  }
+  const area = (loop: Array<{ x: number; y: number }>) => Math.abs(loop.reduce((sum, p, i) => {
+    const q = loop[(i + 1) % loop.length];
+    return sum + p.x * q.y - q.x * p.y;
+  }, 0));
+  loops.sort((a, b) => area(b) - area(a));
+  let contour = loops[0];
+  if (!contour || contour.length < 20) return traceOuterContour(data, width, height);
+  if (loops.length > 1) {
+    const significant = loops.filter(loop => area(loop) > area(contour) * 0.015);
+    if (significant.length > 1) {
+      const all = significant.flat().sort((a, b) => a.x - b.x || a.y - b.y);
+      const turn = (a: { x: number; y: number }, b: { x: number; y: number }, c: { x: number; y: number }) =>
+        (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+      const lower: typeof all = [], upper: typeof all = [];
+      for (const point of all) {
+        while (lower.length > 1 && turn(lower[lower.length - 2], lower[lower.length - 1], point) <= 0) lower.pop();
+        lower.push(point);
+      }
+      for (let i = all.length - 1; i >= 0; i--) {
+        const point = all[i];
+        while (upper.length > 1 && turn(upper[upper.length - 2], upper[upper.length - 1], point) <= 0) upper.pop();
+        upper.push(point);
+      }
+      contour = lower.slice(0, -1).concat(upper.slice(0, -1));
+    }
+  }
+
+  const xs = contour.map(point => point.x);
+  const ys = contour.map(point => point.y);
+  const minX = Math.min(...xs), maxX = Math.max(...xs);
+  const minY = Math.min(...ys), maxY = Math.max(...ys);
+  const centerX = (minX + maxX) / 2, centerY = (minY + maxY) / 2;
+  const radius = Math.max(maxX - minX, maxY - minY, 1) / 2;
+
+  // Sample by arc length before smoothing, so sharp ears and rounded cheeks
+  // retain comparable detail regardless of how long each pixel edge is.
+  const target = Math.min(180, Math.max(96, Math.round(contour.length / 8)));
+  const lengths = contour.map((point, i) => {
+    const next = contour[(i + 1) % contour.length];
+    return Math.hypot(next.x - point.x, next.y - point.y);
+  });
+  const perimeter = lengths.reduce((sum, length) => sum + length, 0);
+  let segment = 0, distance = 0;
+  let sampled = Array.from({ length: target }, (_, i) => {
+    const wanted = i / target * perimeter;
+    while (segment < lengths.length - 1 && distance + lengths[segment] < wanted) distance += lengths[segment++];
+    const p = contour[segment], q = contour[(segment + 1) % contour.length];
+    const t = lengths[segment] > 0 ? (wanted - distance) / lengths[segment] : 0;
+    return { x: (p.x + (q.x - p.x) * t - centerX) / radius,
+      y: (p.y + (q.y - p.y) * t - centerY) / radius };
+  });
+  for (let pass = 0; pass < Math.round(smoothing / 8); pass++) {
+    sampled = sampled.map((point, i) => {
+      const prev = sampled[(i - 1 + sampled.length) % sampled.length];
+      const following = sampled[(i + 1) % sampled.length];
+      return { x: point.x * 0.6 + (prev.x + following.x) * 0.2, y: point.y * 0.6 + (prev.y + following.y) * 0.2 };
+    });
+  }
+  return sampled;
+}
+
 export const processClickerImage = (
   image: HTMLImageElement,
   config: ClickerConfig
@@ -302,13 +380,13 @@ export const processClickerImage = (
   const imgH = image.naturalHeight || image.height || 100;
   const aspectRatio = imgW / imgH;
 
-  let drawW = res;
-  let drawH = res;
+  let drawW = res * 0.86;
+  let drawH = res * 0.86;
 
   if (aspectRatio > 1) {
-    drawH = res / aspectRatio;
+    drawH = drawW / aspectRatio;
   } else if (aspectRatio < 1) {
-    drawW = res * aspectRatio;
+    drawW = drawH * aspectRatio;
   }
 
   // Draw image scaled to canvas with rotation and flip applied
@@ -324,17 +402,21 @@ export const processClickerImage = (
   ctx.drawImage(image, -drawW / 2, -drawH / 2, drawW, drawH);
   ctx.restore();
 
-  const imgData = ctx.getImageData(0, 0, res, res);
-  const data = imgData.data;
+  let imgData = ctx.getImageData(0, 0, res, res);
+  let data = imgData.data;
 
   // 1. Intelligent Background Removal
   if (config.removeBackground) {
-    // Sample corner pixels to detect solid background color
+    // Sample the actual image corners; the padded canvas corners are transparent.
+    const left = Math.max(0, Math.floor((res - drawW) / 2 + 2));
+    const right = Math.min(res - 1, Math.ceil((res + drawW) / 2 - 3));
+    const top = Math.max(0, Math.floor((res - drawH) / 2 + 2));
+    const bottom = Math.min(res - 1, Math.ceil((res + drawH) / 2 - 3));
     const corners = [
-      0, // Top-left
-      (res - 1) * 4, // Top-right
-      ((res - 1) * res) * 4, // Bottom-left
-      ((res - 1) * res + (res - 1)) * 4, // Bottom-right
+      (top * res + left) * 4,
+      (top * res + right) * 4,
+      (bottom * res + left) * 4,
+      (bottom * res + right) * 4,
     ];
 
     let bgR = 0, bgG = 0, bgB = 0, count = 0;
@@ -352,22 +434,61 @@ export const processClickerImage = (
       bgG = Math.round(bgG / count);
       bgB = Math.round(bgB / count);
 
-      for (let i = 0; i < data.length; i += 4) {
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
-        const a = data[i + 3];
-
-        const colorDist = Math.sqrt((r - bgR) ** 2 + (g - bgG) ** 2 + (b - bgB) ** 2);
-        if (a < 25 || colorDist < 42) {
-          data[i + 3] = 0; // Set transparent
-        }
+      const visited = new Uint8Array(res * res);
+      const queue = new Int32Array(res * res);
+      let tail = 0;
+      for (const corner of corners) {
+        const index = corner / 4;
+        if (!visited[index]) { visited[index] = 1; queue[tail++] = index; }
+      }
+      for (let head = 0; head < tail; head++) {
+        const index = queue[head];
+        const offset = index * 4;
+        if (data[offset + 3] < 25) continue;
+        const dr = data[offset] - bgR, dg = data[offset + 1] - bgG, db = data[offset + 2] - bgB;
+        if (dr * dr + dg * dg + db * db >= 42 * 42) continue;
+        data[offset + 3] = 0;
+        const x = index % res, y = Math.floor(index / res);
+        if (x > 0 && !visited[index - 1]) { visited[index - 1] = 1; queue[tail++] = index - 1; }
+        if (x < res - 1 && !visited[index + 1]) { visited[index + 1] = 1; queue[tail++] = index + 1; }
+        if (y > 0 && !visited[index - res]) { visited[index - res] = 1; queue[tail++] = index - res; }
+        if (y < res - 1 && !visited[index + res]) { visited[index + res] = 1; queue[tail++] = index + res; }
       }
     }
   }
 
-  // Extract Dominant Colors for auto-palette
-  const dominantColors = extractDominantColors(imgData, 4);
+  // Fill the usable canvas with the visible design, not transparent margins
+  // inside the uploaded file. This keeps texture pixels aligned to the traced
+  // outline for both square and rectangular uploads.
+  let minX = res, minY = res, maxX = -1, maxY = -1;
+  for (let y = 0; y < res; y++) for (let x = 0; x < res; x++) {
+    if (data[(y * res + x) * 4 + 3] < 60) continue;
+    minX = Math.min(minX, x); minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x); maxY = Math.max(maxY, y);
+  }
+  if (maxX >= minX && maxY >= minY) {
+    const cropW = maxX - minX + 1;
+    const cropH = maxY - minY + 1;
+    const factor = res * 0.86 / Math.max(cropW, cropH);
+    const source = document.createElement('canvas');
+    source.width = res; source.height = res;
+    source.getContext('2d')!.putImageData(imgData, 0, 0);
+    ctx.clearRect(0, 0, res, res);
+    ctx.drawImage(source, minX, minY, cropW, cropH,
+      (res - cropW * factor) / 2, (res - cropH * factor) / 2,
+      cropW * factor, cropH * factor);
+    imgData = ctx.getImageData(0, 0, res, res);
+    data = imgData.data;
+  }
+
+  // Reserve one filament for the housing, keeping the entire printable
+  // assembly within the selected maximum of eight colors.
+  const dominantColors = extractDominantColors(imgData, config.colorsCount - 1);
+  const paletteColors = config.strokeMode === 'single'
+    ? [config.outlineColor]
+    : config.paletteMode === 'custom'
+      ? [config.baseColor, config.outlineColor, config.accentColor, config.detailColor]
+      : dominantColors.length ? [config.baseColor, ...dominantColors.filter(color => color.toLowerCase() !== config.baseColor.toLowerCase())] : [config.baseColor];
 
   // Save original canvas with full crisp colors and background removal
   const originalCanvas = document.createElement('canvas');
@@ -386,17 +507,10 @@ export const processClickerImage = (
         data[i] = strokeRgb.r;
         data[i + 1] = strokeRgb.g;
         data[i + 2] = strokeRgb.b;
-        data[i + 3] = 255;
       }
     }
   } else {
-    // 4-Color Palette Reduction
-    const palette = [
-      hexToRgb(config.baseColor),
-      hexToRgb(config.outlineColor),
-      hexToRgb(config.accentColor),
-      hexToRgb(config.detailColor),
-    ];
+    const palette = paletteColors.map(hexToRgb);
 
     for (let i = 0; i < data.length; i += 4) {
       if (data[i + 3] > 30) {
@@ -417,7 +531,6 @@ export const processClickerImage = (
         data[i] = closest.r;
         data[i + 1] = closest.g;
         data[i + 2] = closest.b;
-        data[i + 3] = 255;
       }
     }
   }
@@ -425,23 +538,15 @@ export const processClickerImage = (
   ctx.putImageData(imgData, 0, 0);
 
   // 3. Extract True Boundary Contour using Moore-Neighbor algorithm
-  const contourPoints = traceOuterContour(imgData.data, res, res, 40);
-
-  // Segmented multi-color layers based on smoothed contour and offsets
-  const colorLayers = [
-    { color: config.baseColor, points: contourPoints },
-    { color: config.outlineColor, points: contourPoints.map((p) => ({ x: p.x * 0.94, y: p.y * 0.94 })) },
-    { color: config.accentColor, points: contourPoints.map((p) => ({ x: p.x * 0.80, y: p.y * 0.80 })) },
-    { color: config.detailColor, points: contourPoints.map((p) => ({ x: p.x * 0.64, y: p.y * 0.64 })) },
-  ];
+  const contourPoints = traceSilhouette(imgData.data, res, res, config.smoothing);
 
   return {
     canvas,
     originalCanvas,
-    previewDataUrl: originalCanvas.toDataURL('image/png'),
+    previewDataUrl: canvas.toDataURL('image/png'),
     contourPoints,
     dominantColors,
-    colorLayers,
+    paletteColors,
     width: res,
     height: res,
     aspectRatio,
@@ -455,16 +560,17 @@ export const createDefaultClickerConfig = (): ClickerConfig => ({
   type: 'clicker',
   baseStyle: 'outline',
   strokeMode: 'multi',
+  paletteMode: 'auto',
   reliefStyle: 'inlaid',
   reliefDepth: 0.8,
   size: 35,
   topHeight: 8,
   baseHeight: 12,
   baseBevel: 1.2,
-  baseMargin: 2.5,
-  colorsCount: 4,
-  smoothing: 15,
-  baseColor: '#eab308',
+  baseMargin: 1.1,
+  colorsCount: 8,
+  smoothing: 16,
+  baseColor: '#171923',
   outlineColor: '#0f172a',
   accentColor: '#ffffff',
   detailColor: '#ef4444',
@@ -482,7 +588,7 @@ export const createDefaultClickerConfig = (): ClickerConfig => ({
   ringHeight: 0,
   ringHoleDiameter: 4.5,
   ringThickness: 2.2,
-  includeRing: false,
+  includeRing: true,
   imageRotation: 0,
   flipHorizontal: false,
   soundEnabled: true,

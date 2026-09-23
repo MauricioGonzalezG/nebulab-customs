@@ -1,12 +1,14 @@
 import * as THREE from 'three';
 import { ClickerConfig, ClickerBaseStyle } from '../types';
 import { ProcessedClickerData } from './clickerProcessor';
+import { createEyeletShape, getClickerEyelet, shapeFromContour } from './clickerGeometry';
 
 function buildBaseShapeForStl(
   style: ClickerBaseStyle,
   scale: number,
   pts: Array<{ x: number; y: number }>,
-  bevelRadius: number = 2.0
+  bevelRadius: number = 2.0,
+  margin: number = 0
 ): THREE.Shape {
   const shape = new THREE.Shape();
 
@@ -87,16 +89,7 @@ function buildBaseShapeForStl(
 
     case 'outline':
     default: {
-      if (pts.length > 2) {
-        shape.moveTo(pts[0].x * scale, pts[0].y * scale);
-        for (let i = 1; i < pts.length; i++) {
-          shape.lineTo(pts[i].x * scale, pts[i].y * scale);
-        }
-        shape.closePath();
-      } else {
-        shape.absarc(0, 0, scale, 0, Math.PI * 2, false);
-      }
-      break;
+      return shapeFromContour(pts, scale, margin);
     }
   }
 
@@ -110,22 +103,13 @@ export const downloadClickerSTL = (
   processedData: ProcessedClickerData | null,
   config: ClickerConfig
 ) => {
-  const scale = config.size / 2;
+  const scale = config.size / 2 - (config.baseMargin ?? 1.1);
   const pts = processedData?.contourPoints || [];
   const topH = config.topHeight;
   const baseH = config.baseHeight;
 
   // 1. Cap Shape
-  const capShape = new THREE.Shape();
-  if (pts.length > 2) {
-    capShape.moveTo(pts[0].x * scale, pts[0].y * scale);
-    for (let i = 1; i < pts.length; i++) {
-      capShape.lineTo(pts[i].x * scale, pts[i].y * scale);
-    }
-    capShape.closePath();
-  } else {
-    capShape.absarc(0, 0, scale, 0, Math.PI * 2, false);
-  }
+  const capShape = shapeFromContour(pts, scale);
 
   const capBevel = 0.8;
   const capGeo = new THREE.ExtrudeGeometry(capShape, {
@@ -138,9 +122,9 @@ export const downloadClickerSTL = (
   capGeo.center();
 
   // 2. Base Housing Shape
-  const baseMargin = config.baseMargin ?? 2.5;
+  const baseMargin = config.baseMargin ?? 1.1;
   const baseScale = scale + baseMargin;
-  const baseShape = buildBaseShapeForStl(config.baseStyle, baseScale, pts, config.baseBevel);
+  const baseShape = buildBaseShapeForStl(config.baseStyle, config.baseStyle === 'outline' ? scale : baseScale, pts, config.baseBevel, baseMargin);
 
   if (config.type === 'clicker') {
     const switchHole = new THREE.Path();
@@ -153,10 +137,10 @@ export const downloadClickerSTL = (
     baseShape.holes.push(switchHole);
   }
 
-  const baseBevel = Math.min(1.0, config.baseBevel || 1.0);
+  const baseBevel = Math.min(1.0, config.baseBevel ?? 1.0);
   const baseGeo = new THREE.ExtrudeGeometry(baseShape, {
     depth: Math.max(4, baseH - baseBevel),
-    bevelEnabled: true,
+    bevelEnabled: baseBevel > 0,
     bevelSegments: 2,
     bevelSize: baseBevel,
     bevelThickness: baseBevel,
@@ -166,6 +150,17 @@ export const downloadClickerSTL = (
 
   // Combine geometries for STL export
   const geometries = [capGeo, baseGeo];
+
+  if (config.includeRing || config.type === 'keychain') {
+    const eyeletGeo = new THREE.ExtrudeGeometry(createEyeletShape(config, pts), {
+      depth: 4.5, bevelEnabled: true, bevelSegments: 2,
+      bevelSize: 0.35, bevelThickness: 0.35,
+    });
+    eyeletGeo.center();
+    const eyelet = getClickerEyelet(config, pts);
+    eyeletGeo.translate(baseScale * 1.5 + 5 + eyelet.x, eyelet.y, baseH / 2 - 1 + (config.ringHeight || 0));
+    geometries.push(eyeletGeo);
+  }
 
   let stlString = `solid NebulabStudio_Clicker_${config.type}_${config.size}mm\n`;
 

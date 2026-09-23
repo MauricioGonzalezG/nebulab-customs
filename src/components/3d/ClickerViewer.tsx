@@ -5,6 +5,7 @@ import { ClickerConfig, ClickerBaseStyle } from '../../types';
 import { ProcessedClickerData } from '../../core/clickerProcessor';
 import { applyStandardOrbitControls } from './viewerControls';
 import { playSwitchSound } from '../../lib/clickerAudio';
+import { createEyeletShape, getClickerEyelet, shapeFromContour } from '../../core/clickerGeometry';
 
 interface ClickerViewerProps {
   config: ClickerConfig;
@@ -19,7 +20,8 @@ function createBaseShape(
   style: ClickerBaseStyle,
   scale: number,
   pts: Array<{ x: number; y: number }>,
-  bevelRadius: number = 2.0
+  bevelRadius: number = 2.0,
+  margin: number = 0
 ): THREE.Shape {
   const shape = new THREE.Shape();
 
@@ -102,16 +104,7 @@ function createBaseShape(
 
     case 'outline':
     default: {
-      if (pts.length > 2) {
-        shape.moveTo(pts[0].x * scale, pts[0].y * scale);
-        for (let i = 1; i < pts.length; i++) {
-          shape.lineTo(pts[i].x * scale, pts[i].y * scale);
-        }
-        shape.closePath();
-      } else {
-        shape.absarc(0, 0, scale, 0, Math.PI * 2, false);
-      }
-      break;
+      return shapeFromContour(pts, scale, margin);
     }
   }
 
@@ -199,7 +192,7 @@ export const ClickerViewer: React.FC<ClickerViewerProps> = ({
     if (cameraStateRef.current) {
       camera.position.copy(cameraStateRef.current.position);
     } else {
-      camera.position.set(0, 48, 70);
+      camera.position.set(0, 52, 78);
     }
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
@@ -219,6 +212,11 @@ export const ClickerViewer: React.FC<ClickerViewerProps> = ({
     const controls = new OrbitControls(camera, renderer.domElement);
     applyStandardOrbitControls(controls);
     controls.maxPolarAngle = Math.PI / 2 + 0.25;
+
+    if (!cameraStateRef.current) {
+      controls.target.set(0, 2.5, 0);
+      controls.update();
+    }
 
     if (cameraStateRef.current) {
       controls.target.copy(cameraStateRef.current.target);
@@ -295,19 +293,10 @@ export const ClickerViewer: React.FC<ClickerViewerProps> = ({
     // 1. TOP CAP SHAPE & 3D GEOMETRY
     // ----------------------------------------------------
     const pts = processedData?.contourPoints || [];
-    const scale = config.size / 2;
+    const scale = config.size / 2 - (config.baseMargin ?? 1.1);
     const isExtrudeOnly = config.renderStyle === 'extrude';
 
-    const capShape = new THREE.Shape();
-    if (pts.length > 2) {
-      capShape.moveTo(pts[0].x * scale, pts[0].y * scale);
-      for (let i = 1; i < pts.length; i++) {
-        capShape.lineTo(pts[i].x * scale, pts[i].y * scale);
-      }
-      capShape.closePath();
-    } else {
-      capShape.absarc(0, 0, scale, 0, Math.PI * 2, false);
-    }
+    const capShape = shapeFromContour(pts, scale);
 
     const bevelSize = 0.8;
     const bevelThick = 0.8;
@@ -376,28 +365,23 @@ export const ClickerViewer: React.FC<ClickerViewerProps> = ({
       const topPlateGeo = new THREE.ShapeGeometry(capShape, 32);
       topPlateGeo.center();
 
-      topPlateGeo.computeBoundingBox();
-      const bb = topPlateGeo.boundingBox;
-      if (bb) {
-        const sizeX = bb.max.x - bb.min.x || 1;
-        const sizeY = bb.max.y - bb.min.y || 1;
+      if (scale > 0) {
         const pos = topPlateGeo.attributes.position;
         const uvs = new Float32Array(pos.count * 2);
 
         for (let i = 0; i < pos.count; i++) {
           const x = pos.getX(i);
           const y = pos.getY(i);
-          const normU = (x - bb.min.x) / sizeX;
-          const normV = (y - bb.min.y) / sizeY;
-
-          uvs[i * 2] = normU;
-          uvs[i * 2 + 1] = 1 - normV;
+          // The processed artwork is centered on a square canvas. Keep the
+          // same coordinates for the texture and the traced silhouette.
+          uvs[i * 2] = 0.5 + x / (2 * scale) * 0.86;
+          uvs[i * 2 + 1] = 0.5 - y / (2 * scale) * 0.86;
         }
 
         topPlateGeo.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
       }
 
-      const texture = new THREE.CanvasTexture(processedData.originalCanvas || processedData.canvas);
+      const texture = new THREE.CanvasTexture(processedData.canvas);
       texture.colorSpace = THREE.SRGBColorSpace;
       texture.needsUpdate = true;
 
@@ -412,7 +396,9 @@ export const ClickerViewer: React.FC<ClickerViewerProps> = ({
       topPlateMesh.rotation.x = Math.PI / 2;
 
       // Relief style elevation
-      const reliefZOffset = config.reliefStyle === 'embossed' ? 0.4 : config.reliefStyle === 'debossed' ? -0.2 : 0.06;
+      const reliefZOffset = config.reliefStyle === 'embossed'
+        ? (config.reliefDepth || 0.8) + 0.32
+        : config.reliefStyle === 'debossed' ? 0.03 : 0.06;
       topPlateMesh.position.y = config.topHeight / 2 + bevelThick + reliefZOffset;
       topPlateMesh.castShadow = true;
       topGroup.add(topPlateMesh);
@@ -441,9 +427,9 @@ export const ClickerViewer: React.FC<ClickerViewerProps> = ({
     // ----------------------------------------------------
     // 3. BASE HOUSING MESH (PARAMETRIC STYLES & SWITCH SOCKET)
     // ----------------------------------------------------
-    const baseMargin = config.baseMargin ?? 2.5;
+    const baseMargin = config.baseMargin ?? 1.1;
     const baseScale = scale + baseMargin;
-    const baseShape = createBaseShape(config.baseStyle, baseScale, pts, config.baseBevel);
+    const baseShape = createBaseShape(config.baseStyle, config.baseStyle === 'outline' ? scale : baseScale, pts, config.baseBevel, baseMargin);
 
     // Standard 14.0mm x 14.0mm Cherry MX Switch Socket Cutout
     if (config.type === 'clicker') {
@@ -457,10 +443,10 @@ export const ClickerViewer: React.FC<ClickerViewerProps> = ({
       baseShape.holes.push(switchHole);
     }
 
-    const baseBevelThick = Math.min(1.0, config.baseBevel || 1.0);
+    const baseBevelThick = Math.min(1.0, config.baseBevel ?? 1.0);
     const baseGeo = new THREE.ExtrudeGeometry(baseShape, {
       depth: Math.max(4, config.baseHeight - baseBevelThick),
-      bevelEnabled: true,
+      bevelEnabled: baseBevelThick > 0,
       bevelSegments: 3,
       bevelSize: baseBevelThick,
       bevelThickness: baseBevelThick,
@@ -469,7 +455,7 @@ export const ClickerViewer: React.FC<ClickerViewerProps> = ({
     baseGeo.computeVertexNormals();
 
     const housingMat = new THREE.MeshStandardMaterial({
-      color: isExtrudeOnly ? 0xc8d0e0 : 0xf8fafc,
+      color: isExtrudeOnly ? 0xc8d0e0 : config.baseColor,
       roughness: 0.25,
       metalness: 0.06,
     });
@@ -484,28 +470,48 @@ export const ClickerViewer: React.FC<ClickerViewerProps> = ({
     // ----------------------------------------------------
     // KEYCHAIN RING ATTACHMENT LOOP (Matching Housing Material)
     // ----------------------------------------------------
+    let hardware: THREE.Group | null = null;
+    let hardwareAnchor = { x: 0, y: 0 };
     if (config.includeRing || config.type === 'keychain') {
-      const holeDiam = config.ringHoleDiameter || 4.5;
-      const ringThick = config.ringThickness || 2.2;
-      const majorRadius = holeDiam / 2 + ringThick / 2;
-      const minorRadius = ringThick / 2;
+      const eyelet = getClickerEyelet(config, pts);
+      hardwareAnchor = eyelet;
+      const eyeletGeo = new THREE.ExtrudeGeometry(createEyeletShape(config, pts), {
+        depth: 4.5, bevelEnabled: true, bevelSegments: 3,
+        bevelSize: 0.35, bevelThickness: 0.35,
+      });
+      eyeletGeo.center();
+      const eyeletMesh = new THREE.Mesh(eyeletGeo, housingMat);
+      eyeletMesh.rotation.x = Math.PI / 2;
+      eyeletMesh.position.set(eyelet.x, -2.2 + (config.ringHeight || 0), eyelet.y);
+      eyeletMesh.castShadow = true;
+      baseGroup.add(eyeletMesh);
 
-      const ringGeo = new THREE.TorusGeometry(majorRadius, minorRadius, 20, 36);
-      const ringMesh = new THREE.Mesh(ringGeo, housingMat);
-
-      const angleDeg = config.ringAngle ?? 90;
-      const angleRad = (angleDeg * Math.PI) / 180;
-      const ringDist = baseScale + majorRadius * 0.75;
-
-      const rx = Math.cos(angleRad) * ringDist + (config.ringOffsetX || 0);
-      const rz = -Math.sin(angleRad) * ringDist + (config.ringOffsetY || 0);
-      const ry = config.ringHeight || 0;
-
-      ringMesh.position.set(rx, ry, rz);
-      ringMesh.rotation.x = Math.PI / 2;
-      ringMesh.rotation.z = -angleRad + Math.PI / 2;
-      ringMesh.castShadow = true;
-      baseGroup.add(ringMesh);
+      // Metal chain and split ring are presentation hardware. The printed
+      // file contains the housing eyelet, ready for real hardware assembly.
+      hardware = new THREE.Group();
+      // The first link passes through the printable eyelet; every following
+      // link overlaps its neighbour, including the split ring at the end.
+      hardware.position.set(eyelet.x, eyeletMesh.position.y, eyelet.y);
+      const metal = new THREE.MeshStandardMaterial({ color: 0xd9dce2, metalness: 0.95, roughness: 0.2 });
+      // Centre the first link in the 4.5 mm-thick eyelet: its 5.25 mm
+      // vertical span crosses both faces, so it is visibly threaded through.
+      const linkCenter = 0;
+      const linkSpacing = 3.7;
+      for (let i = 0; i < 3; i++) {
+        const link = new THREE.Mesh(new THREE.TorusGeometry(2.1, 0.46, 10, 32), metal);
+        link.scale.set(0.72, 1.25, 1);
+        if (i % 2) link.rotation.y = Math.PI / 2;
+        link.position.set(0, linkCenter + i * linkSpacing, 0);
+        link.castShadow = true;
+        hardware.add(link);
+      }
+      for (let i = 0; i < 2; i++) {
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(8.2, 0.55, 12, 72), metal);
+        ring.position.set(0, linkCenter + 2 * linkSpacing + 10, (i - 0.5) * 0.75);
+        ring.castShadow = true;
+        hardware.add(ring);
+      }
+      baseGroup.add(hardware);
     }
 
     // ----------------------------------------------------
@@ -593,6 +599,14 @@ export const ClickerViewer: React.FC<ClickerViewerProps> = ({
       // Hide/Show PEI build plate & Grid
       peiBedGroup.visible = isPrintBed;
       gridHelper.visible = !isPrintBed;
+      if (hardware) {
+        hardware.visible = !isPrintBed;
+        // A real split ring swivels freely: face it toward the viewer while
+        // keeping the first link centred through the fixed printed eyelet.
+        hardware.rotation.y = Math.atan2(camera.position.x - hardwareAnchor.x, camera.position.z - hardwareAnchor.y)
+          + Math.sin(performance.now() * 0.0015) * 0.02;
+        hardware.rotation.z = Math.sin(performance.now() * 0.0011 + 0.7) * 0.025;
+      }
 
       if (isPrintBed) {
         // Place Cap and Base flat side-by-side on build plate
@@ -601,7 +615,7 @@ export const ClickerViewer: React.FC<ClickerViewerProps> = ({
         switchGroup.position.set(0, -999, 0); // Hide switch in print bed
       } else {
         const baseTargetY = isExploded ? -12 : -1.2;
-        const switchTargetY = isExploded ? 6 : 0;
+        const switchTargetY = isExploded ? 6 : -4;
         const topTargetY = (isExploded ? 26 : 3.0) + anim.currentY;
 
         topGroup.position.set(0, topGroup.position.y + (topTargetY - topGroup.position.y) * 0.15, 0);
@@ -637,6 +651,18 @@ export const ClickerViewer: React.FC<ClickerViewerProps> = ({
         };
       }
       controls.dispose();
+      const geometries = new Set<THREE.BufferGeometry>();
+      const materials = new Set<THREE.Material>();
+      scene.traverse(object => {
+        if (!(object instanceof THREE.Mesh)) return;
+        geometries.add(object.geometry);
+        (Array.isArray(object.material) ? object.material : [object.material]).forEach(material => materials.add(material));
+      });
+      geometries.forEach(geometry => geometry.dispose());
+      materials.forEach(material => {
+        if (material instanceof THREE.MeshStandardMaterial) material.map?.dispose();
+        material.dispose();
+      });
       renderer.dispose();
       container.innerHTML = '';
     };

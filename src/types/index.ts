@@ -58,7 +58,8 @@ export interface ClickerConfig {
   removeBackground: boolean;
   type: ClickerType;
   baseStyle: ClickerBaseStyle;
-  strokeMode: 'multi' | 'single'; // 'multi' = hasta 4 colores, 'single' = trazo único silueta
+  strokeMode: 'multi' | 'single'; // 'multi' = paleta de hasta 8 colores
+  paletteMode: 'auto' | 'custom';
   reliefStyle: ClickerReliefStyle; // 'inlaid' | 'embossed' | 'debossed' | 'flat'
   reliefDepth: number; // mm (0.4 to 2.0)
   size: number; // mm (25 to 60)
@@ -66,7 +67,7 @@ export interface ClickerConfig {
   baseHeight: number; // mm (8 to 20)
   baseBevel: number; // mm (0 to 3)
   baseMargin: number; // mm (1 to 5)
-  colorsCount: number; // 2, 3, 4
+  colorsCount: number; // 2 a 8
   smoothing: number; // 0 to 50%
   baseColor: string;
   outlineColor: string;

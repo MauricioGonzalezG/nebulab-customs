@@ -30,7 +30,6 @@ import {
   Key,
   Volume2,
   VolumeX,
-  Sparkles,
   Printer,
   Sliders,
 } from 'lucide-react';
@@ -146,7 +145,10 @@ export const ClickerStudio: React.FC<ClickerStudioProps> = ({
     config.accentColor,
     config.detailColor,
     config.strokeMode,
+    config.paletteMode,
+    config.colorsCount,
     config.size,
+    config.smoothing,
     config.imageRotation,
     config.flipHorizontal,
   ]);
@@ -171,6 +173,8 @@ export const ClickerStudio: React.FC<ClickerStudioProps> = ({
           ...prev,
           imageUrl: event.target!.result as string,
           sampleId: undefined,
+          paletteMode: 'auto',
+          strokeMode: 'multi',
         }));
         scrollToViewerOnMobile();
       }
@@ -179,15 +183,7 @@ export const ClickerStudio: React.FC<ClickerStudioProps> = ({
   };
 
   const handleApplyDominantColors = () => {
-    if (!processedData?.dominantColors || processedData.dominantColors.length < 2) return;
-    const dom = processedData.dominantColors;
-    setConfig((prev) => ({
-      ...prev,
-      baseColor: dom[0] || prev.baseColor,
-      outlineColor: dom[1] || prev.outlineColor,
-      accentColor: dom[2] || prev.accentColor,
-      detailColor: dom[3] || prev.detailColor,
-    }));
+    setConfig((prev) => ({ ...prev, paletteMode: 'auto', strokeMode: 'multi' }));
   };
 
   const handleTestClick = () => {
@@ -337,7 +333,26 @@ export const ClickerStudio: React.FC<ClickerStudioProps> = ({
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-0 overflow-hidden">
         
         {/* LEFT CONTROL PANEL (Geometría, Acabados & Parámetros 3D) */}
-        <div className="lg:col-span-3 bg-slate-900/60 border-r border-slate-800 p-4 sm:p-5 space-y-5 overflow-y-auto max-h-[calc(100vh-60px)]">
+        <div className="order-2 lg:order-1 lg:col-span-3 bg-slate-900/60 border-r border-slate-800 p-4 sm:p-5 space-y-5 overflow-y-auto lg:max-h-[calc(100vh-60px)]">
+
+          <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-3 space-y-2">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Formato</span>
+            <div className="grid grid-cols-2 gap-2">
+              {([['clicker', 'Clicker MX'], ['keychain', 'Llavero']] as const).map(([type, label]) => (
+                <button key={type} onClick={() => setConfig(prev => ({
+                  ...prev, type,
+                  includeRing: type === 'keychain' ? true : prev.includeRing,
+                  topHeight: type === 'keychain' && prev.type === 'clicker' && prev.topHeight === 8 ? 6 :
+                    type === 'clicker' && prev.type === 'keychain' && prev.topHeight === 6 ? 8 : prev.topHeight,
+                  baseHeight: type === 'keychain' && prev.type === 'clicker' && prev.baseHeight === 12 ? 8 :
+                    type === 'clicker' && prev.type === 'keychain' && prev.baseHeight === 8 ? 12 : prev.baseHeight,
+                }))}
+                  className={`rounded-xl border px-3 py-2 text-xs font-bold ${config.type === type ? 'border-cyan-500 bg-cyan-500/15 text-cyan-200' : 'border-slate-700 text-slate-400'}`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
           
           {/* Base Style Selector */}
           <div className="space-y-2">
@@ -386,6 +401,27 @@ export const ClickerStudio: React.FC<ClickerStudioProps> = ({
             </div>
           </div>
 
+          <div className="space-y-2 bg-slate-950/60 p-3.5 rounded-2xl border border-slate-800">
+            <div className="flex justify-between items-center text-xs">
+              <span className="font-bold text-slate-300">Borde alrededor del diseño</span>
+              <span className="font-mono text-cyan-400 font-bold">{config.baseMargin} mm</span>
+            </div>
+            <input type="range" min={0.6} max={3} step={0.1} value={config.baseMargin}
+              onChange={event => setConfig(prev => ({ ...prev, baseMargin: Number(event.target.value) }))}
+              className="w-full accent-cyan-500 cursor-pointer" />
+            <p className="text-[10px] text-slate-500">La silueta conserva un margen uniforme alrededor de la imagen.</p>
+          </div>
+
+          <div className="space-y-2 bg-slate-950/60 p-3.5 rounded-2xl border border-slate-800">
+            <div className="flex justify-between items-center text-xs">
+              <span className="font-bold text-slate-300">Redondeo de la silueta</span>
+              <span className="font-mono text-cyan-400 font-bold">{config.smoothing}%</span>
+            </div>
+            <input type="range" min={0} max={32} step={4} value={config.smoothing}
+              onChange={event => setConfig(prev => ({ ...prev, smoothing: Number(event.target.value) }))}
+              className="w-full accent-cyan-500 cursor-pointer" />
+          </div>
+
           {/* Accordion 1: Geometría y Acabado 3D */}
           <div className="border border-slate-800 rounded-2xl overflow-hidden bg-slate-950/40">
             <button
@@ -429,7 +465,7 @@ export const ClickerStudio: React.FC<ClickerStudioProps> = ({
                 {/* Altura de Tapa Keycap */}
                 <div className="space-y-1.5">
                   <div className="flex justify-between items-center">
-                    <span className="text-slate-300 font-semibold">Altura del Keycap</span>
+                    <span className="text-slate-300 font-semibold">Altura de la tapa</span>
                     <span className="font-mono text-cyan-400 font-bold">{config.topHeight} mm</span>
                   </div>
                   <input
@@ -478,7 +514,7 @@ export const ClickerStudio: React.FC<ClickerStudioProps> = ({
                 </div>
 
                 {/* Tolerancia de Encaje del Switch */}
-                <div className="space-y-1.5 pt-2 border-t border-slate-800/80">
+                {config.type === 'clicker' && <div className="space-y-1.5 pt-2 border-t border-slate-800/80">
                   <div className="flex justify-between items-center">
                     <span className="text-slate-300 font-semibold">Tolerancia Cruz MX (3D Printer)</span>
                     <span className="font-mono text-cyan-400 font-bold">
@@ -499,7 +535,7 @@ export const ClickerStudio: React.FC<ClickerStudioProps> = ({
                     <span className="text-emerald-400 font-semibold">Estándar (0.0mm)</span>
                     <span>Holgado (+0.3mm)</span>
                   </div>
-                </div>
+                </div>}
 
               </div>
             )}
@@ -521,18 +557,35 @@ export const ClickerStudio: React.FC<ClickerStudioProps> = ({
             {activeAccordion === 'colors' && (
               <div className="p-4 border-t border-slate-800/60 space-y-4 text-xs">
                 
-                {/* Auto Dominant Color Extractor Button */}
-                {processedData?.dominantColors && processedData.dominantColors.length > 0 && (
-                  <button
-                    onClick={handleApplyDominantColors}
-                    className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-violet-600/30 to-cyan-600/30 border border-violet-500/40 hover:border-violet-400 text-violet-300 font-bold text-xs flex items-center justify-center gap-2 transition-all hover:scale-[1.02]"
-                  >
-                    <Sparkles className="w-3.5 h-3.5 text-yellow-400" />
-                    <span>✨ Auto-Detectar Paleta de la Imagen</span>
+                <div className="grid grid-cols-2 gap-2">
+                  <button onClick={handleApplyDominantColors}
+                    className={`rounded-xl border px-2 py-2.5 font-bold ${config.paletteMode === 'auto' && config.strokeMode === 'multi' ? 'bg-violet-500/20 border-violet-400 text-violet-200' : 'border-slate-700 text-slate-400'}`}>
+                    Colores originales
                   </button>
+                  <button onClick={() => setConfig(prev => ({ ...prev, paletteMode: 'custom', strokeMode: 'multi' }))}
+                    className={`rounded-xl border px-2 py-2.5 font-bold ${config.paletteMode === 'custom' && config.strokeMode === 'multi' ? 'bg-cyan-500/20 border-cyan-400 text-cyan-200' : 'border-slate-700 text-slate-400'}`}>
+                    Paleta personalizada
+                  </button>
+                </div>
+
+                {config.paletteMode === 'auto' && config.strokeMode === 'multi' && (
+                  <div className="space-y-3 rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+                    <div className="flex justify-between font-semibold text-slate-300">
+                      <span>Paleta total, incluido el cuerpo</span><span className="font-mono text-cyan-300">{config.colorsCount} máx.</span>
+                    </div>
+                    <input type="range" min={2} max={8} step={1} value={config.colorsCount}
+                      onChange={event => setConfig(prev => ({ ...prev, colorsCount: Number(event.target.value) }))}
+                      className="w-full accent-cyan-500" aria-label="Máximo de colores de la ilustración" />
+                    <div className="flex flex-wrap gap-1.5" aria-label="Paleta extraída de la imagen">
+                      {processedData?.paletteColors.map(color => <span key={color} title={color}
+                        className="h-7 w-7 rounded-lg border border-white/20 shadow-sm" style={{ backgroundColor: color }} />)}
+                    </div>
+                    <p className="text-[11px] text-slate-400">La vista y el 3MF usan esta misma paleta.</p>
+                  </div>
                 )}
 
                 {/* Quick Palette Presets */}
+                {config.paletteMode === 'custom' && (
                 <div className="space-y-1.5">
                   <label className="text-slate-400 block font-semibold">Paletas Rápidas</label>
                   <div className="grid grid-cols-2 gap-1.5">
@@ -541,6 +594,7 @@ export const ClickerStudio: React.FC<ClickerStudioProps> = ({
                         key={p.name}
                         onClick={() => setConfig((prev) => ({
                           ...prev,
+                          paletteMode: 'custom',
                           baseColor: p.base,
                           outlineColor: p.outline,
                           accentColor: p.accent,
@@ -559,6 +613,7 @@ export const ClickerStudio: React.FC<ClickerStudioProps> = ({
                     ))}
                   </div>
                 </div>
+                )}
 
                 {/* Stroke Mode Toggle */}
                 <div className="space-y-1.5">
@@ -570,7 +625,7 @@ export const ClickerStudio: React.FC<ClickerStudioProps> = ({
                         config.strokeMode === 'multi' ? 'bg-cyan-500 text-white shadow-md' : 'text-slate-400'
                       }`}
                     >
-                      Multicolor (4 Capas)
+                      Multicolor
                     </button>
                     <button
                       onClick={() => setConfig((prev) => ({ ...prev, strokeMode: 'single' }))}
@@ -583,7 +638,16 @@ export const ClickerStudio: React.FC<ClickerStudioProps> = ({
                   </div>
                 </div>
 
+                {config.paletteMode === 'auto' && <div className="space-y-1 rounded-xl border border-slate-800 bg-slate-950/60 p-2.5">
+                  <label className="text-[11px] font-semibold text-slate-400">Color del cuerpo</label>
+                  <div className="flex items-center gap-2"><input type="color" value={config.baseColor}
+                    onChange={event => setConfig(prev => ({ ...prev, baseColor: event.target.value }))}
+                    className="h-7 w-7 cursor-pointer rounded-lg border-0 bg-transparent" />
+                    <span className="font-mono text-[11px] text-slate-300 uppercase">{config.baseColor}</span></div>
+                </div>}
+
                 {/* 4 Color Pickers */}
+                {config.paletteMode === 'custom' && (
                 <div className="grid grid-cols-2 gap-3 pt-1">
                   <div className="space-y-1 bg-slate-950/60 p-2.5 rounded-xl border border-slate-800">
                     <label className="text-[11px] text-slate-400 block font-semibold">1. Tapa Base</label>
@@ -641,12 +705,14 @@ export const ClickerStudio: React.FC<ClickerStudioProps> = ({
                     </>
                   )}
                 </div>
+                )}
 
               </div>
             )}
           </div>
 
           {/* Accordion 3: Switch Mecánico & Tactilidad */}
+          {config.type === 'clicker' && (
           <div className="border border-slate-800 rounded-2xl overflow-hidden bg-slate-950/40">
             <button
               onClick={() => setActiveAccordion(activeAccordion === 'switch' ? '' : 'switch')}
@@ -702,6 +768,7 @@ export const ClickerStudio: React.FC<ClickerStudioProps> = ({
               </div>
             )}
           </div>
+          )}
 
           {/* Accordion 4: Argolla de Llavero (Keychain Ring) */}
           <div className="border border-slate-800 rounded-2xl overflow-hidden bg-slate-950/40">
@@ -729,11 +796,14 @@ export const ClickerStudio: React.FC<ClickerStudioProps> = ({
                   <span className="font-bold text-slate-200">Añadir Argolla al Modelo</span>
                   <input
                     type="checkbox"
-                    checked={config.includeRing}
+                    checked={config.includeRing || config.type === 'keychain'}
+                    disabled={config.type === 'keychain'}
                     onChange={(e) => setConfig((prev) => ({ ...prev, includeRing: e.target.checked }))}
                     className="w-4 h-4 accent-cyan-500 rounded cursor-pointer"
                   />
                 </div>
+
+                <p className="text-[11px] text-slate-400">El archivo imprimible incluye el ojal; la cadena y la argolla metálica muestran cómo quedará ensamblado.</p>
 
                 {config.includeRing && (
                   <>
@@ -858,10 +928,10 @@ export const ClickerStudio: React.FC<ClickerStudioProps> = ({
         </div>
 
         {/* MIDDLE 3D VIEWPORT */}
-        <div ref={viewerRef} className="lg:col-span-6 bg-slate-950 relative flex flex-col items-center justify-center p-3 sm:p-4">
+        <div ref={viewerRef} className="order-1 lg:order-2 lg:col-span-6 bg-slate-950 relative flex flex-col items-center justify-center p-3 sm:p-4">
           
           {/* Top Controls Overlay in 3D Viewport */}
-          <div className="absolute top-5 z-10 flex flex-wrap items-center gap-2 bg-slate-900/85 backdrop-blur-md p-1.5 rounded-2xl border border-slate-800 shadow-2xl max-w-[95%]">
+          <div className="relative mb-3 z-10 flex flex-wrap items-center gap-2 bg-slate-900/85 backdrop-blur-md p-1.5 rounded-2xl border border-slate-800 shadow-2xl max-w-[95%]">
             
             {/* Render Mode */}
             <div className="flex bg-slate-950/80 p-0.5 rounded-xl border border-slate-800">
@@ -903,18 +973,18 @@ export const ClickerStudio: React.FC<ClickerStudioProps> = ({
             </div>
 
             {/* Quick Test Click Button */}
-            <button
+            {config.type === 'clicker' && <button
               onClick={handleTestClick}
               className="px-3 py-1 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 text-xs font-extrabold shadow-md flex items-center gap-1 transition-all active:scale-95"
               title="Probar pulsación mecánica con sonido y animación"
             >
               <span>⚡ Probar Click</span>
-            </button>
+            </button>}
 
           </div>
 
           {/* 3D Canvas */}
-          <div className="w-full h-full min-h-[440px] rounded-3xl overflow-hidden border border-slate-900 relative shadow-inner">
+          <div className="w-full flex-1 min-h-[440px] rounded-3xl overflow-hidden border border-slate-900 relative shadow-inner">
             {isProcessing && (
               <div className="absolute inset-0 z-20 bg-slate-950/80 backdrop-blur-sm flex flex-col items-center justify-center text-cyan-400 gap-3">
                 <div className="w-9 h-9 border-3 border-cyan-400 border-t-transparent rounded-full animate-spin" />
@@ -936,7 +1006,7 @@ export const ClickerStudio: React.FC<ClickerStudioProps> = ({
         </div>
 
         {/* RIGHT SIDEBAR (Imagen, Muestras & Asistente de Impresión 3D) */}
-        <div className="lg:col-span-3 bg-slate-900/60 border-l border-slate-800 p-4 sm:p-5 space-y-5 overflow-y-auto max-h-[calc(100vh-60px)]">
+        <div className="order-3 lg:col-span-3 bg-slate-900/60 border-l border-slate-800 p-4 sm:p-5 space-y-5 overflow-y-auto lg:max-h-[calc(100vh-60px)]">
           
           <div className="space-y-1">
             <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Origen de Imagen</h3>
@@ -978,7 +1048,7 @@ export const ClickerStudio: React.FC<ClickerStudioProps> = ({
               {CLICKER_SAMPLE_IMAGES.map((sample) => (
                 <button
                   key={sample.id}
-                  onClick={() => setConfig((prev) => ({ ...prev, imageUrl: sample.url, sampleId: sample.id }))}
+                  onClick={() => setConfig((prev) => ({ ...prev, imageUrl: sample.url, sampleId: sample.id, paletteMode: 'auto', strokeMode: 'multi' }))}
                   className={`p-2 rounded-2xl border flex flex-col items-center gap-1.5 transition-all ${
                     config.sampleId === sample.id
                       ? 'bg-cyan-950/60 border-cyan-500 ring-1 ring-cyan-500 shadow-md'
