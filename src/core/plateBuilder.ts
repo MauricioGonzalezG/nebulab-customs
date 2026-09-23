@@ -66,7 +66,7 @@ function roundedRectangle(width: number, height: number, radius: number): Vec2[]
   return points;
 }
 
-function textContours(text: string, maxWidth: number, maxHeight: number, centerY: number) {
+export function textContours(text: string, maxWidth: number, maxHeight: number, centerY: number) {
   const shapes = font.generateShapes(text.trim(), 10);
   const contours = shapes.flatMap(shape => [shape.getPoints(10), ...shape.holes.map(hole => hole.getPoints(10))]);
   const points = contours.flat();
@@ -90,7 +90,7 @@ export interface PlateModel {
   dispose: () => void;
 }
 
-function geometryFromMesh(mesh: Mesh): THREE.BufferGeometry {
+export function geometryFromMesh(mesh: Mesh): THREE.BufferGeometry {
   const positions = new Float32Array(mesh.vertProperties.length / mesh.numProp * 3);
   for (let i = 0; i < positions.length / 3; i++) {
     positions.set(mesh.vertProperties.subarray(i * mesh.numProp, i * mesh.numProp + 3), i * 3);

@@ -1,72 +1,52 @@
 import * as THREE from 'three';
-import { CollarConfig } from '../types';
-import { ProcessedCollarData } from './collarProcessor';
-import { createCollarPlateShape } from '../components/3d/CollarViewer';
+import type { CollarConfig } from '../types';
+import type { ProcessedCollarData } from './collarProcessor';
+import { buildCollarModel } from './collarModel';
+import { loadPlateEngine } from './plateBuilder';
 
-/**
- * Exports high-precision manifold STL file for Pet Collar plate
- */
-export const downloadCollarSTL = (
-  processedData: ProcessedCollarData | null,
-  config: CollarConfig
-) => {
-  const pW = config.plateWidth || 48;
-  const pH = config.plateHeight || 32;
-  const pDepth = config.plateThickness || 4.0;
-  const pBevel = Math.min(1.2, config.plateBevel || 1.0);
-  const pts = processedData?.contourPoints || [];
-
-  const plateShape = createCollarPlateShape(config.plateStyle, pW, pH, pts, pBevel);
-
-  const plateGeo = new THREE.ExtrudeGeometry(plateShape, {
-    depth: Math.max(2, pDepth - pBevel),
-    bevelEnabled: true,
-    bevelSegments: 2,
-    bevelSize: pBevel,
-    bevelThickness: pBevel,
-  });
-  plateGeo.center();
-
-  // Add mounting ring if dangling
-  const geometries: THREE.BufferGeometry[] = [plateGeo];
-
-  if (config.mountType === 'dangling') {
-    const eyeletRadius = (config.ringDiameter || 4.5) / 2 + 1.2;
-    const eyeletGeo = new THREE.TorusGeometry(eyeletRadius, 1.2, 16, 28);
-    eyeletGeo.translate(0, -pH / 2 - eyeletRadius * 0.6, 0);
-    geometries.push(eyeletGeo);
-  }
-
-  let stlString = `solid NebulabStudio_PlacaCollar_${config.petName || 'Mascota'}\n`;
-
-  for (const geo of geometries) {
-    const nonIndexed = geo.toNonIndexed();
-    const pos = nonIndexed.attributes.position;
-    nonIndexed.computeVertexNormals();
-    const norm = nonIndexed.attributes.normal;
-
-    for (let i = 0; i < pos.count; i += 3) {
-      const nx = norm ? norm.getX(i).toFixed(4) : '0';
-      const ny = norm ? norm.getY(i).toFixed(4) : '0';
-      const nz = norm ? norm.getZ(i).toFixed(4) : '1';
-
-      stlString += `facet normal ${nx} ${ny} ${nz}\n  outer loop\n`;
-      stlString += `    vertex ${pos.getX(i).toFixed(4)} ${pos.getY(i).toFixed(4)} ${pos.getZ(i).toFixed(4)}\n`;
-      stlString += `    vertex ${pos.getX(i + 1).toFixed(4)} ${pos.getY(i + 1).toFixed(4)} ${pos.getZ(i + 1).toFixed(4)}\n`;
-      stlString += `    vertex ${pos.getX(i + 2).toFixed(4)} ${pos.getY(i + 2).toFixed(4)} ${pos.getZ(i + 2).toFixed(4)}\n`;
-      stlString += `  endloop\nendfacet\n`;
+function binaryStl(geometry: THREE.BufferGeometry): Blob {
+  const source = geometry.index ? geometry.toNonIndexed() : geometry;
+  const positions = source.getAttribute('position');
+  const facets = Math.floor(positions.count / 3);
+  const buffer = new ArrayBuffer(84 + facets * 50);
+  const bytes = new Uint8Array(buffer);
+  const view = new DataView(buffer);
+  new TextEncoder().encode('Nebulab Studio - Collar imprimible en milimetros').forEach((byte, i) => { bytes[i] = byte; });
+  view.setUint32(80, facets, true);
+  const a = new THREE.Vector3();
+  const b = new THREE.Vector3();
+  const c = new THREE.Vector3();
+  const edge = new THREE.Vector3();
+  const normal = new THREE.Vector3();
+  for (let i = 0; i < facets; i++) {
+    a.fromBufferAttribute(positions, 3 * i);
+    b.fromBufferAttribute(positions, 3 * i + 1);
+    c.fromBufferAttribute(positions, 3 * i + 2);
+    normal.subVectors(b, a).cross(edge.subVectors(c, a)).normalize();
+    let offset = 84 + 50 * i;
+    for (const value of [normal.x, normal.y, normal.z, a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z]) {
+      view.setFloat32(offset, value, true);
+      offset += 4;
     }
+    view.setUint16(offset, 0, true);
   }
+  if (source !== geometry) source.dispose();
+  return new Blob([buffer], { type: 'model/stl' });
+}
 
-  stlString += `endsolid NebulabStudio_PlacaCollar_${config.petName || 'Mascota'}\n`;
-
-  const blob = new Blob([stlString], { type: 'model/stl' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `NebulabStudio_PlacaCollar_${config.petName || 'Mascota'}_ReadyToPrint.stl`;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  setTimeout(() => URL.revokeObjectURL(url), 60000);
-};
+export async function downloadCollarSTL(processedData: ProcessedCollarData | null, config: CollarConfig): Promise<void> {
+  const api = await loadPlateEngine();
+  const model = buildCollarModel(api, config, processedData);
+  try {
+    const url = URL.createObjectURL(binaryStl(model.solid));
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `NebulabStudio_Collar_${(config.petName || 'Mascota').replace(/[^\p{L}\p{N}-]+/gu, '_')}.stl`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  } finally {
+    model.dispose();
+  }
+}

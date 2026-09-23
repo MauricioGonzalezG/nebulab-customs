@@ -62,6 +62,8 @@ const rgbToHex = (r: number, g: number, b: number): string => {
  * Extracts dominant distinct colors from an ImageData object
  */
 export const extractCollarDominantColors = (imgData: ImageData, maxColors: number = 4): string[] => {
+  const target = Number.isFinite(maxColors) ? Math.max(0, Math.min(8, Math.floor(maxColors))) : 4;
+  if (target === 0) return [];
   const data = imgData.data;
   const colorBuckets = new Map<string, { count: number; r: number; g: number; b: number }>();
 
@@ -107,138 +109,219 @@ export const extractCollarDominantColors = (imgData: ImageData, maxColors: numbe
 
     if (!isTooClose) {
       dominantHexes.push(hex);
-      if (dominantHexes.length >= maxColors) break;
+      if (dominantHexes.length >= target) break;
     }
   }
 
-  const fallbacks = ['#1E293B', '#D4AF37', '#FFFFFF', '#EF4444'];
-  while (dominantHexes.length < maxColors) {
-    for (const fb of fallbacks) {
-      if (!dominantHexes.includes(fb)) {
-        dominantHexes.push(fb);
-        if (dominantHexes.length >= maxColors) break;
-      }
-    }
+  const fallbacks = ['#1E293B', '#D4AF37', '#FFFFFF', '#EF4444', '#38BDF8', '#84CC16', '#A855F7', '#F97316'];
+  for (const fb of fallbacks) {
+    if (dominantHexes.length >= target) break;
+    if (!dominantHexes.includes(fb)) dominantHexes.push(fb);
   }
 
-  return dominantHexes.slice(0, maxColors);
+  return dominantHexes.slice(0, target);
 };
 
 /**
- * 2D Moore-Neighbor Boundary Tracing algorithm for pet tag silhouettes
+ * Remove a uniform, connected background from the *source* image. Sampling
+ * the padded output canvas would only find its transparent corners for most
+ * landscape and portrait uploads. Flood filling also protects enclosed white
+ * details (such as the centre of a letter) from being erased.
  */
-function traceCollarContour(
+export function removeCollarBackground(imgData: ImageData): boolean {
+  const { data, width, height } = imgData;
+  const pixelCount = width * height;
+  if (!pixelCount || data.length < pixelCount * 4) return false;
+
+  let transparent = 0;
+  let opaque = 0;
+  for (let pixel = 0; pixel < pixelCount; pixel++) {
+    const alpha = data[pixel * 4 + 3];
+    if (alpha < 220) transparent++;
+    if (alpha >= 40) opaque++;
+  }
+  // Already-cut-out artwork, including SVG samples, needs no colour key.
+  if (transparent > pixelCount * 0.01 || opaque === 0) return false;
+
+  const buckets = new Map<string, { count: number; r: number; g: number; b: number }>();
+  const border: number[] = [];
+  const insetX = Math.min(width - 1, Math.floor(width * 0.01));
+  const insetY = Math.min(height - 1, Math.floor(height * 0.01));
+  const addBorder = (x: number, y: number) => {
+    const pixel = y * width + x;
+    const index = pixel * 4;
+    if (data[index + 3] < 220) return;
+    border.push(pixel);
+    const key = `${data[index] >> 4},${data[index + 1] >> 4},${data[index + 2] >> 4}`;
+    const bucket = buckets.get(key);
+    if (bucket) {
+      bucket.count++;
+      bucket.r += data[index];
+      bucket.g += data[index + 1];
+      bucket.b += data[index + 2];
+    } else {
+      buckets.set(key, { count: 1, r: data[index], g: data[index + 1], b: data[index + 2] });
+    }
+  };
+  for (let x = insetX; x < width - insetX; x++) {
+    addBorder(x, insetY);
+    if (height - 1 - insetY !== insetY) addBorder(x, height - 1 - insetY);
+  }
+  for (let y = insetY + 1; y < height - 1 - insetY; y++) {
+    addBorder(insetX, y);
+    if (width - 1 - insetX !== insetX) addBorder(width - 1 - insetX, y);
+  }
+  if (border.length < 4) return false;
+
+  const candidate = [...buckets.values()].sort((a, b) => b.count - a.count)[0];
+  const bgR = candidate.r / candidate.count;
+  const bgG = candidate.g / candidate.count;
+  const bgB = candidate.b / candidate.count;
+  const distance = (pixel: number) => {
+    const index = pixel * 4;
+    return Math.hypot(data[index] - bgR, data[index + 1] - bgG, data[index + 2] - bgB);
+  };
+  const matchingBorder = border.filter(pixel => distance(pixel) <= 45);
+  // A photograph or patterned edge has no reliable background colour.
+  if (matchingBorder.length < border.length * 0.55) return false;
+
+  const visited = new Uint8Array(pixelCount);
+  const queue = new Int32Array(pixelCount);
+  let head = 0;
+  let tail = 0;
+  const enqueue = (pixel: number) => {
+    if (visited[pixel] || data[pixel * 4 + 3] < 40 || distance(pixel) > 58) return;
+    visited[pixel] = 1;
+    queue[tail++] = pixel;
+  };
+  // Seed at the actual source image edge, not the inset sampling line.
+  for (let x = 0; x < width; x++) {
+    enqueue(x);
+    enqueue((height - 1) * width + x);
+  }
+  for (let y = 1; y < height - 1; y++) {
+    enqueue(y * width);
+    enqueue(y * width + width - 1);
+  }
+  if (tail === 0) return false;
+
+  while (head < tail) {
+    const pixel = queue[head++];
+    const x = pixel % width;
+    if (x > 0) enqueue(pixel - 1);
+    if (x + 1 < width) enqueue(pixel + 1);
+    if (pixel >= width) enqueue(pixel - width);
+    if (pixel + width < pixelCount) enqueue(pixel + width);
+  }
+
+  if (tail < opaque * 0.02 || opaque - tail < Math.max(8, opaque * 0.001)) return false;
+  for (let i = 0; i < tail; i++) {
+    const pixel = queue[i];
+    const index = pixel * 4 + 3;
+    // A narrow feather softens JPEG antialiasing without changing the artwork.
+    const keep = Math.max(0, Math.min(1, (distance(pixel) - 28) / 30));
+    data[index] = Math.round(data[index] * keep);
+  }
+  return true;
+}
+
+/** A convex outer contour encloses all visible parts of a disconnected logo. */
+export function traceCollarContour(
   data: Uint8ClampedArray,
   width: number,
   height: number,
-  alphaThreshold: number = 40
+  alphaThreshold: number = 80
 ): Array<{ x: number; y: number }> {
-  const isSolid = (x: number, y: number): boolean => {
-    if (x < 0 || x >= width || y < 0 || y >= height) return false;
-    return data[(y * width + x) * 4 + 3] >= alphaThreshold;
+  const fallback = () => {
+    const fallback: Array<{ x: number; y: number }> = [];
+    for (let i = 0; i < 64; i++) {
+      const a = (i / 64) * Math.PI * 2;
+      fallback.push({ x: Math.cos(a), y: Math.sin(a) });
+    }
+    return fallback;
   };
 
-  let startX = -1;
-  let startY = -1;
+  if (width <= 0 || height <= 0 || data.length < width * height * 4) return fallback();
+  const isSolid = (x: number, y: number) =>
+    x >= 0 && y >= 0 && x < width && y < height && data[(y * width + x) * 4 + 3] >= alphaThreshold;
 
+  const visited = new Uint8Array(width * height);
+  const queue = new Int32Array(width * height);
+  const components: Array<{ size: number; boundary: Array<{ x: number; y: number }> }> = [];
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
-      if (isSolid(x, y)) {
-        startX = x;
-        startY = y;
-        break;
+      const start = y * width + x;
+      if (visited[start] || !isSolid(x, y)) continue;
+      let head = 0;
+      let tail = 0;
+      visited[start] = 1;
+      queue[tail++] = start;
+      const componentBoundary: Array<{ x: number; y: number }> = [];
+      while (head < tail) {
+        const pixel = queue[head++];
+        const px = pixel % width;
+        const py = Math.floor(pixel / width);
+        if (!isSolid(px - 1, py) || !isSolid(px + 1, py) || !isSolid(px, py - 1) || !isSolid(px, py + 1)) {
+          componentBoundary.push({ x: px, y: py });
+        }
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            if (!dx && !dy) continue;
+            const nx = px + dx;
+            const ny = py + dy;
+            if (!isSolid(nx, ny)) continue;
+            const neighbor = ny * width + nx;
+            if (visited[neighbor]) continue;
+            visited[neighbor] = 1;
+            queue[tail++] = neighbor;
+          }
+        }
       }
+      components.push({ size: tail, boundary: componentBoundary });
     }
-    if (startX !== -1) break;
   }
-
-  if (startX === -1) {
-    const fallback: Array<{ x: number; y: number }> = [];
-    for (let i = 0; i < 64; i++) {
-      const a = (i / 64) * Math.PI * 2;
-      fallback.push({ x: Math.cos(a), y: Math.sin(a) });
-    }
-    return fallback;
+  const largest = components.reduce((size, component) => Math.max(size, component.size), 0);
+  const boundary = components
+    .filter(component => component.size >= Math.max(4, largest * 0.01))
+    .flatMap(component => component.boundary);
+  if (boundary.length < 3) return fallback();
+  boundary.sort((a, b) => a.x - b.x || a.y - b.y);
+  const cross = (a: { x: number; y: number }, b: { x: number; y: number }, c: { x: number; y: number }) =>
+    (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+  const lower: typeof boundary = [];
+  for (const point of boundary) {
+    while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], point) <= 0) lower.pop();
+    lower.push(point);
   }
-
-  const dx = [-1, -1, 0, 1, 1, 1, 0, -1];
-  const dy = [0, -1, -1, -1, 0, 1, 1, 1];
-
-  const contour: Array<{ x: number; y: number }> = [];
-  let currX = startX;
-  let currY = startY;
-  let dir = 0;
-
-  const maxSteps = width * height * 2;
-  let steps = 0;
-
-  contour.push({ x: currX, y: currY });
-
-  while (steps < maxSteps) {
-    steps++;
-    let foundNext = false;
-
-    for (let i = 0; i < 8; i++) {
-      const checkDir = (dir + i) % 8;
-      const nx = currX + dx[checkDir];
-      const ny = currY + dy[checkDir];
-
-      if (isSolid(nx, ny)) {
-        currX = nx;
-        currY = ny;
-        dir = (checkDir + 6) % 8;
-        foundNext = true;
-        break;
-      }
-    }
-
-    if (!foundNext) break;
-
-    if (currX === startX && currY === startY && contour.length > 3) {
-      break;
-    }
-
-    contour.push({ x: currX, y: currY });
+  const upper: typeof boundary = [];
+  for (let i = boundary.length - 1; i >= 0; i--) {
+    const point = boundary[i];
+    while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], point) <= 0) upper.pop();
+    upper.push(point);
   }
+  const hull = lower.slice(0, -1).concat(upper.slice(0, -1));
+  if (hull.length < 3) return fallback();
 
-  if (contour.length < 4) {
-    const fallback: Array<{ x: number; y: number }> = [];
-    for (let i = 0; i < 64; i++) {
-      const a = (i / 64) * Math.PI * 2;
-      fallback.push({ x: Math.cos(a), y: Math.sin(a) });
-    }
-    return fallback;
-  }
-
-  let minX = Infinity, maxX = -Infinity;
-  let minY = Infinity, maxY = -Infinity;
-
-  for (const pt of contour) {
-    if (pt.x < minX) minX = pt.x;
-    if (pt.x > maxX) maxX = pt.x;
-    if (pt.y < minY) minY = pt.y;
-    if (pt.y > maxY) maxY = pt.y;
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (const pt of hull) {
+    minX = Math.min(minX, pt.x);
+    maxX = Math.max(maxX, pt.x);
+    minY = Math.min(minY, pt.y);
+    maxY = Math.max(maxY, pt.y);
   }
 
   const cx = (minX + maxX) / 2;
   const cy = (minY + maxY) / 2;
   const maxDim = Math.max(maxX - minX, maxY - minY, 1) / 2;
 
-  const targetSamples = 120;
-  const stride = Math.max(1, Math.floor(contour.length / targetSamples));
-  const subsampled: Array<{ x: number; y: number }> = [];
-
-  for (let i = 0; i < contour.length; i += stride) {
-    const p = contour[i];
-    subsampled.push({
+  const normalized = hull.map(p => ({
       x: (p.x - cx) / maxDim,
       y: (p.y - cy) / maxDim,
-    });
-  }
+  }));
 
-  // Chaikin smoothing
-  let smoothed = subsampled;
-  for (let pass = 0; pass < 2; pass++) {
+  // One pass rounds pixel corners while preserving a simple, convex outline.
+  let smoothed = normalized;
+  for (let pass = 0; pass < 1; pass++) {
     const nextSmooth: Array<{ x: number; y: number }> = [];
     const len = smoothed.length;
     for (let i = 0; i < len; i++) {
@@ -266,79 +349,49 @@ export const processCollarImage = (
   image: HTMLImageElement,
   config: CollarConfig
 ): ProcessedCollarData => {
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  
+  const naturalW = image.naturalWidth || image.width;
+  const naturalH = image.naturalHeight || image.height;
+  if (!Number.isFinite(naturalW) || !Number.isFinite(naturalH) || naturalW <= 0 || naturalH <= 0) {
+    throw new Error('La imagen del collar no tiene dimensiones válidas.');
+  }
+
   const res = 512;
+  const longest = Math.max(naturalW, naturalH);
+  const sourceW = Math.max(1, Math.round(naturalW * res / longest));
+  const sourceH = Math.max(1, Math.round(naturalH * res / longest));
+  const sourceCanvas = document.createElement('canvas');
+  sourceCanvas.width = sourceW;
+  sourceCanvas.height = sourceH;
+  const sourceCtx = sourceCanvas.getContext('2d', { willReadFrequently: true });
+  if (!sourceCtx) throw new Error('Canvas 2D context not available');
+  sourceCtx.clearRect(0, 0, sourceW, sourceH);
+  sourceCtx.drawImage(image, 0, 0, sourceW, sourceH);
+  if (config.removeBackground) {
+    const sourceData = sourceCtx.getImageData(0, 0, sourceW, sourceH);
+    if (removeCollarBackground(sourceData)) sourceCtx.putImageData(sourceData, 0, 0);
+  }
+
+  const canvas = document.createElement('canvas');
   canvas.width = res;
   canvas.height = res;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) throw new Error('Canvas 2D context not available');
 
-  if (!ctx) {
-    throw new Error('Canvas 2D context not available');
-  }
-
-  const aspect = image.width / (image.height || 1);
-  let drawW = res;
-  let drawH = res;
-  if (aspect > 1) {
-    drawH = res / aspect;
-  } else {
-    drawW = res * aspect;
-  }
-
-  // Draw image with rotation and flip applied
+  const rotation = Number.isFinite(config.imageRotation) ? config.imageRotation : 0;
+  const radians = (rotation * Math.PI) / 180;
+  const rotatedW = Math.abs(Math.cos(radians)) * sourceW + Math.abs(Math.sin(radians)) * sourceH;
+  const rotatedH = Math.abs(Math.sin(radians)) * sourceW + Math.abs(Math.cos(radians)) * sourceH;
+  // Reserve padding for every rotation; otherwise corners are cropped at 45°.
+  const scale = (res * 0.86) / Math.max(rotatedW, rotatedH);
   ctx.clearRect(0, 0, res, res);
   ctx.save();
   ctx.translate(res / 2, res / 2);
-  if (config.flipHorizontal) {
-    ctx.scale(-1, 1);
-  }
-  if (config.imageRotation) {
-    ctx.rotate((config.imageRotation * Math.PI) / 180);
-  }
-  ctx.drawImage(image, -drawW / 2, -drawH / 2, drawW, drawH);
+  ctx.rotate(radians);
+  ctx.scale(config.flipHorizontal ? -scale : scale, scale);
+  ctx.drawImage(sourceCanvas, -sourceW / 2, -sourceH / 2, sourceW, sourceH);
   ctx.restore();
 
   const imgData = ctx.getImageData(0, 0, res, res);
-  const data = imgData.data;
-
-  // 1. Background removal if requested
-  if (config.removeBackground) {
-    const corners = [
-      0,
-      (res - 1) * 4,
-      ((res - 1) * res) * 4,
-      ((res - 1) * res + (res - 1)) * 4,
-    ];
-
-    let bgR = 0, bgG = 0, bgB = 0, count = 0;
-    for (const c of corners) {
-      if (data[c + 3] > 100) {
-        bgR += data[c];
-        bgG += data[c + 1];
-        bgB += data[c + 2];
-        count++;
-      }
-    }
-
-    if (count > 0) {
-      bgR = Math.round(bgR / count);
-      bgG = Math.round(bgG / count);
-      bgB = Math.round(bgB / count);
-
-      for (let i = 0; i < data.length; i += 4) {
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
-        const a = data[i + 3];
-
-        const colorDist = Math.sqrt((r - bgR) ** 2 + (g - bgG) ** 2 + (b - bgB) ** 2);
-        if (a < 25 || colorDist < 42) {
-          data[i + 3] = 0;
-        }
-      }
-    }
-  }
 
   const dominantColors = extractCollarDominantColors(imgData, 4);
 
@@ -351,10 +404,7 @@ export const processCollarImage = (
     origCtx.putImageData(imgData, 0, 0);
   }
 
-  // 2. Extract contour points
-  const contourPoints = traceCollarContour(imgData.data, res, res, 40);
-
-  ctx.putImageData(imgData, 0, 0);
+  const contourPoints = traceCollarContour(imgData.data, res, res);
 
   return {
     canvas,

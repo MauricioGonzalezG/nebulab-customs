@@ -99,7 +99,7 @@ export type CollarReliefStyle = 'inlaid' | 'embossed' | 'debossed';
 export type CollarIcon = 'paw' | 'bone' | 'heart' | 'crown' | 'star' | 'cross' | 'none';
 export type CollarStrapColor = 'olive' | 'crimson' | 'black' | 'navy' | 'pink' | 'brown' | 'yellow';
 export type CollarLightingMode = 'studio' | 'neon' | 'daylight' | 'warm';
-export type CollarViewMode = 'assembled' | 'plate' | 'exploded' | 'printbed';
+export type CollarViewMode = 'assembled' | 'plate' | 'back' | 'exploded' | 'printbed';
 
 export interface CollarConfig {
   imageUrl: string | null;
@@ -189,4 +189,3 @@ export interface Order {
 }
 
 export * from './email';
-
