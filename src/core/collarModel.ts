@@ -3,6 +3,7 @@ import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { CrossSection, Manifold, ManifoldToplevel, Vec2 } from 'manifold-3d';
 import type { CollarConfig, CollarIcon } from '../types';
 import type { ProcessedCollarData } from './collarProcessor';
+import { COLLAR_ICONS } from './collarIcons';
 import { createCollarPlateShape } from './collarShape';
 import { COLLAR_REAR_PASSAGE, COLLAR_SIZES, collarRearPassageLength } from './collarSizing';
 import { geometryFromMesh, textContours } from './plateBuilder';
@@ -37,43 +38,23 @@ function rectangle(cx: number, cy: number, width: number, height: number): Vec2[
   ];
 }
 
-function shapeAt(shape: THREE.Shape, centerX: number, centerY: number, width: number, height: number): Vec2[] {
-  const points = shape.getPoints(16);
-  const bounds = new THREE.Box2().setFromPoints(points);
-  const size = bounds.getSize(new THREE.Vector2());
-  const center = bounds.getCenter(new THREE.Vector2());
-  return points.map(({ x, y }) => [
-    centerX + (x - center.x) * width / Math.max(size.x, 0.001),
-    centerY + (y - center.y) * height / Math.max(size.y, 0.001),
-  ]);
-}
-
+// Los íconos se definen una vez en collarIcons.ts (misma geometría para el
+// modelo 3D y la vista previa) y aquí solo se escalan a milímetros.
 function iconPolygons(icon: CollarIcon, x: number, y: number, width: number): Vec2[][] {
-  if (icon === 'none') return [];
+  const def = COLLAR_ICONS.find(entry => entry.id === icon);
+  if (!def) return [];
   const s = width / 10;
-  const circle = (cx: number, cy: number, r: number): Vec2[] => Array.from({ length: 20 }, (_, i) => {
-    const angle = i * 2 * Math.PI / 20;
-    return [x + s * (cx + r * Math.cos(angle)), y + s * (cy + r * Math.sin(angle))];
-  });
-  const path = (coords: Array<[number, number]>): Vec2[] => coords.map(([px, py]) => [x + s * px, y + s * py]);
-  switch (icon) {
-    case 'paw':
-      return [circle(0, -1.6, 2.4), circle(-3.5, 2.4, 1.25), circle(-1.2, 4.1, 1.25), circle(1.2, 4.1, 1.25), circle(3.5, 2.4, 1.25)];
-    case 'bone':
-      return [shapeAt(createCollarPlateShape('bone', 10, 6), x, y, width, width * 0.55)];
-    case 'heart':
-      return [shapeAt(createCollarPlateShape('heart', 10, 10), x, y, width, width * 0.9)];
-    case 'crown':
-      return [path([[-4.4,-3],[-4.4,2],[-2,0],[0,4],[2,0],[4.4,2],[4.4,-3]])];
-    case 'star':
-      return [Array.from({ length: 10 }, (_, i) => {
-        const angle = Math.PI / 2 + i * Math.PI / 5;
-        const r = i % 2 ? 2 : 4.6;
-        return [x + s * r * Math.cos(angle), y + s * r * Math.sin(angle)] as Vec2;
-      })];
-    case 'cross':
-      return [path([[-1.2,-4],[-1.2,-1.2],[-4,-1.2],[-4,1.2],[-1.2,1.2],[-1.2,4],[1.2,4],[1.2,1.2],[4,1.2],[4,-1.2],[1.2,-1.2],[1.2,-4]])];
+  const result: Vec2[][] = [];
+  for (const [cx, cy, r] of def.art.circles) {
+    result.push(Array.from({ length: 20 }, (_, i) => {
+      const angle = (i * 2 * Math.PI) / 20;
+      return [x + s * (cx + r * Math.cos(angle)), y + s * (cy + r * Math.sin(angle))] as Vec2;
+    }));
   }
+  for (const coords of def.art.paths) {
+    result.push(coords.map(([px, py]) => [x + s * px, y + s * py] as Vec2));
+  }
+  return result;
 }
 
 /** Converts alpha or foreground pixels into printable, simplified 2D artwork. */

@@ -96,7 +96,9 @@ export type CollarPlateStyle = 'bone' | 'silhouette' | 'rounded' | 'circle' | 's
 export type CollarMountType = 'slide' | 'dangling';
 export type CollarFontFamily = 'outfit' | 'cinzel' | 'inter' | 'bungee';
 export type CollarReliefStyle = 'inlaid' | 'embossed' | 'debossed';
-export type CollarIcon = 'paw' | 'bone' | 'heart' | 'crown' | 'star' | 'cross' | 'none';
+export type CollarIcon = 'none' | 'paw' | 'bone' | 'heart' | 'crown' | 'star' | 'cross'
+  | 'fish' | 'flower' | 'bolt' | 'moon' | 'cat' | 'bunny' | 'butterfly' | 'clover'
+  | 'diamond' | 'music' | 'sun' | 'leaf';
 export type CollarStrapColor = 'olive' | 'crimson' | 'black' | 'navy' | 'pink' | 'brown' | 'yellow';
 export type CollarLightingMode = 'studio' | 'neon' | 'daylight' | 'warm';
 export type CollarViewMode = 'assembled' | 'plate' | 'back' | 'exploded' | 'printbed';

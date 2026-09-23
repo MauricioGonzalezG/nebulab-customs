@@ -1,20 +1,16 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   CollarConfig,
   CartItem,
   CollarPlateStyle,
   CollarStrapColor,
-  CollarIcon,
   CollarReliefStyle,
   CollarLightingMode,
   CollarViewMode,
 } from '../../types';
-import {
-  processCollarImage,
-  ProcessedCollarData,
-  COLLAR_SAMPLE_IMAGES,
-  createDefaultCollarConfig,
-} from '../../core/collarProcessor';
+import { createDefaultCollarConfig } from '../../core/collarProcessor';
+import { COLLAR_ICONS, type CollarIconDef } from '../../core/collarIcons';
+import { collarPreviewDataUrl } from '../../core/collarPreview';
 import { downloadCollar3MF } from '../../core/collar3mfExporter';
 import { downloadCollarSTL } from '../../core/collarStlExporter';
 import { CollarViewer } from '../3d/CollarViewer';
@@ -24,7 +20,6 @@ import {
   ArrowLeft,
   Check,
   Download,
-  ImagePlus,
   RotateCcw,
   ShoppingBag,
 } from 'lucide-react';
@@ -75,16 +70,6 @@ const PLATE_COLORS = [
   { hex: '#94A3B8', label: 'Plata' },
 ];
 
-const ICONS: Array<{ id: CollarIcon; label: string }> = [
-  { id: 'none', label: 'Sin ícono' },
-  { id: 'paw', label: 'Huella' },
-  { id: 'bone', label: 'Hueso' },
-  { id: 'heart', label: 'Corazón' },
-  { id: 'crown', label: 'Corona' },
-  { id: 'star', label: 'Estrella' },
-  { id: 'cross', label: 'Cruz' },
-];
-
 const RELIEF_STYLES: Array<{ id: CollarReliefStyle; label: string }> = [
   { id: 'embossed', label: 'En relieve' },
   { id: 'debossed', label: 'Hundido' },
@@ -106,8 +91,6 @@ const VIEW_MODES: Array<{ id: CollarViewMode; label: string }> = [
   { id: 'printbed', label: 'Impresión' },
 ];
 
-const MAX_FILE_BYTES = 8 * 1024 * 1024;
-const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 const choiceClass = (selected: boolean) =>
   `min-h-10 rounded-xl border px-3 py-2 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400 ${
     selected
@@ -157,8 +140,7 @@ function Swatches({
   );
 }
 
-function Measure({
-  label,
+function Measure({  label,
   value,
   min,
   max,
@@ -189,8 +171,22 @@ function Measure({
   );
 }
 
-export const CollarStudio: React.FC<CollarStudioProps> = ({ onBackToHome, onAddToCart, onBuyNow }) => {
-  const { formatPrice, pricingData } = useCurrency();
+function IconGlyph({ def, className }: { def: CollarIconDef; className?: string }) {
+  return (
+    <svg viewBox="-6 -6 12 12" className={className} aria-hidden="true" focusable="false">
+      <g transform="scale(1 -1)" fill="currentColor">
+        {def.art.circles.map(([cx, cy, r], index) => (
+          <circle key={index} cx={cx} cy={cy} r={r} />
+        ))}
+        {def.art.paths.map((points, index) => (
+          <polygon key={index} points={points.map(([x, y]) => `${x},${y}`).join(' ')} />
+        ))}
+      </g>
+    </svg>
+  );
+}
+
+export const CollarStudio: React.FC<CollarStudioProps> = ({ onBackToHome, onAddToCart, onBuyNow }) => {  const { formatPrice, pricingData } = useCurrency();
   const { isAuthenticated } = useAuth();
   const collarPriceCop = pricingData.collar.basePriceCop;
   // The cart stores USD and its COP display uses a fixed 4,000 conversion.
@@ -198,125 +194,18 @@ export const CollarStudio: React.FC<CollarStudioProps> = ({ onBackToHome, onAddT
   const collarPriceUsd = collarPriceCop / 4000;
 
   const [config, setConfig] = useState<CollarConfig>(createDefaultCollarConfig);
-  const [loadedImage, setLoadedImage] = useState<{ url: string; image: HTMLImageElement } | null>(null);
-  const [processedResult, setProcessedResult] = useState<{ key: string; data: ProcessedCollarData } | null>(null);
-  const [imageError, setImageError] = useState<{ key: string; message: string } | null>(null);
-  const [uploadError, setUploadError] = useState('');
-  const [uploadName, setUploadName] = useState('');
   const [exporting, setExporting] = useState<'3mf' | 'stl' | null>(null);
   const [exportNotice, setExportNotice] = useState('');
   const viewerRef = useRef<HTMLDivElement>(null);
-  const fileReaderRef = useRef<FileReader | null>(null);
-
-  useEffect(() => () => {
-    if (fileReaderRef.current?.readyState === FileReader.LOADING) fileReaderRef.current.abort();
-  }, []);
 
   function updateConfig<K extends keyof CollarConfig>(key: K, value: CollarConfig[K]) {
     setConfig((previous) => ({ ...previous, [key]: value }));
   }
 
-  const imageUrl = config.imageUrl || COLLAR_SAMPLE_IMAGES[0].url;
-  const processingKey = `${imageUrl}|${config.removeBackground}|${config.imageRotation}|${config.flipHorizontal}`;
-  const processedData = processedResult?.key === processingKey ? processedResult.data : null;
-  const activeError = imageError?.key === processingKey || imageError?.key === imageUrl ? imageError.message : '';
-  const isProcessing = !processedData && !activeError;
-  const canOrder = Boolean(processedData && config.petName.trim() && !exporting);
-
-  useEffect(() => {
-    let cancelled = false;
-    const image = new Image();
-    image.crossOrigin = 'anonymous';
-    image.onload = () => {
-      if (cancelled) return;
-      if (!image.naturalWidth || !image.naturalHeight) {
-        setImageError({ key: imageUrl, message: 'La imagen no tiene dimensiones válidas.' });
-        return;
-      }
-      setLoadedImage({ url: imageUrl, image });
-    };
-    image.onerror = () => {
-      if (!cancelled) setImageError({ key: imageUrl, message: 'No se pudo abrir la imagen. Prueba otro archivo o una plantilla.' });
-    };
-    image.src = imageUrl;
-    return () => {
-      cancelled = true;
-      image.onload = null;
-      image.onerror = null;
-    };
-    // The image only needs to be decoded again when its source changes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [imageUrl]);
-
-  useEffect(() => {
-    if (!loadedImage || loadedImage.url !== imageUrl) return;
-    let cancelled = false;
-    const task = window.setTimeout(() => {
-      try {
-        const data = processCollarImage(loadedImage.image, config);
-        if (!cancelled) {
-          setProcessedResult({ key: processingKey, data });
-          setImageError(null);
-        }
-      } catch (error) {
-        if (!cancelled) {
-          setImageError({ key: processingKey, message: error instanceof Error ? error.message : 'No se pudo procesar la imagen.' });
-        }
-      }
-    }, 0);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(task);
-    };
-    // Only image transforms require processing; the viewer handles the remaining config.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loadedImage, imageUrl, config.removeBackground, config.imageRotation, config.flipHorizontal]);
-
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-    if (!file) return;
-    if (fileReaderRef.current?.readyState === FileReader.LOADING) fileReaderRef.current.abort();
-    setUploadError('');
-    if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
-      setUploadError('Usa una imagen PNG, JPG o WebP.');
-      return;
-    }
-    if (file.size > MAX_FILE_BYTES) {
-      setUploadError('La imagen supera 8 MB. Elige una versión más liviana.');
-      return;
-    }
-    const reader = new FileReader();
-    fileReaderRef.current = reader;
-    reader.onload = () => {
-      if (fileReaderRef.current !== reader) return;
-      if (typeof reader.result !== 'string') {
-        setUploadError('No se pudo leer la imagen.');
-        return;
-      }
-      setUploadName(file.name);
-      setConfig((previous) => ({ ...previous, imageUrl: reader.result as string, sampleId: undefined }));
-    };
-    reader.onerror = () => {
-      if (fileReaderRef.current === reader) setUploadError('No se pudo leer la imagen.');
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const handleSelectSample = (sample: typeof COLLAR_SAMPLE_IMAGES[number]) => {
-    if (fileReaderRef.current?.readyState === FileReader.LOADING) fileReaderRef.current.abort();
-    fileReaderRef.current = null;
-    setUploadError('');
-    setUploadName('');
-    setConfig((previous) => ({ ...previous, imageUrl: sample.url, sampleId: sample.id }));
-  };
+  const canOrder = Boolean(config.petName.trim() && !exporting);
 
   const resetConfig = () => {
-    if (fileReaderRef.current?.readyState === FileReader.LOADING) fileReaderRef.current.abort();
-    fileReaderRef.current = null;
     setConfig(createDefaultCollarConfig());
-    setUploadError('');
-    setUploadName('');
     setExportNotice('');
     viewerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   };
@@ -327,19 +216,19 @@ export const CollarStudio: React.FC<CollarStudioProps> = ({ onBackToHome, onAddT
     title: `Collar para Mascota 3D - ${config.petName.trim()} (Talla ${config.size})`,
     config: {} as CartItem['config'],
     collarConfig: { ...config, petName: config.petName.trim(), phoneText: config.phoneText.trim() },
-    previewImageDataUrl: processedData?.previewDataUrl || '',
+    previewImageDataUrl: collarPreviewDataUrl({ ...config, petName: config.petName.trim(), phoneText: config.phoneText.trim() }),
     price: collarPriceUsd,
     quantity: 1,
     createdAt: new Date().toISOString(),
   });
 
   const handleExport = async (format: '3mf' | 'stl') => {
-    if (!processedData || exporting) return;
+    if (exporting) return;
     setExporting(format);
     setExportNotice('');
     try {
-      if (format === '3mf') await downloadCollar3MF(processedData, config);
-      else await downloadCollarSTL(processedData, config);
+      if (format === '3mf') await downloadCollar3MF(null, config);
+      else await downloadCollarSTL(null, config);
       setExportNotice(`Archivo ${format.toUpperCase()} descargado.`);
     } catch (error) {
       setExportNotice(error instanceof Error ? `No se pudo exportar: ${error.message}` : 'No se pudo exportar el archivo.');
@@ -375,7 +264,31 @@ export const CollarStudio: React.FC<CollarStudioProps> = ({ onBackToHome, onAddT
               <input className={inputClass} type="tel" inputMode="tel" maxLength={20} autoComplete="tel" value={config.phoneText} onChange={(event) => updateConfig('phoneText', event.target.value)} placeholder="Ej. 315 678 9012" />
             </label>
             <Swatches label="Color del texto" options={TEXT_COLORS} selected={config.textColor} onSelect={(hex) => updateConfig('textColor', hex)} />
-            <fieldset className="space-y-2"><legend className="text-sm font-medium text-slate-200">Ícono de la placa</legend><div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3">{ICONS.map((item) => <button key={item.id} type="button" aria-pressed={config.icon === item.id} onClick={() => updateConfig('icon', item.id)} className={choiceClass(config.icon === item.id)}>{item.label}</button>)}</div></fieldset>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <span id="collar-icon-label" className="text-sm font-medium text-slate-200">Ícono de la placa</span>
+                {config.icon !== 'none' && <button type="button" onClick={() => updateConfig('icon', 'none')} className="text-xs font-semibold text-cyan-300 hover:text-cyan-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-400">Quitar</button>}
+              </div>
+              <div role="group" aria-labelledby="collar-icon-label" className="grid grid-cols-6 gap-1.5">
+                {COLLAR_ICONS.map((def) => {
+                  const active = config.icon === def.id;
+                  return (
+                    <button
+                      key={def.id}
+                      type="button"
+                      title={def.label}
+                      aria-label={`Ícono ${def.label}`}
+                      aria-pressed={active}
+                      onClick={() => updateConfig('icon', def.id)}
+                      className={`flex h-10 items-center justify-center rounded-xl border transition-all hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400 ${active ? 'border-cyan-400 bg-cyan-400/15 text-cyan-100 ring-2 ring-cyan-400/40' : 'border-slate-700 bg-slate-900/70 text-slate-300 hover:border-slate-500 hover:text-white'}`}
+                    >
+                      <IconGlyph def={def} className="h-6 w-6" />
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-slate-400">Seleccionado: {config.icon === 'none' ? 'Sin ícono' : COLLAR_ICONS.find((def) => def.id === config.icon)?.label}</p>
+            </div>
             <fieldset className="space-y-2"><legend className="text-sm font-medium text-slate-200">Acabado del grabado</legend><div className="grid grid-cols-3 gap-2">{RELIEF_STYLES.map((item) => <button key={item.id} type="button" aria-pressed={config.reliefStyle === item.id} onClick={() => updateConfig('reliefStyle', item.id)} className={choiceClass(config.reliefStyle === item.id)}>{item.label}</button>)}</div></fieldset>
           </section>
 
@@ -389,32 +302,18 @@ export const CollarStudio: React.FC<CollarStudioProps> = ({ onBackToHome, onAddT
             <Swatches label="Color del borde" options={PLATE_COLORS} selected={config.borderColor} onSelect={(hex) => updateConfig('borderColor', hex)} />
             <details className="rounded-xl border border-slate-700 bg-slate-950/65 p-3"><summary className="cursor-pointer text-sm font-semibold text-slate-200">Medidas de la placa</summary><div className="space-y-4 pt-4"><Measure label="Ancho" value={config.plateWidth} min={35} max={65} step={1} onChange={(value) => updateConfig('plateWidth', value)} /><Measure label="Alto" value={config.plateHeight} min={25} max={50} step={1} onChange={(value) => updateConfig('plateHeight', value)} /><Measure label="Grosor" value={config.plateThickness} min={2.5} max={6} step={0.5} onChange={(value) => updateConfig('plateThickness', value)} /><Measure label="Bisel" value={config.plateBevel} min={0.5} max={2} step={0.1} onChange={(value) => updateConfig('plateBevel', value)} />{config.mountType === 'dangling' && <Measure label="Diámetro de la anilla" value={config.ringDiameter} min={3} max={6} step={0.5} onChange={(value) => updateConfig('ringDiameter', value)} />}</div></details>
           </section>
-
-          <section className={sectionClass} aria-labelledby="collar-image-title">
-            <div><p className="text-xs font-bold uppercase tracking-[0.2em] text-cyan-400">03 · Gráfico</p><h2 id="collar-image-title" className="mt-1 font-outfit text-lg font-bold">Imagen de la placa</h2><p className="mt-1 text-sm text-slate-400">Sube tu logo o empieza con una plantilla.</p></div>
-            <label className="flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed border-slate-600 bg-slate-950/70 px-4 py-5 text-center transition-colors hover:border-cyan-400 focus-within:border-cyan-400"><ImagePlus aria-hidden="true" className="h-6 w-6 text-cyan-300" /><span className="text-sm font-semibold">Seleccionar imagen</span><span className="text-xs text-slate-400">PNG, JPG o WebP · máximo 8 MB</span><input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleFileUpload} className="sr-only" aria-label="Subir imagen para la placa" /></label>
-            {uploadName && <p className="break-all text-xs text-cyan-200">Archivo: {uploadName}</p>}
-            {uploadError && <p role="alert" className="text-sm text-rose-300">{uploadError}</p>}
-            {processedData && <div className="flex items-center gap-3 rounded-xl border border-slate-700 bg-slate-950/70 p-3">
-              <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-slate-800"><img src={processedData.previewDataUrl} alt="Resultado de la imagen para la placa" className="h-full w-full object-contain" /></div>
-              <p className="text-xs leading-relaxed text-slate-400">Vista de la imagen procesada. Gírala, refléjala o ajusta el fondo y comprueba el resultado aquí.</p>
-            </div>}
-            <fieldset className="space-y-2"><legend className="text-sm font-medium text-slate-200">Plantillas</legend><div className="grid grid-cols-3 gap-2">{COLLAR_SAMPLE_IMAGES.map((sample) => <button key={sample.id} type="button" aria-label={`Usar plantilla ${sample.name}`} aria-pressed={config.sampleId === sample.id} onClick={() => handleSelectSample(sample)} className={`flex min-w-0 flex-col items-center gap-2 rounded-xl border p-2 text-center transition-colors ${config.sampleId === sample.id ? 'border-cyan-400 bg-cyan-400/10' : 'border-slate-700 bg-slate-950 hover:border-slate-500'}`}><img src={sample.url} alt="" className="h-10 w-10 object-contain" /><span className="w-full truncate text-xs text-slate-200">{sample.name}</span></button>)}</div></fieldset>
-            <label className="flex items-start gap-3 rounded-xl border border-slate-700 bg-slate-950/70 p-3 text-sm text-slate-200"><input type="checkbox" checked={config.removeBackground} onChange={(event) => updateConfig('removeBackground', event.target.checked)} className="mt-0.5 h-4 w-4 accent-cyan-400" /><span>Eliminar fondo automáticamente<span className="mt-1 block text-xs text-slate-400">Para logos sobre fondo uniforme. Desactívalo si se pierden detalles.</span></span></label>
-            <div className="grid grid-cols-2 gap-3"><button type="button" onClick={() => updateConfig('imageRotation', (config.imageRotation + 90) % 360)} className={choiceClass(false)}>Girar 90°</button><button type="button" aria-pressed={config.flipHorizontal} onClick={() => updateConfig('flipHorizontal', !config.flipHorizontal)} className={choiceClass(config.flipHorizontal)}>Reflejar imagen</button></div>
-          </section>
         </main>
 
         <aside className="order-1 space-y-4 lg:sticky lg:top-4 lg:order-2" aria-label="Vista previa y compra">
           <div ref={viewerRef} className="overflow-hidden rounded-[1.5rem] border border-slate-800 bg-[#121b2c] shadow-2xl shadow-black/30">
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 bg-slate-900/80 px-4 py-3"><div><p className="text-sm font-bold text-white">Vista 3D</p><p className="text-xs text-slate-400">Arrastra para girar · Rueda para acercar</p></div><span role="status" className={`rounded-full px-2.5 py-1 text-xs font-semibold ${activeError ? 'bg-rose-500/15 text-rose-300' : isProcessing ? 'bg-amber-500/15 text-amber-200' : 'bg-emerald-500/15 text-emerald-300'}`}>{activeError ? 'Error de imagen' : isProcessing ? 'Procesando…' : 'Vista lista'}</span></div>
-            <div className="relative h-[320px] sm:h-[420px] lg:h-[min(44vh,490px)] lg:min-h-[330px]" aria-busy={isProcessing}><CollarViewer config={config} processedData={processedData} />{(activeError || isProcessing) && <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-slate-950/65 p-6 text-center text-sm text-slate-100" role={activeError ? 'alert' : 'status'}>{activeError || 'Preparando la vista previa…'}</div>}</div>
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 bg-slate-900/80 px-4 py-3"><div><p className="text-sm font-bold text-white">Vista 3D</p><p className="text-xs text-slate-400">Arrastra para girar · Rueda para acercar</p></div><span role="status" className="rounded-full bg-emerald-500/15 px-2.5 py-1 text-xs font-semibold text-emerald-300">Vista lista</span></div>
+            <div className="relative h-[320px] sm:h-[420px] lg:h-[min(44vh,490px)] lg:min-h-[330px]"><CollarViewer config={config} processedData={null} /></div>
             <div className="space-y-3 border-t border-slate-800 bg-slate-900/80 p-4"><fieldset className="space-y-2"><legend className="text-xs font-semibold uppercase tracking-wide text-slate-400">Vista del modelo</legend><div className="grid grid-cols-2 gap-2 sm:grid-cols-5">{VIEW_MODES.map((item) => <button key={item.id} type="button" aria-pressed={config.viewMode === item.id} onClick={() => updateConfig('viewMode', item.id)} className={`${choiceClass(config.viewMode === item.id)} ${item.id === 'printbed' ? 'col-span-2 sm:col-span-1' : ''}`}>{item.label}</button>)}</div></fieldset><fieldset className="space-y-2"><legend className="text-xs font-semibold uppercase tracking-wide text-slate-400">Iluminación</legend><div className="grid grid-cols-4 gap-2">{LIGHTING_MODES.map((item) => <button key={item.id} type="button" aria-pressed={config.lightingMode === item.id} onClick={() => updateConfig('lightingMode', item.id)} className={choiceClass(config.lightingMode === item.id)}>{item.label}</button>)}</div></fieldset></div>
           </div>
 
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/90 p-4 sm:p-5"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-[0.15em] text-slate-400">Collar impreso y ensamblado</p><p className="mt-1 font-outfit text-2xl font-extrabold text-white">{formatPrice(collarPriceCop, collarPriceUsd)}</p></div><span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-300">Talla {config.size} · {config.mountType === 'slide' ? 'Pasante' : 'Colgante'}</span></div><div className="mt-4 flex flex-col gap-2 sm:flex-row"><button type="button" disabled={!canOrder} onClick={() => onAddToCart(createCartItem())} className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-violet-600 px-4 py-2 text-sm font-bold text-white hover:from-cyan-400 hover:to-violet-500 disabled:cursor-not-allowed disabled:opacity-50"><ShoppingBag className="h-4 w-4" /> Agregar al carrito</button><button type="button" disabled={!canOrder} onClick={() => onBuyNow(createCartItem())} className="min-h-11 flex-1 rounded-xl border border-emerald-500/50 bg-emerald-500/10 px-4 py-2 text-sm font-bold text-emerald-200 hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-50">Comprar ahora</button></div>{isProcessing && <p className="mt-2 text-xs text-slate-400">Los botones se activan cuando termine la vista previa.</p>}</div>
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/90 p-4 sm:p-5"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-[0.15em] text-slate-400">Collar impreso y ensamblado</p><p className="mt-1 font-outfit text-2xl font-extrabold text-white">{formatPrice(collarPriceCop, collarPriceUsd)}</p></div><span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-300">Talla {config.size} · {config.mountType === 'slide' ? 'Pasante' : 'Colgante'}</span></div><div className="mt-4 flex flex-col gap-2 sm:flex-row"><button type="button" disabled={!canOrder} onClick={() => onAddToCart(createCartItem())} className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-violet-600 px-4 py-2 text-sm font-bold text-white hover:from-cyan-400 hover:to-violet-500 disabled:cursor-not-allowed disabled:opacity-50"><ShoppingBag className="h-4 w-4" /> Agregar al carrito</button><button type="button" disabled={!canOrder} onClick={() => onBuyNow(createCartItem())} className="min-h-11 flex-1 rounded-xl border border-emerald-500/50 bg-emerald-500/10 px-4 py-2 text-sm font-bold text-emerald-200 hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-50">Comprar ahora</button></div></div>
 
-          {isAuthenticated && <div className="rounded-2xl border border-slate-800 bg-slate-900/75 p-4"><p className="text-xs font-bold uppercase tracking-[0.15em] text-slate-400">Archivos de fabricación</p><div className="mt-3 flex gap-2"><button type="button" disabled={!processedData || !!exporting} onClick={() => void handleExport('3mf')} className="flex min-h-10 flex-1 items-center justify-center gap-2 rounded-xl border border-cyan-500/50 bg-cyan-500/10 px-3 text-sm font-semibold text-cyan-200 disabled:opacity-50"><Download className="h-4 w-4" />{exporting === '3mf' ? 'Generando…' : '3MF'}</button><button type="button" disabled={!processedData || !!exporting} onClick={() => void handleExport('stl')} className="flex min-h-10 flex-1 items-center justify-center gap-2 rounded-xl border border-slate-600 bg-slate-800 px-3 text-sm font-semibold text-slate-200 disabled:opacity-50"><Download className="h-4 w-4" />{exporting === 'stl' ? 'Generando…' : 'STL'}</button></div>{exportNotice && <p className="mt-3 text-xs text-slate-300" role="status">{exportNotice}</p>}</div>}
+          {isAuthenticated && <div className="rounded-2xl border border-slate-800 bg-slate-900/75 p-4"><p className="text-xs font-bold uppercase tracking-[0.15em] text-slate-400">Archivos de fabricación</p><div className="mt-3 flex gap-2"><button type="button" disabled={!!exporting} onClick={() => void handleExport('3mf')} className="flex min-h-10 flex-1 items-center justify-center gap-2 rounded-xl border border-cyan-500/50 bg-cyan-500/10 px-3 text-sm font-semibold text-cyan-200 disabled:opacity-50"><Download className="h-4 w-4" />{exporting === '3mf' ? 'Generando…' : '3MF'}</button><button type="button" disabled={!!exporting} onClick={() => void handleExport('stl')} className="flex min-h-10 flex-1 items-center justify-center gap-2 rounded-xl border border-slate-600 bg-slate-800 px-3 text-sm font-semibold text-slate-200 disabled:opacity-50"><Download className="h-4 w-4" />{exporting === 'stl' ? 'Generando…' : 'STL'}</button></div>{exportNotice && <p className="mt-3 text-xs text-slate-300" role="status">{exportNotice}</p>}</div>}
         </aside>
       </div>
     </div>

@@ -1,4 +1,5 @@
 import { Order, CartItem } from '../types';
+import { collarIconLabel } from '../core/collarIcons';
 
 /**
  * Utility to format prices for emails
@@ -42,7 +43,8 @@ const getItemDescriptionHtml = (item: CartItem): string => {
         <strong style="color: #f1f5f9;">Tel:</strong> ${item.collarConfig.phoneText || 'N/A'}<br/>
         Talla: <span style="color: #cbd5e1;">${item.collarConfig.size}</span> | 
         Estilo Placa: <span style="color: #cbd5e1;">${item.collarConfig.plateStyle}</span> | 
-        Correa: <span style="color: #cbd5e1;">${item.collarConfig.strapColor}</span>
+        Correa: <span style="color: #cbd5e1;">${item.collarConfig.strapColor}</span> |
+        Ícono: <span style="color: #cbd5e1;">${collarIconLabel(item.collarConfig.icon)}</span>
       </div>
     `;
   }

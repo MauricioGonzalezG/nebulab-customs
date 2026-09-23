@@ -695,15 +695,17 @@ export const tursoService = {
 
     const sanitizedItems = order.items.map((item) => {
       const itemCopy = JSON.parse(JSON.stringify(item));
-      // Las placas se reconstruyen desde su configuración: no tienen foto original que guardar.
+      // Las placas se reconstruyen desde su configuración y los collares nuevos
+      // ya no usan foto: no hay imagen original que guardar.
       const mainImageUrl =
         item.itemType === 'plate'
           ? ''
-          : (item.itemType === 'collar' ? item.collarConfig?.imageUrl : null) ||
-            (item.itemType === 'clicker' ? item.clickerConfig?.imageUrl : null) ||
-            item.config?.imageUrl ||
-            item.previewImageDataUrl ||
-            '';
+          : item.itemType === 'collar'
+            ? (item.collarConfig?.imageUrl || '')
+            : (item.itemType === 'clicker' ? item.clickerConfig?.imageUrl : null) ||
+              item.config?.imageUrl ||
+              item.previewImageDataUrl ||
+              '';
 
       const previewUrl = item.previewImageDataUrl || '';
       const imageKey = `${order.id}_${item.id}`;

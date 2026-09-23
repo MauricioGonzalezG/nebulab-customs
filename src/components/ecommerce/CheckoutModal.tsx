@@ -7,6 +7,7 @@ import { createMercadoPagoPreference } from '../../lib/mercadopago';
 import { useAuth } from '../../context/AuthContext';
 import { useCurrency } from '../../context/CurrencyContext';
 import { COLOMBIA_DEPARTMENTS, getMunicipalitiesForDepartment } from '../../lib/colombiaData';
+import { collarIconLabel } from '../../core/collarIcons';
 import { X, CheckCircle2, Download, Truck, Lock, ArrowLeft, User, Plus, MapPin, Edit2, ShieldCheck, MessageSquare, Wallet } from 'lucide-react';
 import { BRAND, getWhatsAppUrl } from '../../lib/brand';
 
@@ -128,7 +129,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       .map((it) => {
         const formattedPrice = formatItemPrice(it.price);
         if (it.itemType === 'collar' && it.collarConfig) {
-          return `• Collar para Mascota 3D (Mascota: ${it.collarConfig.petName || 'N/A'}, Tel: ${it.collarConfig.phoneText || 'N/A'})\n  - Talla: ${it.collarConfig.size}\n  - Color Correa: ${it.collarConfig.strapColor}\n  - Estilo Placa: ${it.collarConfig.plateStyle}\n  - Precio: ${formattedPrice}`;
+          return `• Collar para Mascota 3D (Mascota: ${it.collarConfig.petName || 'N/A'}, Tel: ${it.collarConfig.phoneText || 'N/A'})\n  - Talla: ${it.collarConfig.size}\n  - Color Correa: ${it.collarConfig.strapColor}\n  - Estilo Placa: ${it.collarConfig.plateStyle}\n  - Ícono: ${collarIconLabel(it.collarConfig.icon)}\n  - Precio: ${formattedPrice}`;
         }
         if (it.itemType === 'clicker' && it.clickerConfig) {
           const typeName = it.clickerConfig.type === 'clicker' ? 'Clicker Teclado MX 3D' : 'Llavero 3D';

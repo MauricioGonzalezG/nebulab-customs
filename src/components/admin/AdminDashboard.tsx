@@ -8,6 +8,7 @@ import { downloadClicker3MF } from '../../core/clicker3mfExporter';
 import { processImageForLithophane, createPlaceholderImage, ProcessedImageData } from '../../core/imageProcessor';
 import { processClickerImage, ProcessedClickerData } from '../../core/clickerProcessor';
 import { processCollarImage, ProcessedCollarData } from '../../core/collarProcessor';
+import { collarIconLabel } from '../../core/collarIcons';
 import type { PlateModel } from '../../core/plateBuilder';
 import { LithophaneViewer } from '../3d/LithophaneViewer';
 import { ClickerViewer } from '../3d/ClickerViewer';
@@ -173,6 +174,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
 
   const [downloadingImageKey, setDownloadingImageKey] = useState<string | null>(null);
 
+  // Solo los productos con foto original (litofanías, clickers y collares
+  // antiguos) ofrecen su descarga; placas y collares nuevos no tienen foto.
+  const hasItemPhoto = (item: CartItem): boolean => {
+    if (item.itemType === 'plate') return false;
+    if (item.itemType === 'collar') return Boolean(item.collarConfig?.imageUrl);
+    return true;
+  };
+
   // On-demand download of item image from Turso DB / LocalStorage
   const handleDownloadItemImage = async (orderId: string, itemId: string, itemType?: string) => {
     const imageKey = `${orderId}_${itemId}`;
@@ -205,6 +214,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
     setSelectedOrderItem({ order, item });
     setIsProcessing3D(true);
     setPreviewPlateModel(null);
+    setPreviewCollarProcessedData(null);
 
     // Las placas se reconstruyen desde su configuración (no dependen de una foto).
     if (item.itemType === 'plate' && item.plateConfig) {
@@ -220,9 +230,49 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
       return;
     }
 
+    // Los collares nuevos no usan foto: se inspeccionan sin relieve de imagen.
+    // Los pedidos anteriores con foto conservan su flujo original.
+    if (item.itemType === 'collar' && item.collarConfig) {
+      try {
+        const directPhoto = item.collarConfig.imageUrl;
+        let sourceUrl =
+          directPhoto && directPhoto !== '[STORED_IN_TURSO]' && !directPhoto.startsWith('data:image/svg') ? directPhoto : '';
+        if (!sourceUrl) {
+          const fetched = await tursoService.getOrderImage(order.id, item.id);
+          if (fetched.imageData && !fetched.imageData.startsWith('data:image/svg')) {
+            sourceUrl = fetched.imageData;
+          }
+        }
+        if (!sourceUrl) {
+          setIsProcessing3D(false);
+          return;
+        }
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.src = sourceUrl;
+        img.onload = () => {
+          try {
+            const processed = processCollarImage(img, item.collarConfig!);
+            setPreviewCollarProcessedData(processed);
+          } catch (e) {
+            console.error('Error procesando la imagen del collar:', e);
+          } finally {
+            setIsProcessing3D(false);
+          }
+        };
+        img.onerror = () => {
+          setIsProcessing3D(false);
+        };
+      } catch (e) {
+        console.error('Error processing item preview:', e);
+        setIsProcessing3D(false);
+      }
+      return;
+    }
+
     try {
       let sourceUrl =
-        (item.itemType === 'collar' ? item.collarConfig?.imageUrl : item.itemType === 'clicker' ? item.clickerConfig?.imageUrl : item.config?.imageUrl) ||
+        (item.itemType === 'clicker' ? item.clickerConfig?.imageUrl : item.config?.imageUrl) ||
         item.previewImageDataUrl ||
         '';
 
@@ -238,17 +288,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
       const img = new Image();
       img.crossOrigin = 'anonymous';
 
-      if (item.itemType === 'collar' && item.collarConfig) {
-        img.src = sourceUrl;
-        img.onload = () => {
-          const processed = processCollarImage(img, item.collarConfig!);
-          setPreviewCollarProcessedData(processed);
-          setIsProcessing3D(false);
-        };
-        img.onerror = () => {
-          setIsProcessing3D(false);
-        };
-      } else if (item.itemType === 'clicker' && item.clickerConfig) {
+      if (item.itemType === 'clicker' && item.clickerConfig) {
         img.src = sourceUrl;
         img.onload = () => {
           const processed = processClickerImage(img, item.clickerConfig!);
@@ -594,7 +634,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
                                       : `Litofanía ${it.config?.shape === 'arc' ? 'Curva' : it.config?.shape === 'flat' ? 'Plana' : 'Cilíndrica'} (${it.config?.width || 120}×${it.config?.height || 100}mm)`}
                                   </span>
                                 </button>
-                                {it.itemType !== 'plate' && (
+                                {hasItemPhoto(it) && (
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
@@ -704,7 +744,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
 
                             {order.items.length > 0 && (
                               <>
-                                {order.items[0].itemType !== 'plate' && (
+                                {hasItemPhoto(order.items[0]) && (
                                   <button
                                     onClick={() =>
                                       handleDownloadItemImage(order.id, order.items[0].id, order.items[0].itemType)
@@ -921,6 +961,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
                       <span className="text-slate-500 block">Talla Collar</span>
                       <span className="font-bold text-slate-200 uppercase">{selectedOrderItem.item.collarConfig.size}</span>
                     </div>
+                    <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
+                      <span className="text-slate-500 block">Ícono</span>
+                      <span className="font-bold text-slate-200">{collarIconLabel(selectedOrderItem.item.collarConfig.icon)}</span>
+                    </div>
                   </div>
                 ) : selectedOrderItem.item.itemType === 'clicker' && selectedOrderItem.item.clickerConfig ? (
                   <div className="grid grid-cols-2 gap-3 text-xs">
@@ -1020,7 +1064,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
 
                 {/* 3D Export & Image Download Buttons */}
                 <div className="space-y-2">
-                  {selectedOrderItem.item.itemType !== 'plate' && (
+                  {hasItemPhoto(selectedOrderItem.item) && (
                     <button
                       onClick={() => {
                         handleDownloadItemImage(
@@ -1076,6 +1120,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
                           .catch((err) => console.error('Error exportando placa STL:', err));
                       } else if (selectedOrderItem.item.itemType === 'clicker' && selectedOrderItem.item.clickerConfig) {
                         downloadClickerSTL(previewClickerProcessedData, selectedOrderItem.item.clickerConfig);
+                      } else if (selectedOrderItem.item.itemType === 'collar' && selectedOrderItem.item.collarConfig) {
+                        const collarConfig = selectedOrderItem.item.collarConfig;
+                        const collarProcessed = previewCollarProcessedData;
+                        import('../../core/collarStlExporter')
+                          .then(({ downloadCollarSTL }) => downloadCollarSTL(collarProcessed, collarConfig))
+                          .catch((err) => console.error('Error exportando collar STL:', err));
                       } else if (previewProcessedData && selectedOrderItem.item.config) {
                         downloadLithophaneSTL(previewProcessedData, selectedOrderItem.item.config);
                       }

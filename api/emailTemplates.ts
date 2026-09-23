@@ -20,6 +20,14 @@ const BRAND_ACCENT = '#06b6d4';
 const BRAND_DARK = '#0b0f19';
 const BRAND_CARD = '#151d2e';
 
+// Etiquetas de los íconos predefinidos de la placa del collar.
+const COLLAR_ICON_LABELS: Record<string, string> = {
+  none: 'Sin ícono', paw: 'Huella', heart: 'Corazón', bone: 'Hueso', crown: 'Corona',
+  star: 'Estrella', cross: 'Cruz', fish: 'Pez', flower: 'Flor', bolt: 'Rayo',
+  moon: 'Luna', cat: 'Gato', bunny: 'Conejo', butterfly: 'Mariposa', clover: 'Trébol',
+  diamond: 'Diamante', music: 'Música', sun: 'Sol', leaf: 'Hoja',
+};
+
 // Los montos de la orden se persisten en USD; al mostrarlos en COP se aplica
 // la tasa de la tienda (1 USD = 4000 COP), igual que en el checkout.
 const COP_RATE = 4000;
@@ -34,7 +42,8 @@ const getItemDescriptionHtml = (item: any): string => {
         <strong style="color: #f1f5f9;">Tel:</strong> ${item.collarConfig.phoneText || 'N/A'}<br/>
         Talla: <span style="color: #cbd5e1;">${item.collarConfig.size}</span> | 
         Estilo Placa: <span style="color: #cbd5e1;">${item.collarConfig.plateStyle}</span> | 
-        Correa: <span style="color: #cbd5e1;">${item.collarConfig.strapColor}</span>
+        Correa: <span style="color: #cbd5e1;">${item.collarConfig.strapColor}</span> |
+        Ícono: <span style="color: #cbd5e1;">${COLLAR_ICON_LABELS[item.collarConfig.icon] || 'Personalizado'}</span>
       </div>
     `;
   }
