@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { ClickerConfig, ClickerBaseStyle } from '../types';
 import { ProcessedClickerData } from './clickerProcessor';
 import { createEyeletShape, getClickerEyelet, shapeFromContour } from './clickerGeometry';
+import { CLICKER_SOCKET, createHollowBaseParts, createHollowCapParts } from './clickerFit';
+import { unionClickerGeometries } from './clickerSolid';
 
 function buildBaseShapeForStl(
   style: ClickerBaseStyle,
@@ -99,57 +101,67 @@ function buildBaseShapeForStl(
 /**
  * Exports high-precision manifold STL file
  */
-export const downloadClickerSTL = (
+export const downloadClickerSTL = async (
   processedData: ProcessedClickerData | null,
   config: ClickerConfig
 ) => {
-  const scale = config.size / 2 - (config.baseMargin ?? 1.1);
+  const baseMargin = config.type === 'clicker'
+    ? Math.max(CLICKER_SOCKET.minimumBaseMargin, config.baseMargin ?? CLICKER_SOCKET.minimumBaseMargin)
+    : config.baseMargin ?? 1.1;
+  const scale = config.size / 2 - baseMargin;
   const pts = processedData?.contourPoints || [];
   const topH = config.topHeight;
-  const baseH = config.baseHeight;
+  const baseH = config.type === 'clicker' ? Math.max(12, config.baseHeight) : config.baseHeight;
 
   // 1. Cap Shape
   const capShape = shapeFromContour(pts, scale);
 
-  const capBevel = 0.8;
-  const capGeo = new THREE.ExtrudeGeometry(capShape, {
-    depth: Math.max(2, topH - capBevel),
-    bevelEnabled: true,
-    bevelSegments: 2,
-    bevelSize: capBevel,
-    bevelThickness: capBevel,
-  });
-  capGeo.center();
+  const capParts: THREE.BufferGeometry[] = config.type === 'clicker'
+    ? createHollowCapParts(capShape, topH, config.switchTolerance || 0)
+    : (() => {
+        const geometry = new THREE.ExtrudeGeometry(capShape, {
+          depth: Math.max(2, topH - 0.8), bevelEnabled: true,
+          bevelSegments: 2, bevelSize: 0.8, bevelThickness: 0.8,
+        });
+        geometry.center();
+        return [geometry];
+      })();
+  const capCombined = await unionClickerGeometries(capParts);
+  capCombined.computeBoundingBox();
 
   // 2. Base Housing Shape
-  const baseMargin = config.baseMargin ?? 1.1;
   const baseScale = scale + baseMargin;
   const baseShape = buildBaseShapeForStl(config.baseStyle, config.baseStyle === 'outline' ? scale : baseScale, pts, config.baseBevel, baseMargin);
 
+  const baseParts: THREE.BufferGeometry[] = config.type === 'clicker'
+    ? createHollowBaseParts(baseShape, baseH)
+    : (() => {
+        const bevel = Math.min(1.0, config.baseBevel ?? 1.0);
+        const geometry = new THREE.ExtrudeGeometry(baseShape, {
+          depth: Math.max(4, baseH - bevel), bevelEnabled: bevel > 0,
+          bevelSegments: 2, bevelSize: bevel, bevelThickness: bevel,
+        });
+        geometry.center();
+        return [geometry];
+      })();
+  const baseCombined = await unionClickerGeometries(baseParts);
   if (config.type === 'clicker') {
-    const switchHole = new THREE.Path();
-    const halfSw = 7.1;
-    switchHole.moveTo(-halfSw, -halfSw);
-    switchHole.lineTo(halfSw, -halfSw);
-    switchHole.lineTo(halfSw, halfSw);
-    switchHole.lineTo(-halfSw, halfSw);
-    switchHole.closePath();
-    baseShape.holes.push(switchHole);
+    // Orient the closed floor downward for a support-free printable tray.
+    baseCombined.scale(1, 1, -1);
+    const triangles = baseCombined.index!.array;
+    for (let i = 0; i < triangles.length; i += 3) {
+      const second = triangles[i + 1];
+      triangles[i + 1] = triangles[i + 2];
+      triangles[i + 2] = second;
+    }
+    baseCombined.index!.needsUpdate = true;
+    baseCombined.computeVertexNormals();
   }
+  baseCombined.computeBoundingBox();
+  const baseOffset = (capCombined.boundingBox?.max.x ?? scale) - (baseCombined.boundingBox?.min.x ?? -baseScale) + 6;
+  baseCombined.translate(baseOffset, 0, 0);
 
-  const baseBevel = Math.min(1.0, config.baseBevel ?? 1.0);
-  const baseGeo = new THREE.ExtrudeGeometry(baseShape, {
-    depth: Math.max(4, baseH - baseBevel),
-    bevelEnabled: baseBevel > 0,
-    bevelSegments: 2,
-    bevelSize: baseBevel,
-    bevelThickness: baseBevel,
-  });
-  baseGeo.center();
-  baseGeo.translate(baseScale * 1.5 + 5, 0, 0); // Position side-by-side ready for print bed
-
-  // Combine geometries for STL export
-  const geometries = [capGeo, baseGeo];
+  const geometries = [capCombined, baseCombined];
 
   if (config.includeRing || config.type === 'keychain') {
     const eyeletGeo = new THREE.ExtrudeGeometry(createEyeletShape(config, pts), {
@@ -158,7 +170,7 @@ export const downloadClickerSTL = (
     });
     eyeletGeo.center();
     const eyelet = getClickerEyelet(config, pts);
-    eyeletGeo.translate(baseScale * 1.5 + 5 + eyelet.x, eyelet.y, baseH / 2 - 1 + (config.ringHeight || 0));
+    eyeletGeo.translate(baseOffset + eyelet.x, eyelet.y, baseH / 2 - 1 + (config.ringHeight || 0));
     geometries.push(eyeletGeo);
   }
 

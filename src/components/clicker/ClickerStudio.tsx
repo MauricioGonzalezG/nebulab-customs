@@ -16,6 +16,7 @@ import {
 } from '../../core/clickerProcessor';
 import { downloadClickerSTL } from '../../core/clickerStlExporter';
 import { downloadClicker3MF } from '../../core/clicker3mfExporter';
+import { CLICKER_SOCKET } from '../../core/clickerFit';
 import { useAuth } from '../../context/AuthContext';
 import { ClickerViewer } from '../3d/ClickerViewer';
 import {
@@ -102,6 +103,8 @@ export const ClickerStudio: React.FC<ClickerStudioProps> = ({
   const [config, setConfig] = useState<ClickerConfig>(createDefaultClickerConfig());
   const [processedData, setProcessedData] = useState<ProcessedClickerData | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportError, setExportError] = useState('');
   const [activeAccordion, setActiveAccordion] = useState<string>('geometry');
 
   const viewerRef = useRef<HTMLDivElement>(null);
@@ -116,26 +119,36 @@ export const ClickerStudio: React.FC<ClickerStudioProps> = ({
 
   // Load and process image when image parameters change
   useEffect(() => {
-    if (!config.imageUrl) return;
+    if (!config.imageUrl) {
+      setProcessedData(null);
+      return;
+    }
 
+    let cancelled = false;
     setIsProcessing(true);
     const img = new Image();
     img.crossOrigin = 'anonymous';
-    img.src = config.imageUrl;
 
     img.onload = () => {
+      if (cancelled) return;
       try {
         const processed = processClickerImage(img, config);
-        setProcessedData(processed);
+        if (!cancelled) setProcessedData(processed);
       } catch (err) {
         console.error('Error processing clicker image:', err);
       } finally {
-        setIsProcessing(false);
+        if (!cancelled) setIsProcessing(false);
       }
     };
 
     img.onerror = () => {
-      setIsProcessing(false);
+      if (!cancelled) setIsProcessing(false);
+    };
+    img.src = config.imageUrl;
+    return () => {
+      cancelled = true;
+      img.onload = null;
+      img.onerror = null;
     };
   }, [
     config.imageUrl,
@@ -192,6 +205,21 @@ export const ClickerStudio: React.FC<ClickerStudioProps> = ({
     }
   };
 
+  const handleDownload = async (format: 'stl' | '3mf') => {
+    if (isExporting) return;
+    setIsExporting(true);
+    setExportError('');
+    try {
+      if (format === 'stl') await downloadClickerSTL(processedData, config);
+      else await downloadClicker3MF(processedData, config);
+    } catch (error) {
+      console.error('Error exporting clicker:', error);
+      setExportError('No se pudo preparar una pieza imprimible con este diseño. Prueba otra forma o un tamaño mayor.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const createCartItem = (): CartItem => {
     const dummyLithoConfig: LithophaneConfig = {
       imageUrl: config.imageUrl,
@@ -235,6 +263,9 @@ export const ClickerStudio: React.FC<ClickerStudioProps> = ({
   // Estimated 3D Print Specs
   const estWeightGrams = Math.round(((config.size * config.size * (config.topHeight + config.baseHeight)) / 1000) * 0.45);
   const estPrintMins = Math.round(18 + config.size * 0.45 + (config.topHeight + config.baseHeight) * 0.6);
+  const assembledHeightMm = config.type === 'clicker'
+    ? (config.baseHeight + config.topHeight / 2 + 1.6).toFixed(1)
+    : (config.topHeight + config.baseHeight).toString();
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-inter flex flex-col">
@@ -297,7 +328,8 @@ export const ClickerStudio: React.FC<ClickerStudioProps> = ({
             {isAuthenticated && (
               <>
                 <button
-                  onClick={() => downloadClicker3MF(processedData, config)}
+                  onClick={() => void handleDownload('3mf')}
+                  disabled={isExporting}
                   className="px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-violet-600 hover:from-cyan-400 hover:to-violet-500 text-white text-xs font-bold shadow-lg shadow-cyan-500/20 transition-all flex items-center gap-1.5"
                   title="Descargar archivo multi-color para Bambu Studio, OrcaSlicer o PrusaSlicer"
                 >
@@ -307,7 +339,8 @@ export const ClickerStudio: React.FC<ClickerStudioProps> = ({
                 </button>
 
                 <button
-                  onClick={() => downloadClickerSTL(processedData, config)}
+                  onClick={() => void handleDownload('stl')}
+                  disabled={isExporting}
                   className="px-3 py-1.5 sm:px-3 sm:py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-all flex items-center gap-1.5"
                   title="Descargar archivo STL sólido listo para imprimir"
                 >
@@ -329,6 +362,8 @@ export const ClickerStudio: React.FC<ClickerStudioProps> = ({
         </div>
       </header>
 
+      {exportError && <p role="alert" className="border-b border-rose-500/30 bg-rose-500/10 px-4 py-2 text-center text-xs text-rose-200">{exportError}</p>}
+
       {/* MAIN STUDIO WORKSPACE */}
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-0 overflow-hidden">
         
@@ -343,9 +378,13 @@ export const ClickerStudio: React.FC<ClickerStudioProps> = ({
                   ...prev, type,
                   includeRing: type === 'keychain' ? true : prev.includeRing,
                   topHeight: type === 'keychain' && prev.type === 'clicker' && prev.topHeight === 8 ? 6 :
-                    type === 'clicker' && prev.type === 'keychain' && prev.topHeight === 6 ? 8 : prev.topHeight,
+                    type === 'clicker' ? Math.max(8, prev.type === 'keychain' && prev.topHeight === 6 ? 8 : prev.topHeight) : prev.topHeight,
                   baseHeight: type === 'keychain' && prev.type === 'clicker' && prev.baseHeight === 12 ? 8 :
                     type === 'clicker' && prev.type === 'keychain' && prev.baseHeight === 8 ? 12 : prev.baseHeight,
+                  size: type === 'clicker' ? Math.max(32, prev.size) : prev.size,
+                  baseMargin: type === 'clicker'
+                    ? Math.max(CLICKER_SOCKET.minimumBaseMargin, prev.baseMargin)
+                    : prev.type === 'clicker' && prev.baseMargin === CLICKER_SOCKET.minimumBaseMargin ? 1.1 : prev.baseMargin,
                 }))}
                   className={`rounded-xl border px-3 py-2 text-xs font-bold ${config.type === type ? 'border-cyan-500 bg-cyan-500/15 text-cyan-200' : 'border-slate-700 text-slate-400'}`}>
                   {label}
@@ -387,7 +426,7 @@ export const ClickerStudio: React.FC<ClickerStudioProps> = ({
             </div>
             <input
               type="range"
-              min={25}
+              min={config.type === 'clicker' ? 32 : 25}
               max={60}
               step={1}
               value={config.size}
@@ -395,7 +434,7 @@ export const ClickerStudio: React.FC<ClickerStudioProps> = ({
               className="w-full accent-cyan-500 cursor-pointer"
             />
             <div className="flex justify-between text-[10px] text-slate-500 font-mono">
-              <span>Compacto (25mm)</span>
+              <span>Compacto ({config.type === 'clicker' ? 32 : 25}mm)</span>
               <span>Estándar (35mm)</span>
               <span>Grande (60mm)</span>
             </div>
@@ -406,7 +445,7 @@ export const ClickerStudio: React.FC<ClickerStudioProps> = ({
               <span className="font-bold text-slate-300">Borde alrededor del diseño</span>
               <span className="font-mono text-cyan-400 font-bold">{config.baseMargin} mm</span>
             </div>
-            <input type="range" min={0.6} max={3} step={0.1} value={config.baseMargin}
+            <input type="range" min={config.type === 'clicker' ? CLICKER_SOCKET.minimumBaseMargin : 0.6} max={config.type === 'clicker' ? 5 : 3} step={0.1} value={config.baseMargin}
               onChange={event => setConfig(prev => ({ ...prev, baseMargin: Number(event.target.value) }))}
               className="w-full accent-cyan-500 cursor-pointer" />
             <p className="text-[10px] text-slate-500">La silueta conserva un margen uniforme alrededor de la imagen.</p>
@@ -470,13 +509,14 @@ export const ClickerStudio: React.FC<ClickerStudioProps> = ({
                   </div>
                   <input
                     type="range"
-                    min={5}
+                    min={config.type === 'clicker' ? 8 : 5}
                     max={14}
                     step={0.5}
                     value={config.topHeight}
                     onChange={(e) => setConfig((prev) => ({ ...prev, topHeight: Number(e.target.value) }))}
                     className="w-full accent-cyan-500 cursor-pointer"
                   />
+                  {config.type === 'clicker' && <p className="text-[10px] text-slate-500">Una parte de la tapa se desliza dentro de la base.</p>}
                 </div>
 
                 {/* Altura de Base Housing */}
@@ -487,7 +527,7 @@ export const ClickerStudio: React.FC<ClickerStudioProps> = ({
                   </div>
                   <input
                     type="range"
-                    min={8}
+                    min={config.type === 'clicker' ? 12 : 8}
                     max={20}
                     step={0.5}
                     value={config.baseHeight}
@@ -1077,7 +1117,7 @@ export const ClickerStudio: React.FC<ClickerStudioProps> = ({
             <div className="grid grid-cols-2 gap-2 text-[11px]">
               <div className="bg-slate-900/60 p-2 rounded-xl border border-slate-800/60">
                 <span className="text-slate-400 block text-[10px]">Dimensiones</span>
-                <span className="font-mono text-slate-200 font-bold">{config.size} × {config.size} × {config.topHeight + config.baseHeight}mm</span>
+                <span className="font-mono text-slate-200 font-bold">{config.size} × {config.size} × {assembledHeightMm}mm</span>
               </div>
               <div className="bg-slate-900/60 p-2 rounded-xl border border-slate-800/60">
                 <span className="text-slate-400 block text-[10px]">Peso Filamento</span>

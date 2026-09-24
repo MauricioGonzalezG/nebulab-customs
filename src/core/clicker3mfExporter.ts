@@ -3,7 +3,32 @@ import { ClickerConfig, ClickerBaseStyle } from '../types';
 import { ProcessedClickerData } from './clickerProcessor';
 import { download3MFFile, ThreeMFMeshObject } from './threeMfExporter';
 import { createEyeletShape, getClickerEyelet, shapeFromContour } from './clickerGeometry';
+import { CLICKER_SOCKET, createHollowBaseParts, createHollowCapParts } from './clickerFit';
+import { unionClickerGeometries } from './clickerSolid';
 import { hexToRgb } from './clickerProcessor';
+
+function reflectZ(geometry: THREE.BufferGeometry): void {
+  geometry.scale(1, 1, -1);
+  if (!geometry.index) {
+    const count = geometry.getAttribute('position').count;
+    const indices = new Uint32Array(count);
+    for (let i = 0; i < count; i += 3) {
+      indices[i] = i;
+      indices[i + 1] = i + 2;
+      indices[i + 2] = i + 1;
+    }
+    geometry.setIndex(new THREE.BufferAttribute(indices, 1));
+  } else {
+    const triangles = geometry.index.array;
+    for (let i = 0; i < triangles.length; i += 3) {
+      const second = triangles[i + 1];
+      triangles[i + 1] = triangles[i + 2];
+      triangles[i + 2] = second;
+    }
+    geometry.index.needsUpdate = true;
+  }
+  geometry.computeVertexNormals();
+}
 
 /**
  * Extracts vertices and triangles from any Three.js BufferGeometry
@@ -160,11 +185,14 @@ export async function downloadClicker3MF(
   processedData: ProcessedClickerData | null,
   config: ClickerConfig
 ): Promise<void> {
-  const scale = config.size / 2 - (config.baseMargin ?? 1.1);
+  const baseMargin = config.type === 'clicker'
+    ? Math.max(CLICKER_SOCKET.minimumBaseMargin, config.baseMargin ?? CLICKER_SOCKET.minimumBaseMargin)
+    : config.baseMargin ?? 1.1;
+  const scale = config.size / 2 - baseMargin;
   const pts = processedData?.contourPoints || [];
   const topH = config.topHeight;
-  const baseH = config.baseHeight;
-  const bedOffset = scale + (config.baseMargin ?? 1.1) + 6;
+  const baseH = config.type === 'clicker' ? Math.max(12, config.baseHeight) : config.baseHeight;
+  const bedOffset = scale + baseMargin + 6;
 
   // 1. Cap Silhouette Shape
   const capShape = shapeFromContour(pts, scale);
@@ -172,21 +200,25 @@ export async function downloadClicker3MF(
   const objects: ThreeMFMeshObject[] = [];
   let nextId = 2;
 
-  // Object 1: Top Cap Body Shell
-  const capBevel = 0.8;
-  const capBodyGeo = new THREE.ExtrudeGeometry(capShape, {
-    depth: Math.max(2, topH - capBevel),
-    bevelEnabled: true,
-    bevelSegments: 2,
-    bevelSize: capBevel,
-    bevelThickness: capBevel,
-  });
-  capBodyGeo.center();
+  // The decorated face rests on the bed; the hollow socket faces upward.
+  const capParts: THREE.BufferGeometry[] = config.type === 'clicker'
+    ? createHollowCapParts(capShape, topH, config.switchTolerance || 0)
+    : (() => {
+        const geometry = new THREE.ExtrudeGeometry(capShape, {
+          depth: Math.max(2, topH - 0.8), bevelEnabled: true,
+          bevelSegments: 2, bevelSize: 0.8, bevelThickness: 0.8,
+        });
+        geometry.center();
+        return [geometry];
+      })();
+  const capBodyGeo = await unionClickerGeometries(capParts);
   capBodyGeo.computeBoundingBox();
-  const capLift = -(capBodyGeo.boundingBox?.min.z ?? 0);
+  const artworkRelief = processedData?.canvas
+    ? config.reliefStyle === 'embossed' ? Math.max(0.5, config.reliefDepth) : 0.5
+    : 0;
+  const capLift = -(capBodyGeo.boundingBox?.min.z ?? 0) + (config.type === 'clicker' ? artworkRelief : 0);
   capBodyGeo.translate(-bedOffset, 0, capLift);
-  capBodyGeo.computeVertexNormals();
-  objects.push(bufferGeometryTo3MFMesh(capBodyGeo, nextId++, 'Tapa Keycap Principal', config.baseColor));
+  objects.push(bufferGeometryTo3MFMesh(capBodyGeo, nextId++, 'Tapa hueca con encaje MX', config.baseColor));
 
   // Convert the visible artwork into color regions. The former nested solid
   // silhouettes hid the actual eyes, face and uploaded design in the 3MF.
@@ -233,47 +265,46 @@ export async function downloadClicker3MF(
           x = end;
         }
       }
-      const relief = config.reliefStyle === 'embossed' ? Math.max(0.5, config.reliefDepth) : 0.5;
+      const relief = artworkRelief;
       shapes.forEach((regions, i) => {
         if (!regions.length) return;
         const geometry = new THREE.ExtrudeGeometry(regions, { depth: relief, bevelEnabled: false });
-        geometry.translate(-bedOffset, 0, topH / 2 + 0.35 + capLift);
+        if (config.type === 'clicker') {
+          reflectZ(geometry);
+          geometry.translate(-bedOffset, 0, -topH / 2 + 0.1 + capLift);
+        } else {
+          geometry.translate(-bedOffset, 0, topH / 2 + 0.35 + capLift);
+        }
         objects.push(bufferGeometryTo3MFMesh(geometry, nextId++, `Ilustración - color ${i + 1}`, colors[i]));
       });
     }
   }
 
   // Object 3: Base Housing
-  const baseMargin = config.baseMargin ?? 1.1;
   const baseScale = scale + baseMargin;
   const baseShape = buildBaseShapeForExport(config.baseStyle, config.baseStyle === 'outline' ? scale : baseScale, pts, config.baseBevel, baseMargin);
 
+  const baseParts: THREE.BufferGeometry[] = config.type === 'clicker'
+    ? createHollowBaseParts(baseShape, baseH)
+    : (() => {
+        const bevel = Math.min(1.0, config.baseBevel ?? 1.0);
+        const geometry = new THREE.ExtrudeGeometry(baseShape, {
+          depth: Math.max(4, baseH - bevel), bevelEnabled: bevel > 0,
+          bevelSegments: 2, bevelSize: bevel, bevelThickness: bevel,
+        });
+        geometry.center();
+        geometry.translate(0, 0, -baseH / 2 - 1.5);
+        return [geometry];
+      })();
+  const baseGeo = await unionClickerGeometries(baseParts);
   if (config.type === 'clicker') {
-    // Cutout 14x14mm for Cherry MX Switch Socket
-    const switchHole = new THREE.Path();
-    const halfSw = 7.1;
-    switchHole.moveTo(-halfSw, -halfSw);
-    switchHole.lineTo(halfSw, -halfSw);
-    switchHole.lineTo(halfSw, halfSw);
-    switchHole.lineTo(-halfSw, halfSw);
-    switchHole.closePath();
-    baseShape.holes.push(switchHole);
+    // Put the closed floor on the print bed and leave the tray open upward.
+    reflectZ(baseGeo);
   }
-
-  const baseBevel = Math.min(1.0, config.baseBevel ?? 1.0);
-  const baseGeo = new THREE.ExtrudeGeometry(baseShape, {
-    depth: Math.max(4, baseH - baseBevel),
-    bevelEnabled: baseBevel > 0,
-    bevelSegments: 2,
-    bevelSize: baseBevel,
-    bevelThickness: baseBevel,
-  });
-  baseGeo.center();
-  baseGeo.translate(0, 0, -baseH / 2 - 1.5);
   baseGeo.computeBoundingBox();
   const baseLift = -(baseGeo.boundingBox?.min.z ?? 0);
   baseGeo.translate(bedOffset, 0, baseLift);
-  objects.push(bufferGeometryTo3MFMesh(baseGeo, nextId++, 'Cuerpo Base (Housing)', config.baseColor));
+  objects.push(bufferGeometryTo3MFMesh(baseGeo, nextId++, 'Base hueca con guías del switch', config.baseColor));
 
   // Object 4: Keychain Attachment Ring (if enabled)
   if (config.includeRing || config.type === 'keychain') {
@@ -283,7 +314,10 @@ export async function downloadClicker3MF(
       bevelSize: 0.35, bevelThickness: 0.35,
     });
     ringGeo.center();
-    ringGeo.translate(bedOffset + eyelet.x, eyelet.y, (config.ringHeight || 0) - 2.5 + baseLift);
+    const ringCenter = config.type === 'clicker'
+      ? baseH - 1 + (config.ringHeight || 0)
+      : (config.ringHeight || 0) - 2.5 + baseLift;
+    ringGeo.translate(bedOffset + eyelet.x, eyelet.y, ringCenter);
     objects.push(bufferGeometryTo3MFMesh(ringGeo, nextId++, 'Ojal imprimible para llavero', config.baseColor));
   }
 

@@ -1,27 +1,30 @@
 import * as THREE from 'three';
+import ClipperLib from 'clipper-lib';
 import { ClickerConfig } from '../types';
 
 export type ContourPoint = { x: number; y: number };
 
 export function offsetContour(points: ContourPoint[], distance: number): ContourPoint[] {
   if (points.length < 3 || distance === 0) return points;
-  const area = points.reduce((sum, p, i) => {
-    const q = points[(i + 1) % points.length];
-    return sum + p.x * q.y - q.x * p.y;
-  }, 0);
-  const sign = area >= 0 ? 1 : -1;
-  return points.map((point, i) => {
-    const prev = points[(i - 1 + points.length) % points.length];
-    const next = points[(i + 1) % points.length];
-    const first = new THREE.Vector2(point.x - prev.x, point.y - prev.y).normalize();
-    const second = new THREE.Vector2(next.x - point.x, next.y - point.y).normalize();
-    const normalA = new THREE.Vector2(first.y * sign, -first.x * sign);
-    const normalB = new THREE.Vector2(second.y * sign, -second.x * sign);
-    const bisector = normalA.add(normalB).normalize();
-    const denominator = Math.max(0.5, Math.abs(bisector.dot(normalB)));
-    const miter = Math.min(Math.abs(distance) * 1.65, Math.abs(distance) / denominator);
-    return { x: point.x + bisector.x * miter * Math.sign(distance), y: point.y + bisector.y * miter * Math.sign(distance) };
-  });
+  const precision = 1000;
+  const source = points.map(point => ({
+    X: Math.round(point.x * precision), Y: Math.round(point.y * precision),
+  }));
+  const simple = ClipperLib.Clipper.SimplifyPolygon(source, ClipperLib.PolyFillType.pftEvenOdd);
+  if (!simple.length) return [];
+  const outline = simple.reduce((best, path) =>
+    Math.abs(ClipperLib.Clipper.Area(path)) > Math.abs(ClipperLib.Clipper.Area(best)) ? path : best,
+  simple[0]).slice();
+  if (!ClipperLib.Clipper.Orientation(outline)) outline.reverse();
+  const offset = new ClipperLib.ClipperOffset(2, 50);
+  offset.AddPath(outline, ClipperLib.JoinType.jtRound, ClipperLib.EndType.etClosedPolygon);
+  const paths: ClipperLib.Paths = [];
+  offset.Execute(paths, Math.round(distance * precision));
+  if (!paths.length) return [];
+  const largest = paths.reduce((best, path) =>
+    Math.abs(ClipperLib.Clipper.Area(path)) > Math.abs(ClipperLib.Clipper.Area(best)) ? path : best,
+  paths[0]);
+  return largest.map(point => ({ x: point.X / precision, y: point.Y / precision }));
 }
 
 export function shapeFromContour(points: ContourPoint[], scale: number, offset = 0): THREE.Shape {
@@ -31,6 +34,10 @@ export function shapeFromContour(points: ContourPoint[], scale: number, offset =
     return shape;
   }
   const outline = offsetContour(points.map(p => ({ x: p.x * scale, y: p.y * scale })), offset);
+  if (!outline.length) {
+    shape.absarc(0, 0, Math.max(1, scale + offset), 0, Math.PI * 2, false);
+    return shape;
+  }
   shape.moveTo(outline[0].x, outline[0].y);
   outline.slice(1).forEach(point => shape.lineTo(point.x, point.y));
   shape.closePath();

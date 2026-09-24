@@ -6,6 +6,7 @@ import { ProcessedClickerData } from '../../core/clickerProcessor';
 import { applyStandardOrbitControls } from './viewerControls';
 import { playSwitchSound } from '../../lib/clickerAudio';
 import { createEyeletShape, getClickerEyelet, shapeFromContour } from '../../core/clickerGeometry';
+import { CLICKER_SOCKET, createHollowBaseParts, createHollowCapParts, createSwitchCoverGeometry, createSwitchLowerGeometry } from '../../core/clickerFit';
 
 interface ClickerViewerProps {
   config: ClickerConfig;
@@ -131,7 +132,7 @@ export const ClickerViewer: React.FC<ClickerViewerProps> = ({
   const topGroupRef = useRef<THREE.Group | null>(null);
   const baseGroupRef = useRef<THREE.Group | null>(null);
   const switchGroupRef = useRef<THREE.Group | null>(null);
-  const switchStemMeshRef = useRef<THREE.Mesh | null>(null);
+  const switchStemGroupRef = useRef<THREE.Group | null>(null);
   const peiBedGroupRef = useRef<THREE.Group | null>(null);
 
   // Click Animation State
@@ -143,6 +144,7 @@ export const ClickerViewer: React.FC<ClickerViewerProps> = ({
 
   // Preserve camera position and target across re-renders
   const cameraStateRef = useRef<{ position: THREE.Vector3; target: THREE.Vector3 } | null>(null);
+  const lastImageUrlRef = useRef(config.imageUrl);
 
   const triggerClickAnimation = useCallback(() => {
     if (config.soundEnabled) {
@@ -178,13 +180,18 @@ export const ClickerViewer: React.FC<ClickerViewerProps> = ({
   useEffect(() => {
     const container = mountRef.current;
     if (!container) return;
+    if (lastImageUrlRef.current !== config.imageUrl) {
+      cameraStateRef.current = null;
+      lastImageUrlRef.current = config.imageUrl;
+      clickAnimRef.current = { isPressed: false, currentY: 0, velocity: 0 };
+    }
 
     const width = container.clientWidth || 500;
     const height = container.clientHeight || 450;
 
     // Scene, Camera, Renderer
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x0a0f1d);
+    scene.background = new THREE.Color(0x111a29);
     sceneRef.current = scene;
 
     const camera = new THREE.PerspectiveCamera(42, width / height, 0.1, 1000);
@@ -224,12 +231,13 @@ export const ClickerViewer: React.FC<ClickerViewerProps> = ({
     }
 
     // Dynamic Lighting based on lightingMode
-    const ambientLight = new THREE.AmbientLight(0xffffff, config.lightingMode === 'neon' ? 1.0 : 1.6);
+    const ambientLight = new THREE.AmbientLight(0xffffff, config.lightingMode === 'neon' ? 1.4 : 1.8);
     scene.add(ambientLight);
+    scene.add(new THREE.HemisphereLight(0xdcecff, 0x65758e, 2.0));
 
     const keyLight = new THREE.DirectionalLight(
       config.lightingMode === 'warm' ? 0xffedd5 : config.lightingMode === 'neon' ? 0x38bdf8 : 0xffffff,
-      2.4
+      3.0
     );
     keyLight.position.set(45, 80, 55);
     keyLight.castShadow = true;
@@ -238,15 +246,17 @@ export const ClickerViewer: React.FC<ClickerViewerProps> = ({
     scene.add(keyLight);
 
     const fillLight = new THREE.DirectionalLight(
-      config.lightingMode === 'neon' ? 0xd946ef : config.lightingMode === 'warm' ? 0xfb923c : 0x94a3b8,
-      1.2
+      config.lightingMode === 'neon' ? 0xe879f9 : config.lightingMode === 'warm' ? 0xffc38a : 0xcbd5e1,
+      2.0
     );
     fillLight.position.set(-45, 35, -45);
     scene.add(fillLight);
 
-    const rimLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    const rimLight = new THREE.DirectionalLight(0xffffff, 1.4);
     rimLight.position.set(0, -30, 40);
     scene.add(rimLight);
+    const inspectionLight = new THREE.DirectionalLight(0xe0f2fe, 1.8);
+    scene.add(inspectionLight);
 
     // Build 3D Root Groups
     const topGroup = new THREE.Group();
@@ -293,69 +303,48 @@ export const ClickerViewer: React.FC<ClickerViewerProps> = ({
     // 1. TOP CAP SHAPE & 3D GEOMETRY
     // ----------------------------------------------------
     const pts = processedData?.contourPoints || [];
-    const scale = config.size / 2 - (config.baseMargin ?? 1.1);
+    const baseMargin = config.type === 'clicker'
+      ? Math.max(CLICKER_SOCKET.minimumBaseMargin, config.baseMargin ?? CLICKER_SOCKET.minimumBaseMargin)
+      : config.baseMargin ?? 1.1;
+    const scale = config.size / 2 - baseMargin;
+    const baseHeight = config.type === 'clicker' ? Math.max(12, config.baseHeight) : config.baseHeight;
+    // The roof stays above the rim through the full 3.2 mm click travel;
+    // its narrower skirt rests inside the housing even before pressing.
+    const capRestY = config.type === 'clicker'
+      ? -2.4 + 3.2 + 0.2 + CLICKER_SOCKET.capRoofThickness - 8 / 2
+      : config.topHeight / 2 + 1;
     const isExtrudeOnly = config.renderStyle === 'extrude';
 
     const capShape = shapeFromContour(pts, scale);
-
-    const bevelSize = 0.8;
-    const bevelThick = 0.8;
-    const capBodyGeo = new THREE.ExtrudeGeometry(capShape, {
-      depth: Math.max(2, config.topHeight - bevelThick),
-      bevelEnabled: true,
-      bevelSegments: 3,
-      bevelSize: bevelSize,
-      bevelThickness: bevelThick,
-    });
-    capBodyGeo.center();
-    capBodyGeo.computeVertexNormals();
+    // Lift only very dark filament colors in the preview so their geometry
+    // remains readable against the dark studio; exports keep the chosen color.
+    const previewBaseColor = new THREE.Color(config.baseColor);
+    if (previewBaseColor.getHSL({ h: 0, s: 0, l: 0 }).l < 0.16) {
+      previewBaseColor.lerp(new THREE.Color(0x475569), 0.22);
+    }
 
     const bodyMat = new THREE.MeshStandardMaterial({
-      color: isExtrudeOnly ? 0xe2e8f0 : config.baseColor,
+      color: isExtrudeOnly ? 0xe2e8f0 : previewBaseColor,
       roughness: 0.35,
       metalness: 0.08,
     });
 
-    const capBodyMesh = new THREE.Mesh(capBodyGeo, bodyMat);
-    capBodyMesh.rotation.x = Math.PI / 2;
-    capBodyMesh.castShadow = true;
-    capBodyMesh.receiveShadow = true;
-    topGroup.add(capBodyMesh);
-
-    // ----------------------------------------------------
-    // CHERRY MX STANDARD FEMALE CROSS STEM (Underneath Keycap)
-    // ----------------------------------------------------
-    if (config.type === 'clicker') {
-      const stemGroup = new THREE.Group();
-
-      // Outer cylindrical stem post (5.5mm diameter)
-      const postRadius = 2.8;
-      const postHeight = Math.max(3.5, config.topHeight - 1.5);
-      const postGeo = new THREE.CylinderGeometry(postRadius, postRadius, postHeight, 24);
-      const stemMat = new THREE.MeshStandardMaterial({
-        color: 0xd1d5db,
-        roughness: 0.4,
-        metalness: 0.1,
-      });
-      const postMesh = new THREE.Mesh(postGeo, stemMat);
-      postMesh.position.y = -config.topHeight / 2 + postHeight / 2;
-      stemGroup.add(postMesh);
-
-      // Cherry MX '+' Cross Fit Slot details
-      const tol = config.switchTolerance || 0;
-      const crossSlotMat = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.8 });
-      const barGeo1 = new THREE.BoxGeometry(4.15 + tol, 1.25 + tol, 3.8);
-      const barGeo2 = new THREE.BoxGeometry(1.25 + tol, 4.15 + tol, 3.8);
-      const bar1 = new THREE.Mesh(barGeo1, crossSlotMat);
-      const bar2 = new THREE.Mesh(barGeo2, crossSlotMat);
-      bar1.position.y = -config.topHeight / 2 + 1.8;
-      bar2.position.y = -config.topHeight / 2 + 1.8;
-      bar1.rotation.x = Math.PI / 2;
-      bar2.rotation.x = Math.PI / 2;
-      stemGroup.add(bar1);
-      stemGroup.add(bar2);
-
-      topGroup.add(stemGroup);
+    const capGeometries = config.type === 'clicker'
+      ? createHollowCapParts(capShape, config.topHeight, config.switchTolerance || 0)
+      : (() => {
+          const geometry = new THREE.ExtrudeGeometry(capShape, {
+            depth: Math.max(2, config.topHeight - 0.8), bevelEnabled: true,
+            bevelSegments: 3, bevelSize: 0.8, bevelThickness: 0.8,
+          });
+          geometry.center();
+          return [geometry];
+        })();
+    for (const geometry of capGeometries) {
+      const mesh = new THREE.Mesh(geometry, bodyMat);
+      mesh.rotation.x = Math.PI / 2;
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      topGroup.add(mesh);
     }
 
     // ----------------------------------------------------
@@ -399,7 +388,7 @@ export const ClickerViewer: React.FC<ClickerViewerProps> = ({
       const reliefZOffset = config.reliefStyle === 'embossed'
         ? (config.reliefDepth || 0.8) + 0.32
         : config.reliefStyle === 'debossed' ? 0.03 : 0.06;
-      topPlateMesh.position.y = config.topHeight / 2 + bevelThick + reliefZOffset;
+      topPlateMesh.position.y = config.topHeight / 2 + (config.type === 'clicker' ? 0 : 0.8) + reliefZOffset;
       topPlateMesh.castShadow = true;
       topGroup.add(topPlateMesh);
 
@@ -419,7 +408,7 @@ export const ClickerViewer: React.FC<ClickerViewerProps> = ({
         });
         const rimMesh = new THREE.Mesh(rimGeo, rimMat);
         rimMesh.rotation.x = Math.PI / 2;
-        rimMesh.position.y = config.topHeight / 2 + bevelThick + (config.reliefDepth || 0.8) / 2;
+        rimMesh.position.y = config.topHeight / 2 + (config.type === 'clicker' ? 0 : 0.8) + (config.reliefDepth || 0.8) / 2;
         topGroup.add(rimMesh);
       }
     }
@@ -427,45 +416,34 @@ export const ClickerViewer: React.FC<ClickerViewerProps> = ({
     // ----------------------------------------------------
     // 3. BASE HOUSING MESH (PARAMETRIC STYLES & SWITCH SOCKET)
     // ----------------------------------------------------
-    const baseMargin = config.baseMargin ?? 1.1;
     const baseScale = scale + baseMargin;
     const baseShape = createBaseShape(config.baseStyle, config.baseStyle === 'outline' ? scale : baseScale, pts, config.baseBevel, baseMargin);
 
-    // Standard 14.0mm x 14.0mm Cherry MX Switch Socket Cutout
-    if (config.type === 'clicker') {
-      const switchHole = new THREE.Path();
-      const halfSw = 7.1; // 14.2mm for tight slip-fit without slack
-      switchHole.moveTo(-halfSw, -halfSw);
-      switchHole.lineTo(halfSw, -halfSw);
-      switchHole.lineTo(halfSw, halfSw);
-      switchHole.lineTo(-halfSw, halfSw);
-      switchHole.closePath();
-      baseShape.holes.push(switchHole);
-    }
-
-    const baseBevelThick = Math.min(1.0, config.baseBevel ?? 1.0);
-    const baseGeo = new THREE.ExtrudeGeometry(baseShape, {
-      depth: Math.max(4, config.baseHeight - baseBevelThick),
-      bevelEnabled: baseBevelThick > 0,
-      bevelSegments: 3,
-      bevelSize: baseBevelThick,
-      bevelThickness: baseBevelThick,
-    });
-    baseGeo.center();
-    baseGeo.computeVertexNormals();
-
     const housingMat = new THREE.MeshStandardMaterial({
-      color: isExtrudeOnly ? 0xc8d0e0 : config.baseColor,
+      color: isExtrudeOnly ? 0xc8d0e0 : previewBaseColor,
       roughness: 0.25,
       metalness: 0.06,
     });
 
-    const baseMesh = new THREE.Mesh(baseGeo, housingMat);
-    baseMesh.rotation.x = Math.PI / 2;
-    baseMesh.position.y = -config.baseHeight / 2 - 1.2;
-    baseMesh.castShadow = true;
-    baseMesh.receiveShadow = true;
-    baseGroup.add(baseMesh);
+    const baseGeometries = config.type === 'clicker'
+      ? createHollowBaseParts(baseShape, baseHeight)
+      : (() => {
+          const bevel = Math.min(1.0, config.baseBevel ?? 1.0);
+          const geometry = new THREE.ExtrudeGeometry(baseShape, {
+            depth: Math.max(4, baseHeight - bevel), bevelEnabled: bevel > 0,
+            bevelSegments: 3, bevelSize: bevel, bevelThickness: bevel,
+          });
+          geometry.center();
+          return [geometry];
+        })();
+    for (const geometry of baseGeometries) {
+      const mesh = new THREE.Mesh(geometry, housingMat);
+      mesh.rotation.x = Math.PI / 2;
+      mesh.position.y = -baseHeight / 2 - 1.2;
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      baseGroup.add(mesh);
+    }
 
     // ----------------------------------------------------
     // KEYCHAIN RING ATTACHMENT LOOP (Matching Housing Material)
@@ -521,14 +499,15 @@ export const ClickerViewer: React.FC<ClickerViewerProps> = ({
       const switchColor = SWITCH_COLORS[config.switchType] || 0xef4444;
 
       // Switch Lower Base Casing (14x14x6mm)
-      const swBaseGeo = new THREE.BoxGeometry(14, 5.8, 14);
+      const swBaseGeo = createSwitchLowerGeometry();
       const swBaseMat = new THREE.MeshStandardMaterial({ color: 0x18181b, roughness: 0.6 });
       const swBase = new THREE.Mesh(swBaseGeo, swBaseMat);
-      swBase.position.y = -3.2;
+      swBase.rotation.x = Math.PI / 2;
+      swBase.position.y = -0.3;
       switchGroup.add(swBase);
 
       // Switch Translucent Top Cover
-      const swTopGeo = new THREE.BoxGeometry(13.6, 4.2, 13.6);
+      const swTopGeo = createSwitchCoverGeometry();
       const swTopMat = new THREE.MeshStandardMaterial({
         color: 0x3f3f46,
         roughness: 0.2,
@@ -537,7 +516,8 @@ export const ClickerViewer: React.FC<ClickerViewerProps> = ({
         opacity: 0.85,
       });
       const swTop = new THREE.Mesh(swTopGeo, swTopMat);
-      swTop.position.y = 1.0;
+      swTop.rotation.x = Math.PI / 2;
+      swTop.position.y = 3.1;
       switchGroup.add(swTop);
 
       // Switch Stem with standard '+' Cross Mount
@@ -548,28 +528,41 @@ export const ClickerViewer: React.FC<ClickerViewerProps> = ({
         metalness: 0.05,
       });
 
-      const stemCenterGeo = new THREE.BoxGeometry(4.0, 5.5, 4.0);
+      const stemCenterGeo = new THREE.BoxGeometry(4.0, 2.8, 4.0);
       const stemCenter = new THREE.Mesh(stemCenterGeo, swStemColorMat);
+      stemCenter.position.y = -1.8;
 
-      const crossH = new THREE.BoxGeometry(4.0, 3.6, 1.15);
-      const crossV = new THREE.BoxGeometry(1.15, 3.6, 4.0);
+      const crossH = new THREE.BoxGeometry(4.0, 3.2, 1.15);
+      const crossV = new THREE.BoxGeometry(1.15, 3.2, 4.0);
       const crossHMesh = new THREE.Mesh(crossH, swStemColorMat);
       const crossVMesh = new THREE.Mesh(crossV, swStemColorMat);
-      crossHMesh.position.y = 1.8;
-      crossVMesh.position.y = 1.8;
+      crossHMesh.position.y = 1.2;
+      crossVMesh.position.y = 1.2;
 
+      // The central slider clears the cover's round well as the switch moves.
       stemGroup.add(stemCenter);
       stemGroup.add(crossHMesh);
       stemGroup.add(crossVMesh);
       stemGroup.position.y = 3.6;
 
-      switchStemMeshRef.current = stemCenter;
+      switchStemGroupRef.current = stemGroup;
       switchGroup.add(stemGroup);
     }
 
     // ----------------------------------------------------
     // ANIMATION & RENDER LOOP
     // ----------------------------------------------------
+    // Start each rebuilt scene at its actual assembly position. This avoids
+    // showing the switch through the face for a few frames after image changes.
+    if (config.viewMode === 'exploded') {
+      topGroup.position.y = 26;
+      baseGroup.position.y = -12;
+      switchGroup.position.y = 6;
+    } else if (config.viewMode === 'assembled') {
+      topGroup.position.y = capRestY;
+      baseGroup.position.y = -1.2;
+      switchGroup.position.y = -6.3;
+    }
     let animationFrameId: number;
 
     const animate = () => {
@@ -585,10 +578,12 @@ export const ClickerViewer: React.FC<ClickerViewerProps> = ({
         const force = (targetDisplacement - anim.currentY) * springK;
         anim.velocity = (anim.velocity + force) * damping;
         anim.currentY += anim.velocity;
+        anim.currentY = Math.max(-3.2, Math.min(0, anim.currentY));
 
         // Auto release press after 110ms
         if (anim.isPressed && anim.currentY <= -3.2) {
           anim.isPressed = false;
+          anim.velocity = 0;
         }
       }
 
@@ -599,6 +594,7 @@ export const ClickerViewer: React.FC<ClickerViewerProps> = ({
       // Hide/Show PEI build plate & Grid
       peiBedGroup.visible = isPrintBed;
       gridHelper.visible = !isPrintBed;
+      gridHelper.position.y = isExploded ? -28 : -15;
       if (hardware) {
         hardware.visible = !isPrintBed;
         // A real split ring swivels freely: face it toward the viewer while
@@ -609,21 +605,32 @@ export const ClickerViewer: React.FC<ClickerViewerProps> = ({
       }
 
       if (isPrintBed) {
-        // Place Cap and Base flat side-by-side on build plate
-        topGroup.position.set(-scale * 1.1 - 4, config.topHeight / 2 + 0.1, 0);
-        baseGroup.position.set(baseScale * 1.1 + 4, config.baseHeight / 2 + 0.1, 0);
+        // Print the decorated face against the bed, with the open socket up.
+        topGroup.rotation.z = Math.PI;
+        const faceRelief = processedData && !isExtrudeOnly
+          ? config.reliefStyle === 'embossed' ? (config.reliefDepth || 0.8) + 0.32
+            : config.reliefStyle === 'debossed' ? 0.03 : 0.06
+          : 0;
+        topGroup.position.set(-scale * 1.1 - 4,
+          config.topHeight / 2 + (config.type === 'clicker' ? 0 : 0.8) + faceRelief + 0.1, 0);
+        baseGroup.position.set(baseScale * 1.1 + 4, baseHeight + 1.3, 0);
         switchGroup.position.set(0, -999, 0); // Hide switch in print bed
       } else {
+        topGroup.rotation.z = 0;
         const baseTargetY = isExploded ? -12 : -1.2;
-        const switchTargetY = isExploded ? 6 : -4;
-        const topTargetY = (isExploded ? 26 : 3.0) + anim.currentY;
+        const switchTargetY = isExploded ? 6 : -6.3;
+        const topTargetY = (isExploded ? 26 : capRestY) + anim.currentY;
 
         topGroup.position.set(0, topGroup.position.y + (topTargetY - topGroup.position.y) * 0.15, 0);
         baseGroup.position.set(0, baseGroup.position.y + (baseTargetY - baseGroup.position.y) * 0.15, 0);
         switchGroup.position.set(0, switchGroup.position.y + (switchTargetY - switchGroup.position.y) * 0.15, 0);
+        if (switchStemGroupRef.current) {
+          switchStemGroupRef.current.position.y = 3.6 + (isExploded ? 0 : topGroup.position.y - capRestY);
+        }
       }
 
       controls.update();
+      inspectionLight.position.copy(camera.position);
       renderer.render(scene, camera);
     };
 
