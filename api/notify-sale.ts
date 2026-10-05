@@ -1,5 +1,5 @@
-import { getOrder, readSession, requireRole, sendTelegramForOrder, sendTelegramMessage } from '../server/store';
-import { StoreError } from '../server/store';
+import { getOrder, readSession, requireRole, sendTelegramForOrder, sendTelegramMessage } from '../server/store.js';
+import { StoreError } from '../server/store.js';
 
 function assertSameOrigin(req: any): void {
   const origin = req.headers?.origin;

@@ -20,7 +20,7 @@ import {
   updateOrder,
   type SessionUser,
   StoreError,
-} from '../server/store';
+} from '../server/store.js';
 
 function sessionCookie(req: any): string {
   return String(req.headers?.cookie || '');

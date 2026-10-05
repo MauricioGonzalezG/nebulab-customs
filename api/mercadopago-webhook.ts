@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { getDb, getOrder, initializeStore, sendTelegramForOrder } from '../server/store';
+import { getDb, getOrder, initializeStore, sendTelegramForOrder } from '../server/store.js';
 import type { OrderLogEntry } from '../src/types';
 
 async function updatePayment(orderId: string, state: string, orderStatus: string, details: unknown, log: OrderLogEntry) {

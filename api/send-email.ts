@@ -3,8 +3,8 @@
   buildAdminNewOrderEmail,
   buildStatusChangeEmail,
   buildTestEmail,
-} from './emailTemplates';
-import { claimEmailEvent, getEmailSettings, getOrder, readSession, requireRole } from '../server/store';
+} from './emailTemplates.js';
+import { claimEmailEvent, getEmailSettings, getOrder, readSession, requireRole } from '../server/store.js';
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') {
