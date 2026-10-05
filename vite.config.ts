@@ -1,98 +1,97 @@
-import { defineConfig, Plugin } from 'vite';
+import { defineConfig, loadEnv, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import emailHandler from './api/send-email';
 import notifySaleHandler from './api/notify-sale';
+import storeHandler from './api/store';
+import mercadoPagoPreferenceHandler from './api/mercadopago-preference';
+import mercadoPagoWebhookHandler from './api/mercadopago-webhook';
 
 function apiDevServerPlugin(): Plugin {
+  const handlers: Record<string, (req: any, res: any) => Promise<any> | any> = {
+    '/api/send-email': emailHandler,
+    '/api/notify-sale': notifySaleHandler,
+    '/api/store': storeHandler,
+    '/api/mercadopago-preference': mercadoPagoPreferenceHandler,
+    '/api/mercadopago-webhook': mercadoPagoWebhookHandler,
+  };
   return {
     name: 'api-dev-server',
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
-        const handler =
-          req.url && req.url.startsWith('/api/send-email')
-            ? emailHandler
-            : req.url && req.url.startsWith('/api/notify-sale')
-              ? notifySaleHandler
-              : null;
-        if (handler) {
-          if (req.method === 'OPTIONS') {
-            res.statusCode = 200;
-            res.setHeader('Access-Control-Allow-Origin', '*');
-            res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-            res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-            res.end('OK');
-            return;
-          }
+        const pathname = new URL(req.url || '/', 'http://localhost').pathname;
+        const handler = handlers[pathname];
+        if (!handler) return next();
 
-          const buildCustomRes = () => ({
-            statusCode: 200,
-            headers: {} as Record<string, string>,
-            setHeader(name: string, value: string) {
-              (this as any).headers[name] = value;
-              res.setHeader(name, value);
-            },
-            status(code: number) {
-              (this as any).statusCode = code;
-              res.statusCode = code;
-              return this;
-            },
-            json(data: any) {
-              res.setHeader('Content-Type', 'application/json');
-              res.statusCode = (this as any).statusCode || 200;
-              res.end(JSON.stringify(data));
-            },
-            send(data: any) {
-              res.statusCode = (this as any).statusCode || 200;
-              res.end(data);
-            },
-          });
+        const customRes = {
+          statusCode: 200,
+          headers: {} as Record<string, string>,
+          setHeader(name: string, value: string) {
+            this.headers[name] = value;
+            res.setHeader(name, value);
+          },
+          status(code: number) {
+            this.statusCode = code;
+            res.statusCode = code;
+            return this;
+          },
+          json(data: any) {
+            res.setHeader('Content-Type', 'application/json');
+            res.statusCode = this.statusCode || 200;
+            res.end(JSON.stringify(data));
+          },
+          send(data: any) {
+            res.statusCode = this.statusCode || 200;
+            res.end(data);
+          },
+        };
 
-          if (req.method === 'GET') {
-            try {
-              const url = new URL(req.url || '', 'http://localhost');
-              const query: Record<string, string> = {};
-              url.searchParams.forEach((value, key) => {
-                query[key] = value;
-              });
-              await handler({ method: req.method, query, headers: req.headers }, buildCustomRes());
-            } catch (err: any) {
-              res.statusCode = 500;
-              res.setHeader('Content-Type', 'application/json');
-              res.end(JSON.stringify({ success: false, message: err?.message || 'Dev server api error' }));
-            }
-            return;
+        const invoke = async (body: any = {}) => {
+          try {
+            await handler({ method: req.method, body, headers: req.headers, query: Object.fromEntries(new URL(req.url || '/', 'http://localhost').searchParams) }, customRes);
+          } catch (error: any) {
+            if (res.writableEnded) return;
+            res.statusCode = 500;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ success: false, message: error?.message || 'Error de API en desarrollo.' }));
           }
+        };
 
-          if (req.method === 'POST') {
-            let bodyStr = '';
-            req.on('data', (chunk) => {
-              bodyStr += chunk;
-            });
-            req.on('end', async () => {
-              try {
-                const body = bodyStr ? JSON.parse(bodyStr) : {};
-                const customReq = { method: req.method, body, headers: req.headers };
-                await handler(customReq, buildCustomRes());
-              } catch (err: any) {
-                res.statusCode = 500;
-                res.setHeader('Content-Type', 'application/json');
-                res.end(JSON.stringify({ success: false, message: err?.message || 'Dev server api error' }));
-              }
-            });
-            return;
-          }
+        if (req.method === 'GET' || req.method === 'OPTIONS') return invoke();
+        if (req.method !== 'POST') {
+          res.statusCode = 405;
+          res.end('Method Not Allowed');
+          return;
         }
-        next();
+        let bodyText = '';
+        req.on('data', (chunk) => {
+          bodyText += chunk;
+          if (bodyText.length > 10_000_000) req.destroy();
+        });
+        req.on('end', () => {
+          let body = {};
+          try { body = bodyText ? JSON.parse(bodyText) : {}; } catch { body = {}; }
+          void invoke(body);
+        });
       });
     },
   };
 }
 
-// https://vitejs.dev/config/
-export default defineConfig({
-  plugins: [react(), apiDevServerPlugin()],
-  server: {
-    port: 3000,
-    open: true,
-  },
+const SERVER_ENV_KEYS = [
+  'TURSO_DATABASE_URL', 'TURSO_AUTH_TOKEN', 'ADMIN_EMAIL', 'ADMIN_PASSWORD',
+  'MERCADOPAGO_ACCESS_TOKEN', 'MERCADOPAGO_CURRENCY', 'COP_EXCHANGE_RATE', 'APP_URL',
+  'MAILTRAP_API_TOKEN', 'MAILTRAP_SENDER_EMAIL', 'SMTP_GMAIL_USER', 'SMTP_GMAIL_APP_PASSWORD',
+  'ADMIN_NOTIFICATION_EMAIL', 'TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_ID',
+];
+
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '');
+  for (const key of SERVER_ENV_KEYS) {
+    if (!process.env[key] && env[key]) process.env[key] = env[key];
+  }
+  return {
+    plugins: [react(), apiDevServerPlugin()],
+    server: { port: 3000, open: true },
+    build: { emptyOutDir: true },
+  };
 });

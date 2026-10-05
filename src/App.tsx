@@ -223,6 +223,7 @@ export const App: React.FC = () => {
     const newItem: CartItem = {
       id: `ITEM-${Date.now()}`,
       itemType: 'lithophane',
+      giftBox,
       config: { ...config },
       previewImageDataUrl: processedData.previewDataUrl,
       price: priceCalc.totalPrice,

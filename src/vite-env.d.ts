@@ -1,10 +1,10 @@
 /// <reference types="vite/client" />
 
 interface ImportMetaEnv {
-  readonly VITE_TURSO_DATABASE_URL?: string;
-  readonly VITE_TURSO_AUTH_TOKEN?: string;
-  readonly VITE_ADMIN_DEFAULT_EMAIL?: string;
-  readonly VITE_ADMIN_DEFAULT_PASSWORD?: string;
+  readonly VITE_WOMPI_PUBLIC_KEY?: string;
+  readonly VITE_WOMPI_CURRENCY?: string;
+  readonly VITE_COP_EXCHANGE_RATE?: string;
+  readonly VITE_GA_MEASUREMENT_ID?: string;
 }
 
 interface ImportMeta {

@@ -157,7 +157,7 @@ export const CustomerAuthModal: React.FC<CustomerAuthModalProps> = ({ isOpen, on
               <input
                 type="password"
                 required
-                minLength={4}
+                minLength={mode === 'register' ? 10 : undefined}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••••••"

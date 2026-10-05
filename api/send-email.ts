@@ -1,21 +1,12 @@
-import {
+﻿import {
   buildCustomerOrderEmail,
   buildAdminNewOrderEmail,
   buildStatusChangeEmail,
   buildTestEmail,
 } from './emailTemplates';
+import { claimEmailEvent, getEmailSettings, getOrder, readSession, requireRole } from '../server/store';
 
 export default async function handler(req: any, res: any) {
-  // Always attach CORS headers
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-
-  // CORS Preflight
-  if (req.method === 'OPTIONS') {
-    return res.status(200).send('OK');
-  }
-
   if (req.method !== 'POST') {
     return res.status(405).json({ success: false, message: 'Method Not Allowed' });
   }
@@ -32,7 +23,25 @@ export default async function handler(req: any, res: any) {
     }
     if (!body) body = {};
 
-    const { type, order, newStatus, testRecipient, customSettings } = body;
+    const { type, orderId, newStatus, testRecipient } = body;
+    const user = await readSession(String(req.headers?.cookie || ''));
+    if (type !== 'order_created') requireRole(user, 'admin');
+    const order = type === 'order_created' || type === 'status_changed'
+      ? await getOrder(String(orderId || ''))
+      : undefined;
+    if ((type === 'order_created' || type === 'status_changed') && !order) {
+      return res.status(404).json({ success: false, message: 'No se encontró el pedido guardado.' });
+    }
+    if (type === 'status_changed' && order?.status !== newStatus) {
+      return res.status(409).json({ success: false, message: 'El estado del pedido ya cambió.' });
+    }
+    const customSettings: any = (await getEmailSettings()) || {};
+    if (!customSettings.enabled && type !== 'test') {
+      return res.status(200).json({ success: true, skipped: true, message: 'El correo está desactivado en ajustes.' });
+    }
+    if (type === 'order_created' && !await claimEmailEvent(order!.id, 'order_created')) {
+      return res.status(200).json({ success: true, skipped: true, message: 'El correo del pedido ya se procesó.' });
+    }
 
     const provider: 'mailtrap' | 'gmail' = customSettings?.provider || 'mailtrap';
     const senderName = customSettings?.senderName || 'Nebulab Studio 3D';
@@ -47,7 +56,7 @@ export default async function handler(req: any, res: any) {
     const adminNotificationEmail =
       customSettings?.adminNotificationEmail?.trim() ||
       process.env.ADMIN_NOTIFICATION_EMAIL ||
-      process.env.VITE_ADMIN_DEFAULT_EMAIL ||
+      process.env.ADMIN_EMAIL ||
       'admin@nebuladb3d.com.co';
 
     // Helper: Unified Dispatch Function
@@ -57,12 +66,10 @@ export default async function handler(req: any, res: any) {
       if (provider === 'mailtrap') {
         const mailtrapToken =
           customSettings?.mailtrapApiToken ||
-          process.env.MAILTRAP_API_TOKEN ||
-          process.env.VITE_MAILTRAP_API_TOKEN ||
-          '';
+          process.env.MAILTRAP_API_TOKEN || '';
 
         if (!mailtrapToken) {
-          throw new Error('Falta configurar el Token API de Mailtrap en la configuración.');
+          throw new Error('Falta configurar el Token API de Mailtrap en la configuraciÃ³n.');
         }
 
         const effectiveSender = senderEmail || 'hello@demomailtrap.co';
@@ -103,7 +110,7 @@ export default async function handler(req: any, res: any) {
             String(rawErrors).toLowerCase().includes('incorrect api token')
           ) {
             userFriendly =
-              'Token API de Mailtrap no autorizado (401). Verifica que hayas copiado el "API Token" desde tu cuenta de Mailtrap (mailtrap.io → Email Sending → API Tokens).';
+              'Token API de Mailtrap no autorizado (401). Verifica que hayas copiado el "API Token" desde tu cuenta de Mailtrap (mailtrap.io â†’ Email Sending â†’ API Tokens).';
           } else if (
             String(rawErrors).toLowerCase().includes('from.email') ||
             String(rawErrors).toLowerCase().includes('domain') ||
@@ -124,12 +131,10 @@ export default async function handler(req: any, res: any) {
 
         const gmailAppPassword =
           customSettings?.gmailAppPassword ||
-          process.env.SMTP_GMAIL_APP_PASSWORD ||
-          process.env.VITE_SMTP_GMAIL_APP_PASSWORD ||
-          '';
+          process.env.SMTP_GMAIL_APP_PASSWORD || '';
 
         if (!senderEmail || !gmailAppPassword) {
-          throw new Error('Falta configurar el Correo Emisor o la Contraseña de Aplicación de Gmail.');
+          throw new Error('Falta configurar el Correo Emisor o la ContraseÃ±a de AplicaciÃ³n de Gmail.');
         }
 
         const cleanAppPassword = String(gmailAppPassword).replace(/\s+/g, '');
@@ -178,7 +183,7 @@ export default async function handler(req: any, res: any) {
       sentTo.push(recipient);
       return res.status(200).json({
         success: true,
-        message: `Correo de prueba enviado con éxito a ${recipient} vía ${provider === 'mailtrap' ? 'Mailtrap API' : 'Gmail SMTP'}`,
+        message: `Correo de prueba enviado con Ã©xito a ${recipient} vÃ­a ${provider === 'mailtrap' ? 'Mailtrap API' : 'Gmail SMTP'}`,
         sentTo,
       });
     }
@@ -219,7 +224,7 @@ export default async function handler(req: any, res: any) {
 
       return res.status(200).json({
         success: true,
-        message: `Notificaciones de nuevo pedido procesadas (${sentTo.length} enviadas vía ${provider})`,
+        message: `Notificaciones de nuevo pedido procesadas (${sentTo.length} enviadas vÃ­a ${provider})`,
         sentTo,
       });
     }
@@ -235,28 +240,28 @@ export default async function handler(req: any, res: any) {
 
         return res.status(200).json({
           success: true,
-          message: `Notificación de cambio de estado enviada a ${customerEmail} vía ${provider}`,
+          message: `NotificaciÃ³n de cambio de estado enviada a ${customerEmail} vÃ­a ${provider}`,
           sentTo,
         });
       } else {
         return res.status(200).json({
           success: true,
           skipped: true,
-          message: 'Notificación de cambio de estado desactivada o correo de cliente no disponible.',
+          message: 'NotificaciÃ³n de cambio de estado desactivada o correo de cliente no disponible.',
         });
       }
     }
 
     return res.status(400).json({
       success: false,
-      message: 'Tipo de evento de correo no válido o datos incompletos.',
+      message: 'Tipo de evento de correo no vÃ¡lido o datos incompletos.',
     });
   } catch (error: any) {
     console.error('Error in send-email API handler:', error);
 
     let userMessage = error?.message || 'Error al enviar el correo.';
     if (userMessage.includes('535') || userMessage.includes('BadCredentials') || userMessage.includes('Username and Password not accepted')) {
-      userMessage = 'Gmail rechazó las credenciales. Verifica que el correo emisor sea correcto y que la contraseña de aplicación de 16 caracteres esté activa.';
+      userMessage = 'Gmail rechazÃ³ las credenciales. Verifica que el correo emisor sea correcto y que la contraseÃ±a de aplicaciÃ³n de 16 caracteres estÃ© activa.';
     }
 
     return res.status(400).json({

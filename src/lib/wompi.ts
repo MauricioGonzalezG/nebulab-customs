@@ -5,7 +5,6 @@
 
 export interface WompiConfig {
   publicKey: string;
-  integritySecret: string;
   currency: string;
   exchangeRateUsdToCop: number; // e.g. 4000
 }
@@ -13,7 +12,6 @@ export interface WompiConfig {
 export const getWompiConfig = (): WompiConfig => {
   return {
     publicKey: import.meta.env.VITE_WOMPI_PUBLIC_KEY || '',
-    integritySecret: import.meta.env.VITE_WOMPI_INTEGRITY_SECRET || '',
     currency: import.meta.env.VITE_WOMPI_CURRENCY || 'COP',
     exchangeRateUsdToCop: Number(import.meta.env.VITE_COP_EXCHANGE_RATE) || 4000,
   };
@@ -72,17 +70,6 @@ export async function buildWompiCheckoutUrl(params: {
   searchParams.set('currency', config.currency);
   searchParams.set('amount-in-cents', amountInCents.toString());
   searchParams.set('reference', params.reference);
-
-  // Generate integrity signature if secret exists
-  if (config.integritySecret) {
-    const signature = await generateWompiSignature(
-      params.reference,
-      amountInCents,
-      config.currency,
-      config.integritySecret
-    );
-    searchParams.set('signature:integrity', signature);
-  }
 
   if (params.redirectUrl) {
     searchParams.set('redirect-url', params.redirectUrl);

@@ -134,6 +134,7 @@ export interface CollarConfig {
 export interface CartItem {
   id: string;
   itemType?: 'lithophane' | 'clicker' | 'collar' | 'plate';
+  giftBox?: boolean;
   title?: string;
   config: LithophaneConfig;
   clickerConfig?: ClickerConfig;
@@ -170,6 +171,7 @@ export interface OrderLogEntry {
 
 export interface Order {
   id: string;
+  customerId?: string;
   items: CartItem[];
   subtotal: number;
   shippingFee: number;

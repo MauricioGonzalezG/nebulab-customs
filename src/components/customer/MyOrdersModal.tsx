@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useCurrency } from '../../context/CurrencyContext';
 import { tursoService } from '../../lib/turso';
@@ -51,10 +51,10 @@ export const MyOrdersModal: React.FC<MyOrdersModalProps> = ({
         setOrders([order]);
       } else {
         setOrders([]);
-        setSearchError('No se encontró ningún pedido con el código de seguimiento ingresado. Verifica el código (ej. LITHO-820320).');
+        setSearchError('No se encontrÃ³ ningÃºn pedido con el cÃ³digo de seguimiento ingresado. Verifica el cÃ³digo (ej. LITHO-...).');
       }
     } catch (err) {
-      setSearchError('Error al realizar la búsqueda del pedido.');
+      setSearchError('Error al realizar la bÃºsqueda del pedido.');
     } finally {
       setIsLoading(false);
     }
@@ -82,14 +82,14 @@ export const MyOrdersModal: React.FC<MyOrdersModalProps> = ({
               <Package className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-lg text-white font-outfit">Mis pedidos · Nebulab Studio</h3>
+              <h3 className="font-bold text-lg text-white font-outfit">Mis pedidos Â· Nebulab Studio</h3>
               <p className="text-xs text-slate-400 font-inter">
                 {customerUser ? (
                   <span>
                     Bienvenido, <strong className="text-cyan-300">{customerUser.name}</strong> ({customerUser.email})
                   </span>
                 ) : (
-                  <span>Búsqueda exclusiva por Código de Seguimiento o Sesión</span>
+                  <span>BÃºsqueda exclusiva por CÃ³digo de Seguimiento o SesiÃ³n</span>
                 )}
               </p>
             </div>
@@ -100,7 +100,7 @@ export const MyOrdersModal: React.FC<MyOrdersModalProps> = ({
               <button
                 onClick={logoutCustomer}
                 className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-rose-300 text-xs font-semibold transition-colors flex items-center gap-1.5"
-                title="Cerrar sesión de cliente"
+                title="Cerrar sesiÃ³n de cliente"
               >
                 <LogOut className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Salir</span>
@@ -122,7 +122,7 @@ export const MyOrdersModal: React.FC<MyOrdersModalProps> = ({
             <div className="p-3.5 rounded-2xl bg-cyan-950/20 border border-cyan-800/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
               <div className="flex items-center gap-2 text-cyan-200">
                 <Lock className="w-4 h-4 text-cyan-400 shrink-0" />
-                <span>Por privacidad, ingresa tu <strong>Código de Seguimiento</strong> o inicia sesión.</span>
+                <span>Por privacidad, ingresa tu <strong>CÃ³digo de Seguimiento</strong> o inicia sesiÃ³n.</span>
               </div>
 
               <button
@@ -133,7 +133,7 @@ export const MyOrdersModal: React.FC<MyOrdersModalProps> = ({
                 className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-violet-600 hover:from-cyan-400 hover:to-violet-500 text-white font-bold transition-all shadow-md shrink-0 flex items-center justify-center gap-1.5"
               >
                 <User className="w-3.5 h-3.5" />
-                <span>Iniciar Sesión para ver todo</span>
+                <span>Iniciar SesiÃ³n para ver todo</span>
               </button>
             </div>
 
@@ -145,7 +145,7 @@ export const MyOrdersModal: React.FC<MyOrdersModalProps> = ({
                   required
                   value={orderCodeInput}
                   onChange={(e) => setOrderCodeInput(e.target.value)}
-                  placeholder="Ingresa el Código de Pedido (ej. LITHO-820320)..."
+                  placeholder="Ingresa el CÃ³digo de Pedido (ej. LITHO-...)..."
                   className="w-full pl-10 pr-4 py-2.5 bg-slate-950/90 border border-slate-800 rounded-xl text-xs text-slate-100 uppercase font-mono focus:outline-none focus:border-cyan-500"
                 />
               </div>
@@ -180,10 +180,10 @@ export const MyOrdersModal: React.FC<MyOrdersModalProps> = ({
               <Box className="w-12 h-12 text-slate-600 mx-auto" />
               <div>
                 <p className="text-sm font-bold text-slate-300">
-                  {customerUser ? 'No tienes pedidos registrados en tu cuenta' : 'Ingresa tu Código de Pedido o Inicia Sesión'}
+                  {customerUser ? 'No tienes pedidos registrados en tu cuenta' : 'Ingresa tu CÃ³digo de Pedido o Inicia SesiÃ³n'}
                 </p>
                 <p className="text-xs text-slate-500 mt-1">
-                  {customerUser ? 'Crea tu primera litofanía 3D personalizada.' : 'El código de pedido fue generado en tu pantalla de confirmación y resumen de WhatsApp.'}
+                  {customerUser ? 'Crea tu primera litofanÃ­a 3D personalizada.' : 'El cÃ³digo de pedido fue generado en tu pantalla de confirmaciÃ³n y resumen de WhatsApp.'}
                 </p>
               </div>
               <button
@@ -193,7 +193,7 @@ export const MyOrdersModal: React.FC<MyOrdersModalProps> = ({
                 }}
                 className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-violet-600 text-white font-bold text-xs shadow-lg shadow-cyan-500/20 hover:scale-105 transition-all"
               >
-                Diseñar Litofanía Ahora
+                DiseÃ±ar LitofanÃ­a Ahora
               </button>
             </div>
           ) : (
@@ -227,12 +227,12 @@ export const MyOrdersModal: React.FC<MyOrdersModalProps> = ({
                         }`}
                       >
                         {order.paymentStatus === 'approved'
-                          ? '🟢 Pago Aprobado'
+                          ? 'ðŸŸ¢ Pago Aprobado'
                           : order.paymentStatus === 'rejected'
-                          ? '🔴 Pago Rechazado'
+                          ? 'ðŸ”´ Pago Rechazado'
                           : order.paymentStatus === 'refunded'
-                          ? '🟣 Pago Reembolsado'
-                          : '🟡 Pendiente de Pago'}
+                          ? 'ðŸŸ£ Pago Reembolsado'
+                          : 'ðŸŸ¡ Pendiente de Pago'}
                       </div>
 
                       {/* Order delivery status badge */}
@@ -255,7 +255,7 @@ export const MyOrdersModal: React.FC<MyOrdersModalProps> = ({
                           {order.status === 'confirmed'
                             ? 'Pedido Confirmado'
                             : order.status === 'processing'
-                            ? 'En Fabricación 3D'
+                            ? 'En FabricaciÃ³n 3D'
                             : order.status === 'completed'
                             ? 'Entregado'
                             : 'Cancelado'}
@@ -275,7 +275,7 @@ export const MyOrdersModal: React.FC<MyOrdersModalProps> = ({
                                 Collar para Mascota 3D
                               </span>
                               <span className="text-slate-500 block">
-                                Mascota: {it.collarConfig.petName || 'N/A'} • Talla: {it.collarConfig.size} • Placa: {it.collarConfig.plateStyle} • Correa: {it.collarConfig.strapColor}
+                                Mascota: {it.collarConfig.petName || 'N/A'} â€¢ Talla: {it.collarConfig.size} â€¢ Placa: {it.collarConfig.plateStyle} â€¢ Correa: {it.collarConfig.strapColor}
                               </span>
                             </>
                           ) : it.itemType === 'clicker' && it.clickerConfig ? (
@@ -284,7 +284,7 @@ export const MyOrdersModal: React.FC<MyOrdersModalProps> = ({
                                 {it.clickerConfig.type === 'clicker' ? 'Clicker Teclado MX 3D' : 'Llavero 3D'}
                               </span>
                               <span className="text-slate-500 block">
-                                Tamaño: {it.clickerConfig.size}mm • Estilo: {it.clickerConfig.baseStyle} • Switch: {it.clickerConfig.switchType}
+                                TamaÃ±o: {it.clickerConfig.size}mm â€¢ Estilo: {it.clickerConfig.baseStyle} â€¢ Switch: {it.clickerConfig.switchType}
                               </span>
                             </>
                           ) : it.itemType === 'plate' && it.plateConfig ? (
@@ -293,16 +293,16 @@ export const MyOrdersModal: React.FC<MyOrdersModalProps> = ({
                                 Placa Llavero 3D
                               </span>
                               <span className="text-slate-500 block">
-                                Texto: {it.plateConfig.text}{it.plateConfig.subtitle ? ` · ${it.plateConfig.subtitle}` : ''} • {it.plateConfig.width}×{it.plateConfig.height}mm
+                                Texto: {it.plateConfig.text}{it.plateConfig.subtitle ? ` Â· ${it.plateConfig.subtitle}` : ''} â€¢ {it.plateConfig.width}Ã—{it.plateConfig.height}mm
                               </span>
                             </>
                           ) : (
                             <>
                               <span className="font-semibold text-slate-200">
-                                Litofanía {it.config?.shape === 'arc' ? 'Curva (Arco)' : it.config?.shape === 'flat' ? 'Plana' : 'Cilindro'}
+                                LitofanÃ­a {it.config?.shape === 'arc' ? 'Curva (Arco)' : it.config?.shape === 'flat' ? 'Plana' : 'Cilindro'}
                               </span>
                               <span className="text-slate-500 block">
-                                Dimensiones: {it.config?.width}x{it.config?.height}mm {it.config?.notes ? `• Obs: ${it.config.notes}` : ''}
+                                Dimensiones: {it.config?.width}x{it.config?.height}mm {it.config?.notes ? `â€¢ Obs: ${it.config.notes}` : ''}
                               </span>
                             </>
                           )}
@@ -315,7 +315,7 @@ export const MyOrdersModal: React.FC<MyOrdersModalProps> = ({
 
                   <div className="pt-2 border-t border-slate-800/60 flex items-center justify-between text-xs">
                     <span className="text-slate-400">
-                      Dirección: {order.shippingDetails.address}, {order.shippingDetails.city}{order.shippingDetails.department ? ` (${order.shippingDetails.department})` : ''}
+                      DirecciÃ³n: {order.shippingDetails.address}, {order.shippingDetails.city}{order.shippingDetails.department ? ` (${order.shippingDetails.department})` : ''}
                     </span>
                     <div className="flex items-center gap-1.5">
                       <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
