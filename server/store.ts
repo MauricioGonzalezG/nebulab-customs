@@ -14,9 +14,9 @@ export class StoreError extends Error {
 }
 
 const requiredText = (value: unknown, label: string, maxLength: number): string => {
-  if (typeof value !== 'string') throw new StoreError(`${label} no es vÃ¡lido.`);
+  if (typeof value !== 'string') throw new StoreError(`${label} no es válido.`);
   const clean = value.trim();
-  if (!clean || clean.length > maxLength) throw new StoreError(`${label} no es vÃ¡lido.`);
+  if (!clean || clean.length > maxLength) throw new StoreError(`${label} no es válido.`);
   return clean;
 };
 
@@ -30,7 +30,7 @@ export function getDb(): Client {
   const url = process.env.TURSO_DATABASE_URL || '';
   const authToken = process.env.TURSO_AUTH_TOKEN || '';
   if (!url || !authToken || !/^(libsql|https?):\/\//.test(url)) {
-    throw new StoreError('La base de datos del servidor no estÃ¡ configurada.', 503);
+    throw new StoreError('La base de datos del servidor no está configurada.', 503);
   }
   client = createClient({ url, authToken });
   return client;
@@ -181,14 +181,14 @@ export async function authenticateCustomer(email: string, password: string): Pro
 export async function registerCustomer(name: string, email: string, password: string): Promise<SessionUser> {
   const cleanName = requiredText(name, 'Nombre', 120);
   const cleanEmail = requiredText(email, 'Correo', 254).toLowerCase();
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) throw new StoreError('Ingresa un correo vÃ¡lido.');
-  if (password.length < 10 || password.length > 128) throw new StoreError('La contraseÃ±a debe tener entre 10 y 128 caracteres.');
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) throw new StoreError('Ingresa un correo válido.');
+  if (password.length < 10 || password.length > 128) throw new StoreError('La contraseña debe tener entre 10 y 128 caracteres.');
   await initializeStore();
   const user: SessionUser = { id: `CUST-${randomBytes(16).toString('hex')}`, name: cleanName, email: cleanEmail, role: 'customer' };
   try {
     await getDb().execute({ sql: `INSERT INTO customers (id, name, email, password_hash) VALUES (?, ?, ?, ?)`, args: [user.id, cleanName, cleanEmail, hashPassword(password)] });
   } catch (error: any) {
-    if (String(error?.message || '').includes('UNIQUE')) throw new StoreError('El correo electrÃ³nico ya estÃ¡ registrado.', 409);
+    if (String(error?.message || '').includes('UNIQUE')) throw new StoreError('El correo electrónico ya está registrado.', 409);
     throw error;
   }
   return user;
@@ -227,24 +227,24 @@ const PRICES = {
 
 function priceCartItem(item: CartItem): number {
   const quantity = Number(item.quantity);
-  if (!Number.isInteger(quantity) || quantity < 1 || quantity > 20) throw new StoreError('La cantidad de un producto no es vÃ¡lida.');
+  if (!Number.isInteger(quantity) || quantity < 1 || quantity > 20) throw new StoreError('La cantidad de un producto no es válida.');
   if (item.itemType === 'clicker') {
     const config = item.clickerConfig;
-    if (!config || !['clicker', 'keychain'].includes(config.type) || !Number.isFinite(config.size) || config.size < 25 || config.size > 60) throw new StoreError('La configuraciÃ³n del clicker no es vÃ¡lida.');
+    if (!config || !['clicker', 'keychain'].includes(config.type) || !Number.isFinite(config.size) || config.size < 25 || config.size > 60) throw new StoreError('La configuración del clicker no es válida.');
     return (config.type === 'clicker' ? PRICES.clickerUsd : PRICES.keychainUsd) + (config.size > 40 ? PRICES.clickerSizeExtraUsd : 0);
   }
   if (item.itemType === 'collar') {
-    if (!item.collarConfig || !['S', 'M', 'L', 'XL'].includes(item.collarConfig.size)) throw new StoreError('La configuraciÃ³n del collar no es vÃ¡lida.');
+    if (!item.collarConfig || !['S', 'M', 'L', 'XL'].includes(item.collarConfig.size)) throw new StoreError('La configuración del collar no es válida.');
     return PRICES.collarUsd;
   }
   if (item.itemType === 'plate') {
     const p = item.plateConfig;
-    if (!p || !Number.isFinite(p.width) || !Number.isFinite(p.height) || !Number.isFinite(p.thickness) || !Number.isFinite(p.relief) || p.width < 20 || p.width > 120 || p.height < 15 || p.height > 80 || p.thickness < 2 || p.thickness > 8 || p.relief < 0 || p.relief > 3) throw new StoreError('La configuraciÃ³n de la placa no es vÃ¡lida.');
+    if (!p || !Number.isFinite(p.width) || !Number.isFinite(p.height) || !Number.isFinite(p.thickness) || !Number.isFinite(p.relief) || p.width < 20 || p.width > 120 || p.height < 15 || p.height > 80 || p.thickness < 2 || p.thickness > 8 || p.relief < 0 || p.relief > 3) throw new StoreError('La configuración de la placa no es válida.');
     const factor = (p.width * p.height * (p.thickness + 0.25 * p.relief)) / (60 * 30 * (3 + 0.25 * 0.8));
     return Number((PRICES.plateUsd * factor).toFixed(2));
   }
   const c = item.config;
-  if (!c || !Number.isFinite(c.width) || !Number.isFinite(c.height) || c.width < 20 || c.width > 300 || c.height < 20 || c.height > 300) throw new StoreError('La configuraciÃ³n de la litofanÃ­a no es vÃ¡lida.');
+  if (!c || !Number.isFinite(c.width) || !Number.isFinite(c.height) || c.width < 20 || c.width > 300 || c.height < 20 || c.height > 300) throw new StoreError('La configuración de la litofanía no es válida.');
   const area = Math.max(0, (c.width * c.height - 120 * 100) / 10000);
   const base = PRICES.lithoBaseUsd + area * PRICES.lithoSizeExtraUsd + (PRICES.lithoBaseExtras[c.baseType] || 0) + (item.giftBox ? PRICES.lithoGiftUsd : 0);
   return Number(base.toFixed(2));
@@ -269,7 +269,7 @@ function sanitizedOrderItems(items: CartItem[]): { items: CartItem[]; images: { 
     if (item.config?.imageUrl?.startsWith('data:')) item.config.imageUrl = '[STORED_IN_TURSO]';
     if (item.clickerConfig?.imageUrl?.startsWith('data:')) item.clickerConfig.imageUrl = '[STORED_IN_TURSO]';
     if (item.collarConfig?.imageUrl?.startsWith('data:')) item.collarConfig.imageUrl = '[STORED_IN_TURSO]';
-    if (totalImageBytes > 8_000_000) throw new StoreError('Las imÃ¡genes del pedido exceden el tamaÃ±o permitido.');
+    if (totalImageBytes > 8_000_000) throw new StoreError('Las imágenes del pedido exceden el tamaño permitido.');
     return { ...item, id: serverItemId, price, quantity: Number(item.quantity) };
   });
   const subtotal = sanitized.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -283,16 +283,16 @@ export async function createOrder(input: any, customerId?: string): Promise<Orde
   const shippingDetails: ShippingDetails = {
     fullName: requiredText(shippingInput.fullName, 'Nombre', 120),
     email: requiredText(shippingInput.email, 'Correo', 254).toLowerCase(),
-    phone: requiredText(shippingInput.phone || '-', 'TelÃ©fono', 40),
-    address: requiredText(shippingInput.address, 'DirecciÃ³n', 240),
+    phone: requiredText(shippingInput.phone || '-', 'Teléfono', 40),
+    address: requiredText(shippingInput.address, 'Dirección', 240),
     department: typeof shippingInput.department === 'string' ? shippingInput.department.slice(0, 100) : '',
     city: requiredText(shippingInput.city, 'Ciudad', 100),
     postalCode: typeof shippingInput.postalCode === 'string' ? shippingInput.postalCode.slice(0, 20) : '',
     country: 'Colombia',
     notes: typeof shippingInput.notes === 'string' ? shippingInput.notes.slice(0, 1000) : undefined,
   };
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(shippingDetails.email)) throw new StoreError('Ingresa un correo vÃ¡lido.');
-  if (!['mercadopago', 'whatsapp'].includes(input?.paymentMethod)) throw new StoreError('El mÃ©todo de pago no es vÃ¡lido.');
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(shippingDetails.email)) throw new StoreError('Ingresa un correo válido.');
+  if (!['mercadopago', 'whatsapp'].includes(input?.paymentMethod)) throw new StoreError('El método de pago no es válido.');
   const { items, images, subtotal } = sanitizedOrderItems(input.items);
   const shippingFee = subtotal >= PRICES.freeShippingUsd ? 0 : PRICES.shippingUsd;
   const id = `LITHO-${randomBytes(24).toString('hex').toUpperCase()}`;
@@ -382,10 +382,10 @@ export async function getOrderImage(orderId: string, itemId: string) {
 
 export async function appendOrderLog(orderId: string, log: Partial<OrderLogEntry>, actor = 'Admin'): Promise<OrderLogEntry> {
   const order = await getOrder(orderId);
-  if (!order) throw new StoreError('No se encontrÃ³ el pedido.', 404);
+  if (!order) throw new StoreError('No se encontró el pedido.', 404);
   const entry: OrderLogEntry = {
     id: `LOG-${randomBytes(12).toString('hex')}`, timestamp: new Date().toISOString(),
-    type: (log.type || 'note') as OrderLogEntry['type'], title: requiredText(log.title, 'TÃ­tulo del registro', 200),
+    type: (log.type || 'note') as OrderLogEntry['type'], title: requiredText(log.title, 'Título del registro', 200),
     description: typeof log.description === 'string' ? log.description.slice(0, 2000) : undefined,
     actor, metadata: log.metadata,
   };
@@ -396,9 +396,9 @@ export async function appendOrderLog(orderId: string, log: Partial<OrderLogEntry
 
 export async function updateOrder(orderId: string, field: 'status' | 'payment_status', value: string, actor: string, note?: string): Promise<void> {
   const allowed = field === 'status' ? ['confirmed', 'processing', 'completed', 'cancelled'] : ['pending', 'approved', 'rejected', 'refunded'];
-  if (!allowed.includes(value)) throw new StoreError('El estado solicitado no es vÃ¡lido.');
+  if (!allowed.includes(value)) throw new StoreError('El estado solicitado no es válido.');
   const order = await getOrder(orderId);
-  if (!order) throw new StoreError('No se encontrÃ³ el pedido.', 404);
+  if (!order) throw new StoreError('No se encontró el pedido.', 404);
   const previous = field === 'status' ? order.status : order.paymentStatus;
   const type: OrderLogEntry['type'] = field === 'status' ? 'status_change' : 'payment_update';
   const title = field === 'status' ? `Estado actualizado a ${value}` : `Estado del pago actualizado a ${value}`;

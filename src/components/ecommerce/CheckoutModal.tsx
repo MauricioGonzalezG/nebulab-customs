@@ -43,7 +43,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     phone: '',
     address: '',
     department: 'Antioquia',
-    city: 'MedellÃ­n',
+    city: 'Medellín',
     postalCode: '',
     country: 'Colombia'
   });
@@ -83,7 +83,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               phone: '',
               address: '',
               department: 'Antioquia',
-              city: 'MedellÃ­n',
+              city: 'Medellín',
               postalCode: '',
               country: 'Colombia',
             };
@@ -112,7 +112,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const handleShippingSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!shipping.fullName || !shipping.email || !shipping.address || !shipping.city) {
-      alert('Por favor completa todos los campos requeridos de envÃ­o.');
+      alert('Por favor completa todos los campos requeridos de envío.');
       return;
     }
     setStep('payment');
@@ -126,23 +126,23 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       .map((it) => {
         const formattedPrice = formatItemPrice(it.price);
         if (it.itemType === 'collar' && it.collarConfig) {
-          return `â€¢ Collar para Mascota 3D (Mascota: ${it.collarConfig.petName || 'N/A'}, Tel: ${it.collarConfig.phoneText || 'N/A'})\n  - Talla: ${it.collarConfig.size}\n  - Color Correa: ${it.collarConfig.strapColor}\n  - Estilo Placa: ${it.collarConfig.plateStyle}\n  - Ãcono: ${collarIconLabel(it.collarConfig.icon)}\n  - Precio: ${formattedPrice}`;
+          return `• Collar para Mascota 3D (Mascota: ${it.collarConfig.petName || 'N/A'}, Tel: ${it.collarConfig.phoneText || 'N/A'})\n  - Talla: ${it.collarConfig.size}\n  - Color Correa: ${it.collarConfig.strapColor}\n  - Estilo Placa: ${it.collarConfig.plateStyle}\n  - Ícono: ${collarIconLabel(it.collarConfig.icon)}\n  - Precio: ${formattedPrice}`;
         }
         if (it.itemType === 'clicker' && it.clickerConfig) {
           const typeName = it.clickerConfig.type === 'clicker' ? 'Clicker Teclado MX 3D' : 'Llavero 3D';
-          return `â€¢ ${typeName} (${it.clickerConfig.size}mm)\n  - Estilo Base: ${it.clickerConfig.baseStyle}\n  - Switch: ${it.clickerConfig.switchType}\n  - Precio: ${formattedPrice}`;
+          return `• ${typeName} (${it.clickerConfig.size}mm)\n  - Estilo Base: ${it.clickerConfig.baseStyle}\n  - Switch: ${it.clickerConfig.switchType}\n  - Precio: ${formattedPrice}`;
         }
         if (it.itemType === 'plate' && it.plateConfig) {
-          return `â€¢ Placa llavero 3D "${it.plateConfig.text}"${it.plateConfig.subtitle ? ` / ${it.plateConfig.subtitle}` : ''} (${it.plateConfig.width}Ã—${it.plateConfig.height}mm)\n  - Relieve: ${it.plateConfig.relief} mm Â· Grosor: ${it.plateConfig.thickness} mm\n  - Colores: base ${it.plateConfig.baseColor}, texto ${it.plateConfig.detailColor}\n  - Precio: ${formattedPrice}`;
+          return `• Placa llavero 3D "${it.plateConfig.text}"${it.plateConfig.subtitle ? ` / ${it.plateConfig.subtitle}` : ''} (${it.plateConfig.width}×${it.plateConfig.height}mm)\n  - Relieve: ${it.plateConfig.relief} mm · Grosor: ${it.plateConfig.thickness} mm\n  - Colores: base ${it.plateConfig.baseColor}, texto ${it.plateConfig.detailColor}\n  - Precio: ${formattedPrice}`;
         }
         const notesText = it.config.notes ? `\n  - Observaciones: ${it.config.notes}` : '';
-        return `â€¢ LitofanÃ­a ${it.config.shape === 'arc' ? 'Curvada (Arco)' : it.config.shape === 'flat' ? 'Plana' : 'CilÃ­ndrica'} (${it.config.width}x${it.config.height}mm)\n  - Soporte: ${it.config.baseType === 'night-light' ? 'Luz de Noche LED (Socket)' : it.config.baseType === 'flat-stand' ? 'Soporte Escritorio' : 'Sin Base'}${notesText}\n  - Precio: ${formattedPrice}`;
+        return `• Litofanía ${it.config.shape === 'arc' ? 'Curvada (Arco)' : it.config.shape === 'flat' ? 'Plana' : 'Cilíndrica'} (${it.config.width}x${it.config.height}mm)\n  - Soporte: ${it.config.baseType === 'night-light' ? 'Luz de Noche LED (Socket)' : it.config.baseType === 'flat-stand' ? 'Soporte Escritorio' : 'Sin Base'}${notesText}\n  - Precio: ${formattedPrice}`;
       })
       .join('\n\n');
 
     const formattedTotal = formatItemPrice(order.total);
     const locationStr = `${order.shippingDetails.city}${order.shippingDetails.department ? `, ${order.shippingDetails.department}` : ''} (Colombia)`;
-    const msg = `Â¡Hola! Quisiera realizar el pedido de mis productos personalizados ${BRAND.name}:\n\nðŸ†” *Orden ID:* ${order.id}\nðŸ‘¤ *Cliente:* ${order.shippingDetails.fullName}\nðŸ“± *TelÃ©fono:* ${order.shippingDetails.phone}\nðŸ“ *DirecciÃ³n:* ${order.shippingDetails.address}, ${locationStr}\n\nðŸ“¦ *Detalles del Producto:*\n${itemDetails}\n\nðŸ’° *Total a Pagar:* ${formattedTotal}\n\nÂ¿Me ayudan a coordinar el pago y la entrega?`;
+    const msg = `¡Hola! Quisiera realizar el pedido de mis productos personalizados ${BRAND.name}:\n\n🆔 *Orden ID:* ${order.id}\n👤 *Cliente:* ${order.shippingDetails.fullName}\n📱 *Teléfono:* ${order.shippingDetails.phone}\n📍 *Dirección:* ${order.shippingDetails.address}, ${locationStr}\n\n📦 *Detalles del Producto:*\n${itemDetails}\n\n💰 *Total a Pagar:* ${formattedTotal}\n\n¿Me ayudan a coordinar el pago y la entrega?`;
 
     return getWhatsAppUrl(msg);
   };
@@ -213,9 +213,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             )}
             <div>
               <h3 className="text-base sm:text-lg font-bold font-outfit">
-                {step === 'shipping' && 'Datos de EnvÃ­o y Contacto (Colombia)'}
+                {step === 'shipping' && 'Datos de Envío y Contacto (Colombia)'}
                 {step === 'payment' && 'Pasarela de Pago Segura'}
-                {step === 'confirmation' && 'Â¡Pedido Confirmado con Ã‰xito!'}
+                {step === 'confirmation' && '¡Pedido Confirmado con Éxito!'}
               </h3>
               <p className="text-xs text-slate-400">
                 {step !== 'confirmation' ? `Total a pagar: ${formatPriceUsdOnly(total)}` : `Orden ID: ${completedOrder?.id}`}
@@ -253,7 +253,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     </div>
                   </div>
                   <span className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 rounded-full">
-                    SesiÃ³n Activa
+                    Sesión Activa
                   </span>
                 </div>
 
@@ -277,7 +277,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-xs font-bold text-white flex items-center gap-1.5">
                         <User className="w-3.5 h-3.5 text-cyan-400" />
-                        DirecciÃ³n Guardada de tu Cuenta
+                        Dirección Guardada de tu Cuenta
                       </span>
                       <input type="radio" checked={!useCustomAddress} onChange={() => {}} className="accent-cyan-500" />
                     </div>
@@ -289,13 +289,13 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                           <MapPin className="w-3 h-3 text-cyan-400 shrink-0" />
                           <span>{savedAddress.address}, {savedAddress.city}{savedAddress.department ? ` (${savedAddress.department})` : ''}</span>
                         </p>
-                        <p className="text-[11px] text-slate-400">ðŸ“± {savedAddress.phone} (Colombia ðŸ‡¨ðŸ‡´)</p>
+                        <p className="text-[11px] text-slate-400">📱 {savedAddress.phone} (Colombia 🇨🇴)</p>
                       </div>
                     ) : (
                       <div className="text-[11px] text-slate-400">
                         <p className="font-semibold text-slate-200">{customerUser.name}</p>
                         <p className="font-mono">{customerUser.email}</p>
-                        <p className="text-[10px] text-cyan-400 mt-1">Completa tu direcciÃ³n abajo para guardarla.</p>
+                        <p className="text-[10px] text-cyan-400 mt-1">Completa tu dirección abajo para guardarla.</p>
                       </div>
                     )}
                   </div>
@@ -310,7 +310,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                         phone: '',
                         address: '',
                         department: 'Antioquia',
-                        city: 'MedellÃ­n',
+                        city: 'Medellín',
                         postalCode: '',
                         country: 'Colombia',
                       });
@@ -324,12 +324,12 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-xs font-bold text-white flex items-center gap-1.5">
                         <Plus className="w-3.5 h-3.5 text-cyan-400" />
-                        + Usar otra direcciÃ³n / destinatario
+                        + Usar otra dirección / destinatario
                       </span>
                       <input type="radio" checked={useCustomAddress} onChange={() => {}} className="accent-cyan-500" />
                     </div>
                     <p className="text-xs text-slate-300">Despachar a otro destinatario</p>
-                    <p className="text-[10px] text-slate-400 mt-2">Ingresa un nombre, correo y direcciÃ³n totalmente diferentes para este envÃ­o.</p>
+                    <p className="text-[10px] text-slate-400 mt-2">Ingresa un nombre, correo y dirección totalmente diferentes para este envío.</p>
                   </div>
 
                 </div>
@@ -339,7 +339,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   <div className="flex items-center justify-between pt-1">
                     <span className="text-xs text-emerald-400 font-semibold flex items-center gap-1.5">
                       <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                      Se usarÃ¡ tu direcciÃ³n guardada predeterminada.
+                      Se usará tu dirección guardada predeterminada.
                     </span>
                     <button
                       type="button"
@@ -347,7 +347,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-cyan-300 transition-colors flex items-center gap-1.5"
                     >
                       <Edit2 className="w-3.5 h-3.5" />
-                      <span>{isEditingSavedAddress ? 'Ocultar Formulario' : 'Editar DirecciÃ³n'}</span>
+                      <span>{isEditingSavedAddress ? 'Ocultar Formulario' : 'Editar Dirección'}</span>
                     </button>
                   </div>
                 )}
@@ -362,7 +362,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     <input
                       type="text"
                       required
-                      placeholder="Ej. Juan Camilo PÃ©rez"
+                      placeholder="Ej. Juan Camilo Pérez"
                       value={shipping.fullName}
                       onChange={(e) => setShipping({ ...shipping, fullName: e.target.value })}
                       className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder:text-slate-400 focus:border-cyan-500 focus:outline-none"
@@ -370,7 +370,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-300">Correo ElectrÃ³nico *</label>
+                    <label className="text-xs font-semibold text-slate-300">Correo Electrónico *</label>
                     <input
                       type="email"
                       required
@@ -395,7 +395,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       <input
                         type="text"
                         required
-                        placeholder="Ej. MarÃ­a Fernanda GÃ³mez"
+                        placeholder="Ej. María Fernanda Gómez"
                         value={shipping.fullName}
                         onChange={(e) => setShipping({ ...shipping, fullName: e.target.value })}
                         className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder:text-slate-400 focus:border-cyan-500 focus:outline-none"
@@ -418,7 +418,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-300">TelÃ©fono MÃ³vil (WhatsApp) *</label>
+                    <label className="text-xs font-semibold text-slate-300">Teléfono Móvil (WhatsApp) *</label>
                     <input
                       type="tel"
                       required
@@ -431,11 +431,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
                   {/* Country Selector (Only Colombia) */}
                   <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-300">PaÃ­s de Entrega</label>
+                    <label className="text-xs font-semibold text-slate-300">País de Entrega</label>
                     <div className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white flex items-center justify-between shadow-inner">
-                      <span className="font-semibold text-slate-200">ðŸ‡¨ðŸ‡´ Colombia</span>
+                      <span className="font-semibold text-slate-200">🇨🇴 Colombia</span>
                       <span className="text-[10px] text-cyan-400 font-bold bg-cyan-950/60 border border-cyan-800/60 px-2 py-0.5 rounded-md">
-                        EnvÃ­os Nacionales
+                        Envíos Nacionales
                       </span>
                     </div>
                   </div>
@@ -522,11 +522,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-300">DirecciÃ³n Completa de EnvÃ­o *</label>
+                  <label className="text-xs font-semibold text-slate-300">Dirección Completa de Envío *</label>
                   <input
                     type="text"
                     required
-                    placeholder="Ej. Carrera 15 # 85-30, Apto 402, Torre 2 (Barrio / IndicaciÃ³n)"
+                    placeholder="Ej. Carrera 15 # 85-30, Apto 402, Torre 2 (Barrio / Indicación)"
                     value={shipping.address}
                     onChange={(e) => setShipping({ ...shipping, address: e.target.value })}
                     className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder:text-slate-400 focus:border-cyan-500 focus:outline-none"
@@ -534,10 +534,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-300">CÃ³digo Postal (Opcional)</label>
+                  <label className="text-xs font-semibold text-slate-300">Código Postal (Opcional)</label>
                   <input
                     type="text"
-                    placeholder="Ej. 170001 o dÃ©jalo en blanco"
+                    placeholder="Ej. 170001 o déjalo en blanco"
                     value={shipping.postalCode}
                     onChange={(e) => setShipping({ ...shipping, postalCode: e.target.value })}
                     className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder:text-slate-400 focus:border-cyan-500 focus:outline-none"
@@ -565,15 +565,15 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             <div className="p-4 rounded-2xl bg-cyan-950/20 border border-cyan-800/40 text-xs text-cyan-200 space-y-1">
               <div className="font-bold flex items-center gap-1.5 text-cyan-300">
                 <Truck className="w-4 h-4 text-cyan-400" />
-                Resumen del EnvÃ­o:
+                Resumen del Envío:
               </div>
               <p>Destinatario: {shipping.fullName} ({shipping.email})</p>
-              <p>DirecciÃ³n: {shipping.address}, {shipping.city} ({shipping.country}) - Tel: {shipping.phone}</p>
+              <p>Dirección: {shipping.address}, {shipping.city} ({shipping.country}) - Tel: {shipping.phone}</p>
             </div>
 
             <div className="space-y-3">
               <label className="text-xs font-bold text-slate-300 uppercase tracking-wider block">
-                Selecciona tu MÃ©todo de Pago Preferido:
+                Selecciona tu Método de Pago Preferido:
               </label>
 
               {/* Payment Option 1: Mercado Pago Gateway */}
@@ -598,7 +598,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                         </span>
                       </div>
                       <p className="text-xs text-slate-400 mt-0.5">
-                        PSE, Tarjetas de CrÃ©dito, DÃ©bito, Nequi, Daviplata y Efecty
+                        PSE, Tarjetas de Crédito, Débito, Nequi, Daviplata y Efecty
                       </p>
                     </div>
                   </div>
@@ -628,7 +628,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     </div>
                     <div>
                       <h4 className="font-bold text-sm text-emerald-300">Coordinar Pedido y Pago por WhatsApp Directo</h4>
-                      <p className="text-xs text-slate-400">AtenciÃ³n personalizada con el equipo tÃ©cnico para transferencias directas o PayPal.</p>
+                      <p className="text-xs text-slate-400">Atención personalizada con el equipo técnico para transferencias directas o PayPal.</p>
                     </div>
                   </div>
                   <input type="radio" checked={selectedPaymentMethod === 'whatsapp'} onChange={() => {}} className="accent-emerald-500" />
@@ -676,9 +676,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             </div>
 
             <div>
-              <h3 className="text-2xl font-extrabold font-outfit text-white">Â¡Gracias por tu compra!</h3>
+              <h3 className="text-2xl font-extrabold font-outfit text-white">¡Gracias por tu compra!</h3>
               <p className="text-xs text-slate-400 mt-1">
-                Tu orden <strong className="text-cyan-400 font-mono">{completedOrder.id}</strong> ha sido registrada con Ã©xito.
+                Tu orden <strong className="text-cyan-400 font-mono">{completedOrder.id}</strong> ha sido registrada con éxito.
               </p>
             </div>
 
@@ -687,20 +687,20 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               <div className="p-4 rounded-2xl bg-emerald-950/40 border border-emerald-500/40 text-left text-xs space-y-1.5 shadow-lg">
                 <div className="font-bold text-emerald-300 flex items-center gap-2 text-sm">
                   <MessageSquare className="w-4 h-4 text-emerald-400 shrink-0 animate-bounce" />
-                  <span>ðŸ’¬ Instrucciones Importantes para Finalizar tu Pedido:</span>
+                  <span>💬 Instrucciones Importantes para Finalizar tu Pedido:</span>
                 </div>
                 <p className="text-emerald-200/90 leading-relaxed text-[11px]">
-                  Es muy importante que <strong>permanezcas atento(a) a tu celular en WhatsApp</strong>. Nuestro equipo tÃ©cnico se comunicarÃ¡ contigo en breve para verificar tu transferencia o pago directo, confirmar los datos de envÃ­o e iniciar la fabricaciÃ³n 3D.
+                  Es muy importante que <strong>permanezcas atento(a) a tu celular en WhatsApp</strong>. Nuestro equipo técnico se comunicará contigo en breve para verificar tu transferencia o pago directo, confirmar los datos de envío e iniciar la fabricación 3D.
                 </p>
               </div>
             ) : (
               <div className="p-4 rounded-2xl bg-sky-950/40 border border-sky-500/40 text-left text-xs space-y-1.5 shadow-lg">
                 <div className="font-bold text-sky-300 flex items-center gap-2 text-sm">
                   <Wallet className="w-4 h-4 text-sky-400 shrink-0" />
-                  <span>ðŸ’³ Proceso de ConfirmaciÃ³n de Pago Mercado Pago:</span>
+                  <span>💳 Proceso de Confirmación de Pago Mercado Pago:</span>
                 </div>
                 <p className="text-sky-200/90 leading-relaxed text-[11px]">
-                  Tan pronto Mercado Pago <strong>confirme tu transacciÃ³n</strong>, recibirÃ¡s una notificaciÃ³n de aprobaciÃ³n por <strong>WhatsApp y correo electrÃ³nico</strong>, e iniciaremos de inmediato la impresiÃ³n 3D y fabricaciÃ³n de tu producto.
+                  Tan pronto Mercado Pago <strong>confirme tu transacción</strong>, recibirás una notificación de aprobación por <strong>WhatsApp y correo electrónico</strong>, e iniciaremos de inmediato la impresión 3D y fabricación de tu producto.
                 </p>
               </div>
             )}
@@ -716,13 +716,13 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 return (
                   <div key={idx} className="flex justify-between text-slate-400 text-[11px]">
                     <span>
-                      â€¢ {it.itemType === 'collar' && it.collarConfig
-                          ? `Collar Mascota 3D â€” ${it.collarConfig.petName || 'Personalizado'} (Talla ${it.collarConfig.size})`
+                      • {it.itemType === 'collar' && it.collarConfig
+                          ? `Collar Mascota 3D — ${it.collarConfig.petName || 'Personalizado'} (Talla ${it.collarConfig.size})`
                           : it.itemType === 'clicker' && it.clickerConfig
                           ? `${it.clickerConfig.type === 'clicker' ? 'Clicker MX 3D' : 'Llavero 3D'} (${it.clickerConfig.size}mm)`
                           : it.itemType === 'plate' && it.plateConfig
-                          ? `Placa llavero 3D â€” ${it.plateConfig.text} (${it.plateConfig.width}Ã—${it.plateConfig.height}mm)`
-                          : `LitofanÃ­a ${it.config.shape === 'arc' ? 'Curvada' : it.config.shape === 'flat' ? 'Plana' : 'CilÃ­ndrica'} (${it.config.width}x${it.config.height}mm)`}
+                          ? `Placa llavero 3D — ${it.plateConfig.text} (${it.plateConfig.width}×${it.plateConfig.height}mm)`
+                          : `Litofanía ${it.config.shape === 'arc' ? 'Curvada' : it.config.shape === 'flat' ? 'Plana' : 'Cilíndrica'} (${it.config.width}x${it.config.height}mm)`}
                     </span>
                     <span className="font-semibold text-slate-200">{formattedItemPrice}</span>
                   </div>

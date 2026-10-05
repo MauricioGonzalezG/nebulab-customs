@@ -33,10 +33,11 @@ export default async function handler(req: any, res: any) {
       throw new StoreError('Configura APP_URL con el dominio HTTPS de tu tienda.', 503);
     }
 
+    const displayOrderId = order.id.replace(/^(LITHO-[A-F0-9]{6})[A-F0-9]{42}$/, '$1');
     const payload = {
       items: [{
         id: order.id,
-        title: `Pedido Nebulab #${order.id}`,
+        title: `Pedido Nebulab #${displayOrderId}`,
         description: `${order.items.length} producto(s) personalizado(s)`,
         quantity: 1,
         currency_id: currency,

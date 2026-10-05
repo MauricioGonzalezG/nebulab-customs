@@ -51,6 +51,11 @@ interface AdminDashboardProps {
   onClose: () => void;
 }
 
+function getAdminOrderLabel(orderId: string): string {
+  const secureId = orderId.match(/^LITHO-([A-F0-9]{48})$/i);
+  return secureId ? `LITHO-${secureId[1].slice(0, 6)}…` : orderId;
+}
+
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
   const { adminUser, logout } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
@@ -337,6 +342,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
     const searchLower = searchTerm.toLowerCase();
     const matchesSearch =
       o.id.toLowerCase().includes(searchLower) ||
+      getAdminOrderLabel(o.id).toLowerCase().includes(searchLower) ||
       o.shippingDetails.fullName.toLowerCase().includes(searchLower) ||
       o.shippingDetails.email.toLowerCase().includes(searchLower) ||
       o.shippingDetails.phone.includes(searchLower) ||
@@ -583,7 +589,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
                         
                         {/* Order ID & Date */}
                         <td className="px-6 py-4 font-medium">
-                          <div className="font-mono text-cyan-400 font-bold">{order.id}</div>
+                          <div className="font-mono text-cyan-400 font-bold" title={`ID completo: ${order.id}`}>
+                            {getAdminOrderLabel(order.id)}
+                          </div>
                           <div className="text-[11px] text-slate-500">
                             {new Date(order.createdAt).toLocaleDateString()} {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </div>

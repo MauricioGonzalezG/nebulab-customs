@@ -69,7 +69,7 @@ export default async function handler(req: any, res: any) {
           process.env.MAILTRAP_API_TOKEN || '';
 
         if (!mailtrapToken) {
-          throw new Error('Falta configurar el Token API de Mailtrap en la configuraciÃ³n.');
+          throw new Error('Falta configurar el Token API de Mailtrap en la configuración.');
         }
 
         const effectiveSender = senderEmail || 'hello@demomailtrap.co';
@@ -110,7 +110,7 @@ export default async function handler(req: any, res: any) {
             String(rawErrors).toLowerCase().includes('incorrect api token')
           ) {
             userFriendly =
-              'Token API de Mailtrap no autorizado (401). Verifica que hayas copiado el "API Token" desde tu cuenta de Mailtrap (mailtrap.io â†’ Email Sending â†’ API Tokens).';
+              'Token API de Mailtrap no autorizado (401). Verifica que hayas copiado el "API Token" desde tu cuenta de Mailtrap (mailtrap.io → Email Sending → API Tokens).';
           } else if (
             String(rawErrors).toLowerCase().includes('from.email') ||
             String(rawErrors).toLowerCase().includes('domain') ||
@@ -134,7 +134,7 @@ export default async function handler(req: any, res: any) {
           process.env.SMTP_GMAIL_APP_PASSWORD || '';
 
         if (!senderEmail || !gmailAppPassword) {
-          throw new Error('Falta configurar el Correo Emisor o la ContraseÃ±a de AplicaciÃ³n de Gmail.');
+          throw new Error('Falta configurar el Correo Emisor o la Contraseña de Aplicación de Gmail.');
         }
 
         const cleanAppPassword = String(gmailAppPassword).replace(/\s+/g, '');
@@ -183,7 +183,7 @@ export default async function handler(req: any, res: any) {
       sentTo.push(recipient);
       return res.status(200).json({
         success: true,
-        message: `Correo de prueba enviado con Ã©xito a ${recipient} vÃ­a ${provider === 'mailtrap' ? 'Mailtrap API' : 'Gmail SMTP'}`,
+        message: `Correo de prueba enviado con éxito a ${recipient} vía ${provider === 'mailtrap' ? 'Mailtrap API' : 'Gmail SMTP'}`,
         sentTo,
       });
     }
@@ -224,7 +224,7 @@ export default async function handler(req: any, res: any) {
 
       return res.status(200).json({
         success: true,
-        message: `Notificaciones de nuevo pedido procesadas (${sentTo.length} enviadas vÃ­a ${provider})`,
+        message: `Notificaciones de nuevo pedido procesadas (${sentTo.length} enviadas vía ${provider})`,
         sentTo,
       });
     }
@@ -240,28 +240,28 @@ export default async function handler(req: any, res: any) {
 
         return res.status(200).json({
           success: true,
-          message: `NotificaciÃ³n de cambio de estado enviada a ${customerEmail} vÃ­a ${provider}`,
+          message: `Notificación de cambio de estado enviada a ${customerEmail} vía ${provider}`,
           sentTo,
         });
       } else {
         return res.status(200).json({
           success: true,
           skipped: true,
-          message: 'NotificaciÃ³n de cambio de estado desactivada o correo de cliente no disponible.',
+          message: 'Notificación de cambio de estado desactivada o correo de cliente no disponible.',
         });
       }
     }
 
     return res.status(400).json({
       success: false,
-      message: 'Tipo de evento de correo no vÃ¡lido o datos incompletos.',
+      message: 'Tipo de evento de correo no válido o datos incompletos.',
     });
   } catch (error: any) {
     console.error('Error in send-email API handler:', error);
 
     let userMessage = error?.message || 'Error al enviar el correo.';
     if (userMessage.includes('535') || userMessage.includes('BadCredentials') || userMessage.includes('Username and Password not accepted')) {
-      userMessage = 'Gmail rechazÃ³ las credenciales. Verifica que el correo emisor sea correcto y que la contraseÃ±a de aplicaciÃ³n de 16 caracteres estÃ© activa.';
+      userMessage = 'Gmail rechazó las credenciales. Verifica que el correo emisor sea correcto y que la contraseña de aplicación de 16 caracteres esté activa.';
     }
 
     return res.status(400).json({
