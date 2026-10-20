@@ -37,8 +37,12 @@ export interface PricingData {
     basePriceUsd: number;
   };
   plates: {
+    compactPriceCop: number;
+    compactPriceUsd: number;
     unitPriceCop: number;
     unitPriceUsd: number;
+    largePriceCop: number;
+    largePriceUsd: number;
   };
 }
 
@@ -77,7 +81,9 @@ const DEFAULT_XML = `<?xml version="1.0" encoding="UTF-8"?>
     </collar>
 
     <plates>
-      <unitPrice cop="17000" usd="4.25" />
+      <compactPrice cop="8000" usd="2.00" />
+      <unitPrice cop="10000" usd="2.50" />
+      <largePrice cop="14000" usd="3.50" />
     </plates>
   </products>
 </pricingConfig>`;
@@ -137,7 +143,9 @@ export function parsePricingXml(xmlText: string): PricingData {
   const collarBaseEl = collarEl?.querySelector('basePrice');
 
   const platesEl = xmlDoc.querySelector('plates');
+  const platesCompactEl = platesEl?.querySelector('compactPrice');
   const platesUnitEl = platesEl?.querySelector('unitPrice');
+  const platesLargeEl = platesEl?.querySelector('largePrice');
 
   return {
     defaultCurrency,
@@ -170,8 +178,12 @@ export function parsePricingXml(xmlText: string): PricingData {
       basePriceUsd: parseFloat(collarBaseEl?.getAttribute('usd') || '14.90'),
     },
     plates: {
-      unitPriceCop: parseFloat(platesUnitEl?.getAttribute('cop') || '17000'),
-      unitPriceUsd: parseFloat(platesUnitEl?.getAttribute('usd') || '4.25'),
+      compactPriceCop: parseFloat(platesCompactEl?.getAttribute('cop') || '8000'),
+      compactPriceUsd: parseFloat(platesCompactEl?.getAttribute('usd') || '2.00'),
+      unitPriceCop: parseFloat(platesUnitEl?.getAttribute('cop') || '10000'),
+      unitPriceUsd: parseFloat(platesUnitEl?.getAttribute('usd') || '2.50'),
+      largePriceCop: parseFloat(platesLargeEl?.getAttribute('cop') || '14000'),
+      largePriceUsd: parseFloat(platesLargeEl?.getAttribute('usd') || '3.50'),
     },
   };
 }

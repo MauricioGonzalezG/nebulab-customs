@@ -33,7 +33,9 @@
     </collar>
 
     <plates>
-      <unitPrice cop="17000" usd="4.25" />
+      <compactPrice cop="8000" usd="2.00" />
+      <unitPrice cop="10000" usd="2.50" />
+      <largePrice cop="14000" usd="3.50" />
     </plates>
   </products>
 </pricingConfig>

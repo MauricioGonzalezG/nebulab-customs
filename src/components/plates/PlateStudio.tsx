@@ -26,9 +26,9 @@ const panel = 'rounded-2xl border border-white/10 bg-white/[0.025] p-5 space-y-5
 const compactPanel = 'rounded-2xl border border-white/10 bg-white/[0.025] p-4 space-y-3.5';
 
 const SIZE_OPTIONS = [
-  { label: 'Compacta', width: 45, height: 24 },
-  { label: 'Estándar', width: 60, height: 30 },
-  { label: 'Grande', width: 90, height: 45 },
+  { label: 'Compacta', width: 45, height: 24, tier: 'compact' },
+  { label: 'Estándar', width: 60, height: 30, tier: 'standard' },
+  { label: 'Grande', width: 90, height: 45, tier: 'large' },
 ];
 
 const PLATE_COLOR_PRESETS = [
@@ -86,11 +86,14 @@ export function PlateStudio({ onBackToHome, onAddToCart, onBuyNow }: PlateStudio
     finally { setExporting(false); }
   };
 
-  // El precio crece con el material de la placa (tamaño, grosor y relieve),
-  // tomando la placa estándar 60×30×3 mm como tarifa base.
+  const sizeOption = SIZE_OPTIONS.find(option => option.width === config.width && option.height === config.height);
   const priceFactor = platePriceFactor(config);
-  const unitPriceCop = Math.round((basePriceCop * priceFactor) / 100) * 100;
-  const unitPriceUsd = Number((basePriceUsd * priceFactor).toFixed(2));
+  const unitPriceCop = sizeOption?.tier === 'compact' ? pData.plates.compactPriceCop
+    : sizeOption?.tier === 'large' ? pData.plates.largePriceCop
+      : sizeOption ? basePriceCop : Math.round((basePriceCop * priceFactor) / 100) * 100;
+  const unitPriceUsd = sizeOption?.tier === 'compact' ? pData.plates.compactPriceUsd
+    : sizeOption?.tier === 'large' ? pData.plates.largePriceUsd
+      : sizeOption ? basePriceUsd : Number((basePriceUsd * priceFactor).toFixed(2));
   const adjustCop = unitPriceCop - basePriceCop;
   const adjustUsd = Number((unitPriceUsd - basePriceUsd).toFixed(2));
 
@@ -247,7 +250,7 @@ export function PlateStudio({ onBackToHome, onAddToCart, onBuyNow }: PlateStudio
             <div className="space-y-1 text-xs text-slate-400">
               {adjustCop !== 0 && (
                 <div className="flex justify-between">
-                  <span>Ajuste por tamaño y material</span>
+                  <span>Ajuste por tamaño{sizeOption ? '' : ' y material'}</span>
                   <span className={adjustCop > 0 ? 'text-cyan-400' : 'text-emerald-400'}>{adjustCop > 0 ? '+' : '-'}{formatPrice(Math.abs(adjustCop), Math.abs(adjustUsd))}</span>
                 </div>
               )}
