@@ -37,5 +37,11 @@
       <unitPrice cop="10000" usd="2.50" />
       <largePrice cop="14000" usd="3.50" />
     </plates>
+
+    <ornaments>
+      <smallPrice cop="12000" usd="3.00" />
+      <mediumPrice cop="15000" usd="3.75" />
+      <largePrice cop="20000" usd="5.00" />
+    </ornaments>
   </products>
 </pricingConfig>

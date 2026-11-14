@@ -1,4 +1,5 @@
 import type { PlateConfig } from '../core/plateBuilder';
+import type { OrnamentConfig } from '../core/ornamentConfig';
 
 export type LithophaneShape = 'flat' | 'arc' | 'cylinder';
 export type BaseType = 'none' | 'flat-stand' | 'night-light' | 'led-wooden-base';
@@ -133,13 +134,14 @@ export interface CollarConfig {
 
 export interface CartItem {
   id: string;
-  itemType?: 'lithophane' | 'clicker' | 'collar' | 'plate';
+  itemType?: 'lithophane' | 'clicker' | 'collar' | 'plate' | 'ornament';
   giftBox?: boolean;
   title?: string;
   config: LithophaneConfig;
   clickerConfig?: ClickerConfig;
   collarConfig?: CollarConfig;
   plateConfig?: PlateConfig;
+  ornamentConfig?: OrnamentConfig;
   previewImageDataUrl: string;
   price: number;
   quantity: number;

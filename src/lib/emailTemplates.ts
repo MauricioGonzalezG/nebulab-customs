@@ -1,5 +1,6 @@
 import { Order, CartItem } from '../types';
 import { collarIconLabel } from '../core/collarIcons';
+import { ORNAMENT_SHAPE_LABELS, ORNAMENT_WINDOW_LABELS } from '../core/ornamentConfig';
 
 /**
  * Utility to format prices for emails
@@ -76,6 +77,18 @@ const getItemDescriptionHtml = (item: CartItem): string => {
   }
 
   // Lithophane
+  if (item.itemType === 'ornament' && item.ornamentConfig) {
+    const ornament = item.ornamentConfig;
+    return `
+      <div style="font-size: 13px; color: #94a3b8; line-height: 1.5; margin-top: 4px;">
+        Forma: <strong style="color: #f1f5f9;">${ORNAMENT_SHAPE_LABELS[ornament.shape] || ornament.shape}</strong> (${ornament.size}mm) | 
+        Ventana: <span style="color: #cbd5e1;">${ORNAMENT_WINDOW_LABELS[ornament.window] || ornament.window}</span>${ornament.text ? ` | Texto: <span style="color: #cbd5e1;">${ornament.text}</span>` : ''}<br/>
+        Colores: <span style="color: #cbd5e1;">cuerpo ${ornament.bodyColor}</span> | 
+        <span style="color: #cbd5e1;">relieve ${ornament.accentColor}</span>
+      </div>
+    `;
+  }
+
   const shapeName =
     item.config?.shape === 'arc'
       ? 'Curvada (Arco)'
@@ -214,7 +227,7 @@ export const buildCustomerOrderEmail = (order: Order): { subject: string; html: 
           <tr>
             <td style="vertical-align: top;">
               <div style="font-size: 15px; font-weight: 700; color: #f8fafc;">
-                ${item.title || (item.itemType === 'collar' ? 'Collar para Mascota 3D' : item.itemType === 'clicker' ? 'Clicker / Llavero 3D' : item.itemType === 'plate' ? 'Placa Llavero 3D Personalizada' : 'Litofanía 3D Personalizada')}
+                ${item.title || (item.itemType === 'collar' ? 'Collar para Mascota 3D' : item.itemType === 'clicker' ? 'Clicker / Llavero 3D' : item.itemType === 'plate' ? 'Placa Llavero 3D Personalizada' : item.itemType === 'ornament' ? 'Decoración Navideña 3D con Foto' : 'Litofanía 3D Personalizada')}
                 <span style="color: #38bdf8; font-size: 13px; font-weight: 500;"> x${item.quantity}</span>
               </div>
               ${getItemDescriptionHtml(item)}
@@ -327,7 +340,7 @@ export const buildAdminNewOrderEmail = (order: Order): { subject: string; html: 
       (item) => `
       <div style="padding: 12px; background-color: #0f172a; border-radius: 10px; margin-bottom: 8px; border: 1px solid #1e293b;">
         <strong style="color: #f8fafc; font-size: 14px;">
-          ${item.title || (item.itemType === 'collar' ? 'Collar 3D' : item.itemType === 'clicker' ? 'Clicker/Llavero 3D' : item.itemType === 'plate' ? 'Placa Llavero 3D' : 'Litofanía 3D')} (x${item.quantity})
+          ${item.title || (item.itemType === 'collar' ? 'Collar 3D' : item.itemType === 'clicker' ? 'Clicker/Llavero 3D' : item.itemType === 'plate' ? 'Placa Llavero 3D' : item.itemType === 'ornament' ? 'Decoración Navideña 3D' : 'Litofanía 3D')} (x${item.quantity})
         </strong>
         ${getItemDescriptionHtml(item)}
       </div>

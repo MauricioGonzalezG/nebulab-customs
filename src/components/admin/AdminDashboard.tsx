@@ -10,10 +10,13 @@ import { processClickerImage, ProcessedClickerData } from '../../core/clickerPro
 import { processCollarImage, ProcessedCollarData } from '../../core/collarProcessor';
 import { collarIconLabel } from '../../core/collarIcons';
 import type { PlateModel } from '../../core/plateBuilder';
+import type { OrnamentModel } from '../../core/ornamentBuilder';
+import { ORNAMENT_SHAPE_LABELS, ORNAMENT_WINDOW_LABELS } from '../../core/ornamentConfig';
 import { LithophaneViewer } from '../3d/LithophaneViewer';
 import { ClickerViewer } from '../3d/ClickerViewer';
 import { CollarViewer } from '../3d/CollarViewer';
 import { PlateViewer } from '../3d/PlateViewer';
+import { OrnamentViewer } from '../3d/OrnamentViewer';
 import { EmailSettingsTab } from './EmailSettingsTab';
 import { OrderLogsModal } from './OrderLogsModal';
 import { emailService } from '../../lib/emailService';
@@ -85,6 +88,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
 
   // Libera la geometría de la última placa inspeccionada (evita fugas de memoria)
   useEffect(() => () => previewPlateModel?.dispose(), [previewPlateModel]);
+  const [previewOrnament, setPreviewOrnament] = useState<{ model: OrnamentModel; image: HTMLImageElement | null } | null>(null);
+  useEffect(() => () => previewOrnament?.model.dispose(), [previewOrnament]);
 
   const fetchDashboardData = async () => {
     setIsLoading(true);
@@ -219,7 +224,31 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
     setSelectedOrderItem({ order, item });
     setIsProcessing3D(true);
     setPreviewPlateModel(null);
+    setPreviewOrnament(null);
     setPreviewCollarProcessedData(null);
+
+    // Los adornos navideños se reconstruyen desde su configuración y recuperan la foto del cliente.
+    if (item.itemType === 'ornament' && item.ornamentConfig) {
+      try {
+        const [{ buildOrnament, loadOrnamentEngine }, { loadImage }] = await Promise.all([
+          import('../../core/ornamentBuilder'),
+          import('../../core/ornamentPhoto'),
+        ]);
+        const api = await loadOrnamentEngine();
+        let sourceUrl = item.ornamentConfig.imageUrl || '';
+        if (!sourceUrl || sourceUrl === '[STORED_IN_TURSO]') {
+          const fetched = await tursoService.getOrderImage(order.id, item.id).catch(() => null);
+          sourceUrl = fetched?.imageData && fetched.imageData !== '[STORED_IN_TURSO]' ? fetched.imageData : '';
+        }
+        const image = sourceUrl ? await loadImage(sourceUrl).catch(() => null) : null;
+        setPreviewOrnament({ model: buildOrnament(api, item.ornamentConfig), image });
+      } catch (e) {
+        console.error('Error generando la decoración navideña del pedido:', e);
+      } finally {
+        setIsProcessing3D(false);
+      }
+      return;
+    }
 
     // Las placas se reconstruyen desde su configuración (no dependen de una foto).
     if (item.itemType === 'plate' && item.plateConfig) {
@@ -627,6 +656,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
                                       ? 'bg-violet-950/60 border-violet-800/50 text-violet-300 hover:bg-violet-900/60'
                                       : it.itemType === 'plate'
                                       ? 'bg-yellow-950/60 border-yellow-800/50 text-yellow-300 hover:bg-yellow-900/60'
+                                      : it.itemType === 'ornament'
+                                      ? 'bg-red-950/60 border-red-800/50 text-red-300 hover:bg-red-900/60'
                                       : 'bg-cyan-950/60 border-cyan-800/50 text-cyan-300 hover:bg-cyan-900/60'
                                   }`}
                                   title="Inspeccionar parámetros 3D"
@@ -639,6 +670,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
                                       ? `${it.clickerConfig.type === 'clicker' ? 'Clicker MX' : 'Llavero'} (${it.clickerConfig.size}mm)`
                                       : it.itemType === 'plate' && it.plateConfig
                                       ? `Placa ${it.plateConfig.text || 'Personalizada'} (${it.plateConfig.width}×${it.plateConfig.height}mm)`
+                                      : it.itemType === 'ornament' && it.ornamentConfig
+                                      ? `Navidad ${ORNAMENT_SHAPE_LABELS[it.ornamentConfig.shape]} (${it.ornamentConfig.size}mm)`
                                       : `Litofanía ${it.config?.shape === 'arc' ? 'Curva' : it.config?.shape === 'flat' ? 'Plana' : 'Cilíndrica'} (${it.config?.width || 120}×${it.config?.height || 100}mm)`}
                                   </span>
                                 </button>
@@ -899,6 +932,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
                       ? 'Inspección de Collar para Mascota 3D'
                       : selectedOrderItem.item.itemType === 'plate'
                       ? `Inspección de Placa Llavero 3D`
+                      : selectedOrderItem.item.itemType === 'ornament'
+                      ? 'Inspección de Decoración Navideña 3D'
                       : 'Inspección de Litofanía 3D'}
                   </h3>
                   <p className="text-xs text-slate-400 font-mono">Orden {selectedOrderItem.order.id} • Item {selectedOrderItem.item.id}</p>
@@ -908,6 +943,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
                 onClick={() => {
                   setSelectedOrderItem(null);
                   setPreviewPlateModel(null);
+                  setPreviewOrnament(null);
                 }}
                 className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
               >
@@ -931,6 +967,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
                   <ClickerViewer config={selectedOrderItem.item.clickerConfig} processedData={previewClickerProcessedData} />
                 ) : selectedOrderItem.item.itemType === 'plate' && selectedOrderItem.item.plateConfig && previewPlateModel ? (
                   <PlateViewer model={previewPlateModel} config={selectedOrderItem.item.plateConfig} />
+                ) : selectedOrderItem.item.itemType === 'ornament' && selectedOrderItem.item.ornamentConfig && previewOrnament ? (
+                  <OrnamentViewer model={previewOrnament.model} config={selectedOrderItem.item.ornamentConfig} image={previewOrnament.image} />
                 ) : (
                   <LithophaneViewer config={selectedOrderItem.item.config} processedData={previewProcessedData} />
                 )}
@@ -1032,6 +1070,41 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
                     </div>
                   </div>
 
+                ) : selectedOrderItem.item.itemType === 'ornament' && selectedOrderItem.item.ornamentConfig ? (
+                  <div className="grid grid-cols-2 gap-3 text-xs">
+                    <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
+                      <span className="text-slate-500 block">Forma</span>
+                      <span className="font-bold text-slate-200">{ORNAMENT_SHAPE_LABELS[selectedOrderItem.item.ornamentConfig.shape]}</span>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
+                      <span className="text-slate-500 block">Ventana de Foto</span>
+                      <span className="font-bold text-slate-200">
+                        {ORNAMENT_WINDOW_LABELS[selectedOrderItem.item.ornamentConfig.window]}
+                        {previewOrnament ? ` · ${(previewOrnament.model.windowBounds.maxX - previewOrnament.model.windowBounds.minX).toFixed(0)} × ${(previewOrnament.model.windowBounds.maxY - previewOrnament.model.windowBounds.minY).toFixed(0)} mm` : ''}
+                      </span>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
+                      <span className="text-slate-500 block">Lado Mayor</span>
+                      <span className="font-bold text-slate-200">{selectedOrderItem.item.ornamentConfig.size} mm</span>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
+                      <span className="text-slate-500 block">Marco / Relieve / Tapa</span>
+                      <span className="font-bold text-slate-200">{selectedOrderItem.item.ornamentConfig.thickness} / {selectedOrderItem.item.ornamentConfig.relief} / {selectedOrderItem.item.ornamentConfig.backThickness} mm</span>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
+                      <span className="text-slate-500 block">Texto en Relieve</span>
+                      <span className="font-bold text-slate-200 uppercase tracking-wider">{selectedOrderItem.item.ornamentConfig.text || 'Sin texto'}</span>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
+                      <span className="text-slate-500 block">Colores (Cuerpo / Relieve)</span>
+                      <span className="font-bold text-slate-200 font-mono uppercase">{selectedOrderItem.item.ornamentConfig.bodyColor} / {selectedOrderItem.item.ornamentConfig.accentColor}</span>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 col-span-2">
+                      <span className="text-slate-500 block">Orificio / Cantidad</span>
+                      <span className="font-bold text-slate-200">Ø {selectedOrderItem.item.ornamentConfig.holeDiameter} mm · {selectedOrderItem.item.quantity} {selectedOrderItem.item.quantity === 1 ? 'unidad' : 'unidades'}</span>
+                    </div>
+                  </div>
+
                 ) : (
                   <div className="grid grid-cols-2 gap-3 text-xs">
                     <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
@@ -1100,9 +1173,34 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
                     </button>
                   )}
 
-                  {(selectedOrderItem.item.itemType === 'clicker' || selectedOrderItem.item.itemType === 'plate') && (
+                  {selectedOrderItem.item.itemType === 'ornament' && selectedOrderItem.item.ornamentConfig && (
                     <button
                       onClick={() => {
+                        const ornamentConfig = selectedOrderItem.item.ornamentConfig;
+                        if (!ornamentConfig || !previewOrnament?.image) return;
+                        const { model, image } = previewOrnament;
+                        import('../../core/ornamentPhoto')
+                          .then(({ downloadOrnamentPrintPhoto }) => downloadOrnamentPrintPhoto(image, ornamentConfig, model))
+                          .catch((err) => console.error('Error exportando la foto del adorno:', err));
+                      }}
+                      disabled={!previewOrnament?.image}
+                      className="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 font-semibold text-xs border border-cyan-500/30 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                      <ImageIcon className="w-3.5 h-3.5 text-cyan-400" />
+                      <span>Descargar Foto Recortada para Imprimir (300 dpi)</span>
+                    </button>
+                  )}
+
+                  {(selectedOrderItem.item.itemType === 'clicker' || selectedOrderItem.item.itemType === 'plate' || selectedOrderItem.item.itemType === 'ornament') && (
+                    <button
+                      onClick={() => {
+                        if (selectedOrderItem.item.itemType === 'ornament' && selectedOrderItem.item.ornamentConfig) {
+                          const ornamentConfig = selectedOrderItem.item.ornamentConfig;
+                          import('../../core/ornamentExporter')
+                            .then(({ downloadOrnamentFile }) => downloadOrnamentFile(ornamentConfig, '3mf'))
+                            .catch((err) => console.error('Error exportando adorno 3MF:', err));
+                          return;
+                        }
                         if (selectedOrderItem.item.itemType === 'plate' && selectedOrderItem.item.plateConfig) {
                           const plateConfig = selectedOrderItem.item.plateConfig;
                           import('../../core/plateExporter')
@@ -1121,6 +1219,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
 
                   <button
                     onClick={() => {
+                      if (selectedOrderItem.item.itemType === 'ornament' && selectedOrderItem.item.ornamentConfig) {
+                        const ornamentConfig = selectedOrderItem.item.ornamentConfig;
+                        import('../../core/ornamentExporter')
+                          .then(({ downloadOrnamentFile }) => downloadOrnamentFile(ornamentConfig, 'stl'))
+                          .catch((err) => console.error('Error exportando adorno STL:', err));
+                        return;
+                      }
                       if (selectedOrderItem.item.itemType === 'plate' && selectedOrderItem.item.plateConfig) {
                         const plateConfig = selectedOrderItem.item.plateConfig;
                         import('../../core/plateExporter')

@@ -223,6 +223,7 @@ const PRICES = {
   lithoBaseUsd: 6.25, lithoSizeExtraUsd: 5.5, lithoBaseExtras: { 'night-light': 3.75, 'led-wooden-base': 14, 'flat-stand': 4 } as Record<string, number>, lithoGiftUsd: 3.5,
   clickerUsd: 14.9, keychainUsd: 9.9, clickerSizeExtraUsd: 3,
   collarUsd: 15, plateUsd: 4.25,
+  ornamentUsd: { small: 3, medium: 3.75, large: 5 },
 };
 
 function priceCartItem(item: CartItem): number {
@@ -243,6 +244,11 @@ function priceCartItem(item: CartItem): number {
     const factor = (p.width * p.height * (p.thickness + 0.25 * p.relief)) / (60 * 30 * (3 + 0.25 * 0.8));
     return Number((PRICES.plateUsd * factor).toFixed(2));
   }
+  if (item.itemType === 'ornament') {
+    const o = item.ornamentConfig;
+    if (!o || !['gift', 'bauble', 'tree', 'star', 'bell', 'house'].includes(o.shape) || !['arch', 'circle', 'square'].includes(o.window) || !Number.isFinite(o.size) || o.size < 50 || o.size > 100) throw new StoreError('La configuración de la decoración navideña no es válida.');
+    return PRICES.ornamentUsd[o.size <= 67 ? 'small' : o.size <= 82 ? 'medium' : 'large'];
+  }
   const c = item.config;
   if (!c || !Number.isFinite(c.width) || !Number.isFinite(c.height) || c.width < 20 || c.width > 300 || c.height < 20 || c.height > 300) throw new StoreError('La configuración de la litofanía no es válida.');
   const area = Math.max(0, (c.width * c.height - 120 * 100) / 10000);
@@ -259,7 +265,7 @@ function sanitizedOrderItems(items: CartItem[]): { items: CartItem[]; images: { 
     const price = priceCartItem(item);
     const serverItemId = `ITEM-${randomBytes(12).toString('hex')}`;
     const previewImage = typeof item.previewImageDataUrl === 'string' && item.previewImageDataUrl.startsWith('data:image/') ? item.previewImageDataUrl : '';
-    const originalImage = [item.config?.imageUrl, item.clickerConfig?.imageUrl, item.collarConfig?.imageUrl]
+    const originalImage = [item.config?.imageUrl, item.clickerConfig?.imageUrl, item.collarConfig?.imageUrl, item.ornamentConfig?.imageUrl]
       .find((value): value is string => typeof value === 'string' && value.startsWith('data:image/')) || '';
     totalImageBytes += previewImage.length + originalImage.length;
     if (previewImage || originalImage) {
@@ -269,6 +275,7 @@ function sanitizedOrderItems(items: CartItem[]): { items: CartItem[]; images: { 
     if (item.config?.imageUrl?.startsWith('data:')) item.config.imageUrl = '[STORED_IN_TURSO]';
     if (item.clickerConfig?.imageUrl?.startsWith('data:')) item.clickerConfig.imageUrl = '[STORED_IN_TURSO]';
     if (item.collarConfig?.imageUrl?.startsWith('data:')) item.collarConfig.imageUrl = '[STORED_IN_TURSO]';
+    if (item.ornamentConfig?.imageUrl?.startsWith('data:')) item.ornamentConfig.imageUrl = '[STORED_IN_TURSO]';
     if (totalImageBytes > 8_000_000) throw new StoreError('Las imágenes del pedido exceden el tamaño permitido.');
     return { ...item, id: serverItemId, price, quantity: Number(item.quantity) };
   });

@@ -2,6 +2,7 @@ import React from 'react';
 import { CartItem } from '../../types';
 import { X, Trash2, ShoppingBag, ArrowRight, ShieldCheck } from 'lucide-react';
 import { useCurrency } from '../../context/CurrencyContext';
+import { ORNAMENT_SHAPE_LABELS, ORNAMENT_WINDOW_LABELS } from '../../core/ornamentConfig';
 
 interface CartDrawerProps {
   isOpen: boolean;
@@ -93,7 +94,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                   onClick={onClose}
                   className="px-4 py-2 bg-slate-800 text-cyan-400 rounded-xl text-xs font-semibold hover:bg-slate-700 transition-colors"
                 >
-                  Personalizar mi Litofanía
+                  Seguir personalizando
                 </button>
               </div>
             ) : (
@@ -106,7 +107,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                   <div className="w-20 h-20 rounded-xl bg-slate-800 overflow-hidden shrink-0 border border-slate-700">
                     <img
                       src={item.previewImageDataUrl}
-                      alt={item.itemType === 'plate' ? 'Placa llavero 3D' : 'Producto 3D'}
+                      alt={item.itemType === 'plate' ? 'Placa llavero 3D' : item.itemType === 'ornament' ? 'Decoración navideña 3D' : 'Producto 3D'}
                       className={`w-full h-full ${item.itemType === 'plate' ? 'object-contain p-1.5 bg-slate-950' : 'object-cover'}`}
                     />
                   </div>
@@ -122,6 +123,8 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                             ? (item.clickerConfig?.type === 'clicker' ? 'Clicker MX 3D' : 'Llavero 3D')
                             : item.itemType === 'plate'
                             ? `Placa llavero 3D (${item.plateConfig?.text || 'Personalizada'})`
+                            : item.itemType === 'ornament'
+                            ? `Decoración navideña (${item.ornamentConfig ? ORNAMENT_SHAPE_LABELS[item.ornamentConfig.shape] : 'Personalizada'})`
                             : `Litofanía ${item.config.shape === 'arc' ? 'Curvada' : item.config.shape === 'flat' ? 'Plana' : 'Cilíndrica'}`}
                         </h4>
                         <button
@@ -168,6 +171,20 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                             {item.plateConfig.subtitle && (
                               <span className="text-[10px] px-1.5 py-0.5 rounded bg-yellow-950 text-yellow-300 border border-yellow-800/50 uppercase font-mono">
                                 {item.plateConfig.subtitle}
+                              </span>
+                            )}
+                          </>
+                        ) : item.itemType === 'ornament' && item.ornamentConfig ? (
+                          <>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">
+                              {item.ornamentConfig.size}mm
+                            </span>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-950 text-red-300 border border-red-800/50 uppercase font-mono">
+                              Ventana: {ORNAMENT_WINDOW_LABELS[item.ornamentConfig.window]}
+                            </span>
+                            {item.ornamentConfig.text && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800/50 uppercase font-mono">
+                                {item.ornamentConfig.text}
                               </span>
                             )}
                           </>

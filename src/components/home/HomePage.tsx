@@ -7,6 +7,7 @@ import {
   Key,
   ShieldCheck,
   Sparkles,
+  TreePine,
 } from 'lucide-react';
 import { BRAND, getWhatsAppUrl } from '../../lib/brand';
 
@@ -15,6 +16,7 @@ interface HomePageProps {
   onOpenClickerStudio: () => void;
   onOpenCollarStudio: () => void;
   onOpenPlateStudio: () => void;
+  onOpenChristmasStudio: () => void;
   onOpenAuth?: () => void;
   onOpenMyOrders: () => void;
 }
@@ -24,6 +26,7 @@ export const HomePage: React.FC<HomePageProps> = ({
   onOpenClickerStudio,
   onOpenCollarStudio,
   onOpenPlateStudio,
+  onOpenChristmasStudio,
 }) => {
   const services: Array<{
     eyebrow: string;
@@ -111,6 +114,30 @@ export const HomePage: React.FC<HomePageProps> = ({
             Elige un punto de partida, personalízalo en línea y revisa tu pieza en 3D antes de pedirla.
           </p>
         </div>
+
+        <article className="brand-card group relative mb-5 grid overflow-hidden rounded-2xl transition-all duration-300 md:grid-cols-[1.15fr_1fr]">
+          <div className="order-2 flex flex-col justify-center p-6 sm:p-8 md:order-1">
+            <p className="brand-eyebrow mb-3 flex items-center gap-2">
+              <span className="rounded-full border border-red-300/40 bg-red-400/15 px-2 py-0.5 text-red-200">Nuevo</span>
+              Temporada navideña
+            </p>
+            <h3 className="text-2xl sm:text-3xl font-black text-white font-outfit">Decoraciones de árbol con tus fotos</h3>
+            <p className="mt-3 max-w-md text-sm leading-relaxed text-slate-400">
+              Regalo con moño, esfera, árbol, estrella, campana o casita. Sube tu foto, elige colores y cuelga tu historia en el árbol.
+            </p>
+            <button
+              onClick={onOpenChristmasStudio}
+              className="brand-primary mt-6 inline-flex w-fit items-center gap-2 rounded-lg px-5 py-3 text-xs font-bold uppercase tracking-[0.12em] transition-all"
+            >
+              <TreePine className="w-4 h-4" />
+              Crear mi decoración
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="relative order-1 h-52 overflow-hidden md:order-2 md:h-auto md:min-h-[17rem]">
+            <img src="/brand/navidad.svg" alt="Decoraciones navideñas 3D con foto colgadas de un cordón dorado" loading="lazy" className="brand-card-image absolute inset-0 h-full w-full object-cover" />
+          </div>
+        </article>
 
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
           {services.map((service) => {

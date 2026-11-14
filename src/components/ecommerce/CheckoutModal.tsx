@@ -7,6 +7,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useCurrency } from '../../context/CurrencyContext';
 import { COLOMBIA_DEPARTMENTS, getMunicipalitiesForDepartment } from '../../lib/colombiaData';
 import { collarIconLabel } from '../../core/collarIcons';
+import { ORNAMENT_SHAPE_LABELS, ORNAMENT_WINDOW_LABELS } from '../../core/ornamentConfig';
 import { X, CheckCircle2, Download, Truck, ArrowLeft, User, Plus, MapPin, Edit2, ShieldCheck, MessageSquare, Wallet } from 'lucide-react';
 import { BRAND, getWhatsAppUrl } from '../../lib/brand';
 
@@ -134,6 +135,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         }
         if (it.itemType === 'plate' && it.plateConfig) {
           return `• Placa llavero 3D "${it.plateConfig.text}"${it.plateConfig.subtitle ? ` / ${it.plateConfig.subtitle}` : ''} (${it.plateConfig.width}×${it.plateConfig.height}mm)\n  - Relieve: ${it.plateConfig.relief} mm · Grosor: ${it.plateConfig.thickness} mm\n  - Colores: base ${it.plateConfig.baseColor}, texto ${it.plateConfig.detailColor}\n  - Precio: ${formattedPrice}`;
+        }
+        if (it.itemType === 'ornament' && it.ornamentConfig) {
+          const o = it.ornamentConfig;
+          return `• Decoración navideña 3D con foto — ${ORNAMENT_SHAPE_LABELS[o.shape]} (${o.size} mm)\n  - Ventana: ${ORNAMENT_WINDOW_LABELS[o.window]}${o.text ? ` · Texto: "${o.text}"` : ''}\n  - Colores: cuerpo ${o.bodyColor}, relieve ${o.accentColor}\n  - Precio: ${formattedPrice}`;
         }
         const notesText = it.config.notes ? `\n  - Observaciones: ${it.config.notes}` : '';
         return `• Litofanía ${it.config.shape === 'arc' ? 'Curvada (Arco)' : it.config.shape === 'flat' ? 'Plana' : 'Cilíndrica'} (${it.config.width}x${it.config.height}mm)\n  - Soporte: ${it.config.baseType === 'night-light' ? 'Luz de Noche LED (Socket)' : it.config.baseType === 'flat-stand' ? 'Soporte Escritorio' : 'Sin Base'}${notesText}\n  - Precio: ${formattedPrice}`;
@@ -722,6 +727,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                           ? `${it.clickerConfig.type === 'clicker' ? 'Clicker MX 3D' : 'Llavero 3D'} (${it.clickerConfig.size}mm)`
                           : it.itemType === 'plate' && it.plateConfig
                           ? `Placa llavero 3D — ${it.plateConfig.text} (${it.plateConfig.width}×${it.plateConfig.height}mm)`
+                          : it.itemType === 'ornament' && it.ornamentConfig
+                          ? `Decoración navideña — ${ORNAMENT_SHAPE_LABELS[it.ornamentConfig.shape]} (${it.ornamentConfig.size} mm)`
                           : `Litofanía ${it.config.shape === 'arc' ? 'Curvada' : it.config.shape === 'flat' ? 'Plana' : 'Cilíndrica'} (${it.config.width}x${it.config.height}mm)`}
                     </span>
                     <span className="font-semibold text-slate-200">{formattedItemPrice}</span>

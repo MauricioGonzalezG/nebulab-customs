@@ -26,9 +26,11 @@ import { BRAND, getWhatsAppUrl } from './lib/brand';
 import { captureAttribution, trackPageView, pathForView, trackAddToCart, trackBeginCheckout, trackPurchase, trackViewItem } from './lib/analytics';
 
 const PlateStudio = lazy(() => import('./components/plates/PlateStudio').then(module => ({ default: module.PlateStudio })));
+const OrnamentStudio = lazy(() => import('./components/ornament/OrnamentStudio').then(module => ({ default: module.OrnamentStudio })));
 
-const getViewFromPath = (path: string): 'home' | 'studio' | 'clicker' | 'collar' | 'plates' | 'admin' => {
+const getViewFromPath = (path: string): 'home' | 'studio' | 'clicker' | 'collar' | 'plates' | 'christmas' | 'admin' => {
   const p = path.toLowerCase();
+  if (p.includes('/navidad') || p.includes('/decoraciones')) return 'christmas';
   if (p.includes('/placas')) return 'plates';
   if (p.includes('/collar') || p.includes('/mascota')) return 'collar';
   if (p.includes('/clicker') || p.includes('/llavero')) return 'clicker';
@@ -42,7 +44,7 @@ export const App: React.FC = () => {
   const { formatPrice } = useCurrency();
 
   // Navigation view state initialized from current URL path
-  const [currentView, setCurrentView] = useState<'home' | 'studio' | 'clicker' | 'collar' | 'plates' | 'admin'>(() =>
+  const [currentView, setCurrentView] = useState<'home' | 'studio' | 'clicker' | 'collar' | 'plates' | 'christmas' | 'admin'>(() =>
     getViewFromPath(window.location.pathname)
   );
 
@@ -144,6 +146,7 @@ export const App: React.FC = () => {
     if (currentView === 'studio') trackViewItem({ item_id: 'litofania', item_name: 'Litofanía personalizada' });
     if (currentView === 'clicker') trackViewItem({ item_id: 'clicker', item_name: 'Clicker personalizado' });
     if (currentView === 'plates') trackViewItem({ item_id: 'placas', item_name: 'Placa personalizada' });
+    if (currentView === 'christmas') trackViewItem({ item_id: 'navidad', item_name: 'Decoración navideña con foto' });
     if (currentView === 'collar') trackViewItem({ item_id: 'collar', item_name: 'Collar para mascota' });
   }, [currentView]);
 
@@ -263,8 +266,15 @@ export const App: React.FC = () => {
   };
 
 
-  // Descarga el archivo 3D del ítem comprado (solo administradores): placa o litofanía en edición.
+  // Descarga el archivo 3D del ítem comprado (solo administradores): placa, adorno o litofanía en edición.
   const handleDownloadOrderItem = (item?: CartItem) => {
+    if (item?.itemType === 'ornament' && item.ornamentConfig) {
+      const ornamentConfig = item.ornamentConfig;
+      import('./core/ornamentExporter')
+        .then(({ downloadOrnamentFile }) => downloadOrnamentFile(ornamentConfig, 'stl'))
+        .catch((err) => console.error('Error exportando decoración navideña:', err));
+      return;
+    }
     if (item?.itemType === 'plate' && item.plateConfig) {
       const plateConfig = item.plateConfig;
       import('./core/plateExporter')
@@ -337,10 +347,10 @@ export const App: React.FC = () => {
     return () => window.removeEventListener('popstate', handlePopState);
   }, [isAuthenticated]);
 
-  const navigateTo = (view: 'home' | 'studio' | 'clicker' | 'collar' | 'plates' | 'admin') => {
+  const navigateTo = (view: 'home' | 'studio' | 'clicker' | 'collar' | 'plates' | 'christmas' | 'admin') => {
     setCurrentView(view);
     const targetPath =
-      view === 'plates' ? '/placas' : view === 'collar'
+      view === 'christmas' ? '/navidad' : view === 'plates' ? '/placas' : view === 'collar'
         ? '/collares'
         : view === 'clicker'
           ? '/clickers'
@@ -388,6 +398,7 @@ export const App: React.FC = () => {
         onNavigateClicker={() => navigateTo('clicker')}
         onNavigateCollar={() => navigateTo('collar')}
         onNavigatePlates={() => navigateTo('plates')}
+        onNavigateChristmas={() => navigateTo('christmas')}
         onOpenMyOrders={() => setIsMyOrdersOpen(true)}
         onOpenCustomerAuth={() => setIsCustomerAuthOpen(true)}
         customerName={customerUser?.name || null}
@@ -402,12 +413,21 @@ export const App: React.FC = () => {
           onOpenClickerStudio={() => navigateTo('clicker')}
           onOpenCollarStudio={() => navigateTo('collar')}
           onOpenPlateStudio={() => navigateTo('plates')}
+          onOpenChristmasStudio={() => navigateTo('christmas')}
           onOpenAuth={() => setIsCustomerAuthOpen(true)}
           onOpenMyOrders={() => setIsMyOrdersOpen(true)}
         />
       ) : currentView === 'plates' ? (
         <Suspense fallback={<p className="p-10 text-center text-slate-400">Cargando Placas…</p>}>
           <PlateStudio
+            onBackToHome={() => navigateTo('home')}
+            onAddToCart={handleAddToCart}
+            onBuyNow={handleBuyNow}
+          />
+        </Suspense>
+      ) : currentView === 'christmas' ? (
+        <Suspense fallback={<p className="p-10 text-center text-slate-400">Cargando Navidad…</p>}>
+          <OrnamentStudio
             onBackToHome={() => navigateTo('home')}
             onAddToCart={handleAddToCart}
             onBuyNow={handleBuyNow}

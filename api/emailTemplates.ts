@@ -28,6 +28,12 @@ const COLLAR_ICON_LABELS: Record<string, string> = {
   diamond: 'Diamante', music: 'Música', sun: 'Sol', leaf: 'Hoja',
 };
 
+// Etiquetas de las decoraciones navideñas (mismas que en src/core/ornamentConfig).
+const ORNAMENT_SHAPE_LABELS: Record<string, string> = {
+  gift: 'Regalo con moño', bauble: 'Esfera', tree: 'Árbol', star: 'Estrella', bell: 'Campana', house: 'Casita',
+};
+const ORNAMENT_WINDOW_LABELS: Record<string, string> = { arch: 'Arco', circle: 'Círculo', square: 'Cuadro' };
+
 // Los montos de la orden se persisten en USD; al mostrarlos en COP se aplica
 // la tasa de la tienda (1 USD = 4000 COP), igual que en el checkout.
 const COP_RATE = 4000;
@@ -70,6 +76,18 @@ const getItemDescriptionHtml = (item: any): string => {
         Borde: <span style="color: #cbd5e1;">${plate.border ? 'Sí' : 'No'}</span><br/>
         Colores: <span style="color: #cbd5e1;">base ${plate.baseColor}</span> | 
         <span style="color: #cbd5e1;">texto ${plate.detailColor}</span>
+      </div>
+    `;
+  }
+
+  if (item.itemType === 'ornament' && item.ornamentConfig) {
+    const ornament = item.ornamentConfig;
+    return `
+      <div style="font-size: 13px; color: #94a3b8; line-height: 1.5; margin-top: 4px;">
+        Forma: <strong style="color: #f1f5f9;">${ORNAMENT_SHAPE_LABELS[ornament.shape] || ornament.shape}</strong> (${ornament.size}mm) | 
+        Ventana: <span style="color: #cbd5e1;">${ORNAMENT_WINDOW_LABELS[ornament.window] || ornament.window}</span>${ornament.text ? ` | Texto: <span style="color: #cbd5e1;">${ornament.text}</span>` : ''}<br/>
+        Colores: <span style="color: #cbd5e1;">cuerpo ${ornament.bodyColor}</span> | 
+        <span style="color: #cbd5e1;">relieve ${ornament.accentColor}</span>
       </div>
     `;
   }
@@ -205,7 +223,7 @@ export const buildCustomerOrderEmail = (order: any): { subject: string; html: st
           <tr>
             <td style="vertical-align: top;">
               <div style="font-size: 15px; font-weight: 700; color: #f8fafc;">
-                ${item.title || (item.itemType === 'collar' ? 'Collar para Mascota 3D' : item.itemType === 'clicker' ? 'Clicker / Llavero 3D' : item.itemType === 'plate' ? 'Placa Llavero 3D Personalizada' : 'Litofanía 3D Personalizada')}
+                ${item.title || (item.itemType === 'collar' ? 'Collar para Mascota 3D' : item.itemType === 'clicker' ? 'Clicker / Llavero 3D' : item.itemType === 'plate' ? 'Placa Llavero 3D Personalizada' : item.itemType === 'ornament' ? 'Decoración Navideña 3D con Foto' : 'Litofanía 3D Personalizada')}
                 <span style="color: #38bdf8; font-size: 13px; font-weight: 500;"> x${item.quantity}</span>
               </div>
               ${getItemDescriptionHtml(item)}
@@ -309,7 +327,7 @@ export const buildAdminNewOrderEmail = (order: any): { subject: string; html: st
       (item: any) => `
       <div style="padding: 12px; background-color: #0f172a; border-radius: 10px; margin-bottom: 8px; border: 1px solid #1e293b;">
         <strong style="color: #f8fafc; font-size: 14px;">
-          ${item.title || (item.itemType === 'collar' ? 'Collar 3D' : item.itemType === 'clicker' ? 'Clicker/Llavero 3D' : item.itemType === 'plate' ? 'Placa Llavero 3D' : 'Litofanía 3D')} (x${item.quantity})
+          ${item.title || (item.itemType === 'collar' ? 'Collar 3D' : item.itemType === 'clicker' ? 'Clicker/Llavero 3D' : item.itemType === 'plate' ? 'Placa Llavero 3D' : item.itemType === 'ornament' ? 'Decoración Navideña 3D' : 'Litofanía 3D')} (x${item.quantity})
         </strong>
         ${getItemDescriptionHtml(item)}
       </div>

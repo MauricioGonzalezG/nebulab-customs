@@ -44,6 +44,14 @@ export interface PricingData {
     largePriceCop: number;
     largePriceUsd: number;
   };
+  ornaments: {
+    smallPriceCop: number;
+    smallPriceUsd: number;
+    mediumPriceCop: number;
+    mediumPriceUsd: number;
+    largePriceCop: number;
+    largePriceUsd: number;
+  };
 }
 
 const DEFAULT_XML = `<?xml version="1.0" encoding="UTF-8"?>
@@ -85,6 +93,12 @@ const DEFAULT_XML = `<?xml version="1.0" encoding="UTF-8"?>
       <unitPrice cop="10000" usd="2.50" />
       <largePrice cop="14000" usd="3.50" />
     </plates>
+
+    <ornaments>
+      <smallPrice cop="12000" usd="3.00" />
+      <mediumPrice cop="15000" usd="3.75" />
+      <largePrice cop="20000" usd="5.00" />
+    </ornaments>
   </products>
 </pricingConfig>`;
 
@@ -147,6 +161,10 @@ export function parsePricingXml(xmlText: string): PricingData {
   const platesUnitEl = platesEl?.querySelector('unitPrice');
   const platesLargeEl = platesEl?.querySelector('largePrice');
 
+  const ornamentsEl = xmlDoc.querySelector('ornaments');
+  const ornamentPrice = (tag: string, attribute: 'cop' | 'usd', fallback: string) =>
+    parseFloat(ornamentsEl?.querySelector(tag)?.getAttribute(attribute) || fallback);
+
   return {
     defaultCurrency,
     currencies: currencyMap,
@@ -184,6 +202,14 @@ export function parsePricingXml(xmlText: string): PricingData {
       unitPriceUsd: parseFloat(platesUnitEl?.getAttribute('usd') || '2.50'),
       largePriceCop: parseFloat(platesLargeEl?.getAttribute('cop') || '14000'),
       largePriceUsd: parseFloat(platesLargeEl?.getAttribute('usd') || '3.50'),
+    },
+    ornaments: {
+      smallPriceCop: ornamentPrice('smallPrice', 'cop', '12000'),
+      smallPriceUsd: ornamentPrice('smallPrice', 'usd', '3.00'),
+      mediumPriceCop: ornamentPrice('mediumPrice', 'cop', '15000'),
+      mediumPriceUsd: ornamentPrice('mediumPrice', 'usd', '3.75'),
+      largePriceCop: ornamentPrice('largePrice', 'cop', '20000'),
+      largePriceUsd: ornamentPrice('largePrice', 'usd', '5.00'),
     },
   };
 }

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ShoppingBag, Box, HelpCircle, LayoutDashboard, User, Package, Home, Key, Heart, MessageCircle, Menu, X } from 'lucide-react';
+import { ShoppingBag, Box, HelpCircle, LayoutDashboard, User, Package, Home, Key, Heart, MessageCircle, Menu, X, TreePine } from 'lucide-react';
 import { CurrencySelector, useCurrency } from '../context/CurrencyContext';
 import { BRAND, getWhatsAppUrl } from '../lib/brand';
 
@@ -15,11 +15,12 @@ interface HeaderProps {
   onNavigateClicker?: () => void;
   onNavigateCollar?: () => void;
   onNavigatePlates?: () => void;
+  onNavigateChristmas?: () => void;
   onOpenMyOrders: () => void;
   onOpenCustomerAuth: () => void;
   customerName?: string | null;
   isAdminAuthenticated?: boolean;
-  currentView?: 'home' | 'studio' | 'clicker' | 'collar' | 'plates' | 'admin';
+  currentView?: 'home' | 'studio' | 'clicker' | 'collar' | 'plates' | 'christmas' | 'admin';
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -33,6 +34,7 @@ export const Header: React.FC<HeaderProps> = ({
   onNavigateClicker,
   onNavigateCollar,
   onNavigatePlates,
+  onNavigateChristmas,
   onOpenMyOrders,
   onOpenCustomerAuth,
   customerName,
@@ -124,6 +126,11 @@ export const Header: React.FC<HeaderProps> = ({
               <Key className="w-3.5 h-3.5 text-yellow-300" /> Placas
             </button>
           )}
+          {onNavigateChristmas && (
+            <button onClick={() => { onNavigateChristmas(); closeMobileMenu(); }} title="Decoraciones navideñas con foto" className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap transition-all ${currentView === 'christmas' ? 'brand-nav-active' : 'brand-nav-inactive'}`}>
+              <TreePine className="w-3.5 h-3.5 text-red-400" /> Navidad
+            </button>
+          )}
         </nav>
 
 
@@ -190,7 +197,7 @@ export const Header: React.FC<HeaderProps> = ({
             className="relative flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-violet-600 hover:from-cyan-400 hover:to-violet-500 text-white font-semibold text-xs shadow-lg shadow-cyan-500/20 transition-all duration-200 hover:scale-[1.02] active:scale-95 shrink-0"
           >
             <ShoppingBag className="w-4 h-4" />
-            <span className="hidden md:inline">Carrito</span>
+            <span className="hidden md:inline lg:hidden xl:inline">Carrito</span>
             
             {cartCount > 0 && (
               <div className="flex items-center gap-1.5">
@@ -240,6 +247,11 @@ export const Header: React.FC<HeaderProps> = ({
           {onNavigatePlates && (
             <button onClick={() => { onNavigatePlates(); closeMobileMenu(); }} className="brand-mobile-item">
               <Key className="w-4 h-4 text-yellow-300" /> Placas
+            </button>
+          )}
+          {onNavigateChristmas && (
+            <button onClick={() => { onNavigateChristmas(); closeMobileMenu(); }} className="brand-mobile-item">
+              <TreePine className="w-4 h-4 text-red-400" /> Decoraciones navideñas
             </button>
           )}
           {customerName ? (

@@ -187,7 +187,7 @@ export function trackPurchase(opts: { transaction_id: string; value: number; num
 }
 
 /** Permite saber qué vista de la app corresponde a cada ruta virtual. */
-export function pathForView(view: 'home' | 'studio' | 'clicker' | 'collar' | 'plates' | 'admin'): string {
+export function pathForView(view: 'home' | 'studio' | 'clicker' | 'collar' | 'plates' | 'christmas' | 'admin'): string {
   switch (view) {
     case 'studio':
       return '/litofanias';
@@ -195,6 +195,8 @@ export function pathForView(view: 'home' | 'studio' | 'clicker' | 'collar' | 'pl
       return '/clickers';
     case 'plates':
       return '/placas';
+    case 'christmas':
+      return '/navidad';
     case 'collar':
       return '/collares';
     case 'admin':

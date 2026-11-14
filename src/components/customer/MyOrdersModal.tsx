@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useCurrency } from '../../context/CurrencyContext';
 import { tursoService } from '../../lib/turso';
 import { Order } from '../../types';
+import { ORNAMENT_SHAPE_LABELS } from '../../core/ornamentConfig';
 import { X, Package, Clock, CheckCircle2, XCircle, Search, Truck, Box, Calendar, LogOut, Lock, KeyRound, User, AlertCircle } from 'lucide-react';
 
 interface MyOrdersModalProps {
@@ -294,6 +295,15 @@ export const MyOrdersModal: React.FC<MyOrdersModalProps> = ({
                               </span>
                               <span className="text-slate-500 block">
                                 Texto: {it.plateConfig.text}{it.plateConfig.subtitle ? ` · ${it.plateConfig.subtitle}` : ''} • {it.plateConfig.width}×{it.plateConfig.height}mm
+                              </span>
+                            </>
+                          ) : it.itemType === 'ornament' && it.ornamentConfig ? (
+                            <>
+                              <span className="font-semibold text-slate-200">
+                                Decoración Navideña 3D
+                              </span>
+                              <span className="text-slate-500 block">
+                                Forma: {ORNAMENT_SHAPE_LABELS[it.ornamentConfig.shape]} • {it.ornamentConfig.size}mm{it.ornamentConfig.text ? ` • Texto: ${it.ornamentConfig.text}` : ''}
                               </span>
                             </>
                           ) : (
